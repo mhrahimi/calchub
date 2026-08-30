@@ -1,0 +1,371 @@
+import type { CalculatorMeta, CategoryMeta } from './types'
+
+export const CATEGORIES: CategoryMeta[] = [
+  { slug: 'financial', title: 'Financial', description: 'Loans, mortgages, investments, and savings tools.' },
+  { slug: 'tax-salary', title: 'Tax & Salary', description: 'Income tax, salary conversion, and take-home pay.' },
+  { slug: 'investing', title: 'Investing', description: 'Options pricing, bonds, and portfolio analysis.' },
+  { slug: 'corporate-finance', title: 'Corporate Finance', description: 'Cap tables, waterfalls, DCF, and LBO models.' },
+  { slug: 'math', title: 'Math', description: 'Fractions, bases, GCF/LCM, and number tools.' },
+  { slug: 'statistics', title: 'Statistics', description: 'Standard deviation, p-values, and confidence intervals.' },
+  { slug: 'geometry', title: 'Geometry & Trigonometry', description: 'Triangles, angles, and trigonometric functions.' },
+  { slug: 'date-time', title: 'Date & Time', description: 'Date differences and calendar calculations.' },
+  { slug: 'conversions', title: 'Conversions', description: 'Unit and measurement conversions.' },
+]
+
+export const CALCULATOR_REGISTRY: CalculatorMeta[] = [
+  {
+    id: 'amortization',
+    title: 'Amortization Calculator',
+    description: 'Estimate payments, interest, and amortization schedules.',
+    categories: ['financial'],
+    categorySlug: 'financial',
+    keywords: ['amortization', 'loan schedule', 'principal', 'interest', 'extra payment', 'payoff'],
+    icon: 'Table',
+    implemented: true,
+    route: '/calculators/amortization',
+  },
+  {
+    id: 'mortgage',
+    title: 'Mortgage Calculator',
+    description: 'Estimate payments, interest, and total housing costs.',
+    categories: ['financial', 'home'],
+    categorySlug: 'financial',
+    keywords: ['mortgage', 'house', 'home', 'payment', 'interest', 'loan', 'amortization', 'PMI', 'HOA', 'house payment'],
+    icon: 'Home',
+    implemented: true,
+    route: '/calculators/mortgage',
+    popular: true,
+  },
+  {
+    id: 'investment',
+    title: 'Investment Calculator',
+    description: 'Project investment growth with contributions and returns.',
+    categories: ['financial'],
+    categorySlug: 'financial',
+    keywords: ['investment', 'investment return', 'future value', 'contribution', 'compound', 'return'],
+    icon: 'TrendingUp',
+    implemented: true,
+    route: '/calculators/investment',
+    popular: true,
+  },
+  {
+    id: 'compound-interest',
+    title: 'Compound Interest Calculator',
+    description: 'Calculate compound growth with optional contributions.',
+    categories: ['financial'],
+    categorySlug: 'financial',
+    keywords: ['compound', 'compound interest', 'principal', 'contribution', 'inflation'],
+    icon: 'Percent',
+    implemented: true,
+    route: '/calculators/compound-interest',
+    popular: true,
+  },
+  {
+    id: 'loan',
+    title: 'Loan Calculator',
+    description: 'Calculate loan payments including auto loan financing.',
+    categories: ['financial'],
+    categorySlug: 'financial',
+    keywords: ['loan', 'car loan', 'auto', 'APR', 'payment', 'balloon', 'vehicle'],
+    icon: 'Landmark',
+    implemented: true,
+    route: '/calculators/loan',
+    popular: true,
+  },
+  {
+    id: 'retirement',
+    title: 'Retirement Calculator',
+    description: 'Project retirement savings and withdrawal needs.',
+    categories: ['financial'],
+    categorySlug: 'financial',
+    keywords: ['retirement', '401k', 'pension', 'nest egg', 'withdrawal'],
+    icon: 'PiggyBank',
+    implemented: true,
+    route: '/calculators/retirement',
+  },
+  {
+    id: 'interest-rate',
+    title: 'Interest Rate Calculator',
+    description: 'Solve for the implied interest rate on a loan.',
+    categories: ['financial'],
+    categorySlug: 'financial',
+    keywords: ['interest rate', 'APR', 'rate solve', 'implied rate'],
+    icon: 'Calculator',
+    implemented: true,
+    route: '/calculators/interest-rate',
+  },
+  {
+    id: 'inflation',
+    title: 'Inflation Calculator',
+    description: 'Adjust amounts for inflation and purchasing power.',
+    categories: ['financial'],
+    categorySlug: 'financial',
+    keywords: ['inflation', 'CPI', 'purchasing power', 'real value'],
+    icon: 'TrendingUp',
+    implemented: true,
+    route: '/calculators/inflation',
+  },
+  {
+    id: 'dti',
+    title: 'Debt-to-Income Calculator',
+    description: 'Calculate front-end and back-end debt ratios.',
+    categories: ['financial'],
+    categorySlug: 'financial',
+    keywords: ['DTI', 'debt to income', 'housing ratio', 'lending'],
+    icon: 'Gauge',
+    implemented: true,
+    route: '/calculators/dti',
+  },
+  {
+    id: 'savings-goal',
+    title: 'Savings Goal Calculator',
+    description: 'Find contributions needed to reach a savings target.',
+    categories: ['financial'],
+    categorySlug: 'financial',
+    keywords: ['savings goal', 'target', 'contribution', 'save'],
+    icon: 'Target',
+    implemented: true,
+    route: '/calculators/savings-goal',
+  },
+  {
+    id: 'salary',
+    title: 'Salary Calculator',
+    description: 'Convert salary frequencies and estimate take-home pay.',
+    categories: ['tax-salary'],
+    categorySlug: 'tax-salary',
+    keywords: ['salary', 'take home', 'paycheck', 'hourly', 'annual', 'net pay'],
+    icon: 'Wallet',
+    implemented: true,
+    route: '/calculators/salary',
+    popular: true,
+  },
+  {
+    id: 'income-tax',
+    title: 'Income Tax Calculator',
+    description: 'Estimate federal and state/provincial income tax.',
+    categories: ['tax-salary'],
+    categorySlug: 'tax-salary',
+    keywords: ['income tax', 'tax', 'federal', 'state', 'provincial', 'brackets'],
+    icon: 'Receipt',
+    implemented: true,
+    route: '/calculators/income-tax',
+    popular: true,
+  },
+  {
+    id: 'black-scholes',
+    title: 'Black-Scholes Options Pricing',
+    description: 'Price European call and put options with Greeks.',
+    categories: ['investing'],
+    categorySlug: 'investing',
+    keywords: ['black scholes', 'options', 'call', 'put', 'greeks', 'volatility'],
+    icon: 'LineChart',
+    implemented: true,
+    route: '/calculators/black-scholes',
+  },
+  {
+    id: 'bonds',
+    title: 'Bond Yield to Maturity & Duration',
+    description: 'Calculate YTM, Macaulay duration, and bond pricing.',
+    categories: ['investing'],
+    categorySlug: 'investing',
+    keywords: ['bond', 'YTM', 'yield', 'duration', 'coupon'],
+    icon: 'Building2',
+    implemented: true,
+    route: '/calculators/bonds',
+  },
+  {
+    id: 'cap-table',
+    title: 'Cap Table & Equity Dilution',
+    description: 'Model ownership through financing rounds.',
+    categories: ['corporate-finance'],
+    categorySlug: 'corporate-finance',
+    keywords: ['cap table', 'equity', 'dilution', 'startup', 'shares'],
+    icon: 'Layers',
+    implemented: true,
+    route: '/calculators/cap-table',
+  },
+  {
+    id: 'cre-waterfall',
+    title: 'Commercial Real Estate Waterfalls',
+    description: 'Model tiered LP/GP cash flow distributions.',
+    categories: ['corporate-finance'],
+    categorySlug: 'corporate-finance',
+    keywords: ['CRE', 'waterfall', 'real estate', 'LP', 'GP', 'promote'],
+    icon: 'Building2',
+    implemented: true,
+    route: '/calculators/cre-waterfall',
+  },
+  {
+    id: 'dcf-lbo',
+    title: 'DCF & LBO Models',
+    description: 'Discounted cash flow and leveraged buyout modeling.',
+    categories: ['corporate-finance'],
+    categorySlug: 'corporate-finance',
+    keywords: ['DCF', 'LBO', 'valuation', 'WACC', 'IRR', 'MOIC'],
+    icon: 'TrendingUp',
+    implemented: true,
+    route: '/calculators/dcf-lbo',
+  },
+  {
+    id: 'number-base',
+    title: 'Number Base Converter',
+    description: 'Convert numbers between bases 2 through 36.',
+    categories: ['math'],
+    categorySlug: 'math',
+    keywords: ['base', 'binary', 'hex', 'octal', 'convert'],
+    icon: 'Binary',
+    implemented: true,
+    route: '/calculators/number-base',
+  },
+  {
+    id: 'fractions-percentage',
+    title: 'Fraction & Percentage Calculator',
+    description: 'Exact fraction arithmetic and percentage calculations.',
+    categories: ['math'],
+    categorySlug: 'math',
+    keywords: ['fraction', 'percentage', 'percent', 'ratio'],
+    icon: 'Divide',
+    implemented: true,
+    route: '/calculators/fractions-percentage',
+  },
+  {
+    id: 'standard-deviation',
+    title: 'Standard Deviation Calculator',
+    description: 'Calculate population and sample standard deviation.',
+    categories: ['statistics'],
+    categorySlug: 'statistics',
+    keywords: ['standard deviation', 'variance', 'statistics', 'SD'],
+    icon: 'BarChart3',
+    implemented: true,
+    route: '/calculators/standard-deviation',
+    popular: true,
+  },
+  {
+    id: 'random-number',
+    title: 'Random Number Generator',
+    description: 'Generate random integers or decimals in a range.',
+    categories: ['math'],
+    categorySlug: 'math',
+    keywords: ['random', 'number generator', 'RNG'],
+    icon: 'Shuffle',
+    implemented: true,
+    route: '/calculators/random-number',
+  },
+  {
+    id: 'triangle',
+    title: 'Triangle Calculator',
+    description: 'Solve triangles using sides and angles.',
+    categories: ['geometry'],
+    categorySlug: 'geometry',
+    keywords: ['triangle', 'SSS', 'SAS', 'law of sines', 'law of cosines'],
+    icon: 'Triangle',
+    implemented: true,
+    route: '/calculators/triangle',
+  },
+  {
+    id: 'trigonometry',
+    title: 'Trigonometry Calculator',
+    description: 'Right triangle and trigonometric function calculations.',
+    categories: ['geometry'],
+    categorySlug: 'geometry',
+    keywords: ['trigonometry', 'sin', 'cos', 'tan', 'angle'],
+    icon: 'Compass',
+    implemented: true,
+    route: '/calculators/trigonometry',
+  },
+  {
+    id: 'p-value',
+    title: 'P-Value & Confidence Interval',
+    description: 'Hypothesis testing and confidence intervals.',
+    categories: ['statistics'],
+    categorySlug: 'statistics',
+    keywords: ['p value', 'p-value', 'confidence interval', 'hypothesis', 't test'],
+    icon: 'FlaskConical',
+    implemented: true,
+    route: '/calculators/p-value',
+  },
+  {
+    id: 'gcf-lcm',
+    title: 'GCF & LCM Calculator',
+    description: 'Find greatest common factor and least common multiple.',
+    categories: ['math'],
+    categorySlug: 'math',
+    keywords: ['GCF', 'LCM', 'gcd', 'lcm', 'factor'],
+    icon: 'Hash',
+    implemented: true,
+    route: '/calculators/gcf-lcm',
+  },
+  {
+    id: 'date',
+    title: 'Date Calculator',
+    description: 'Calculate date differences and add or subtract dates.',
+    categories: ['date-time'],
+    categorySlug: 'date-time',
+    keywords: ['date', 'date difference', 'calendar', 'days between'],
+    icon: 'Calendar',
+    implemented: true,
+    route: '/calculators/date',
+  },
+  {
+    id: 'conversion',
+    title: 'Conversion Calculator',
+    description: 'Convert between units of length, weight, volume, and more.',
+    categories: ['conversions'],
+    categorySlug: 'conversions',
+    keywords: ['convert', 'unit', 'metric', 'imperial', 'kg', 'temperature'],
+    icon: 'ArrowLeftRight',
+    implemented: true,
+    route: '/calculators/conversion',
+  },
+]
+
+export const POPULAR_IDS = [
+  'mortgage',
+  'compound-interest',
+  'income-tax',
+  'salary',
+  'investment',
+  'loan',
+  'standard-deviation',
+]
+
+export const RECOMMENDED_IDS = ['mortgage', 'compound-interest', 'investment', 'loan', 'savings-goal']
+
+export function getCalculatorById(id: string): CalculatorMeta | undefined {
+  return CALCULATOR_REGISTRY.find((c) => c.id === id)
+}
+
+export function getImplementedCalculators(): CalculatorMeta[] {
+  return CALCULATOR_REGISTRY.filter((c) => c.implemented)
+}
+
+export function getByCategory(slug: string): CalculatorMeta[] {
+  return getImplementedCalculators().filter((c) => c.categorySlug === slug)
+}
+
+export function getPopularCalculators(): CalculatorMeta[] {
+  return POPULAR_IDS.map((id) => getCalculatorById(id)).filter(
+    (c): c is CalculatorMeta => c !== undefined && c.implemented,
+  )
+}
+
+export function getCategory(slug: string): CategoryMeta | undefined {
+  return CATEGORIES.find((c) => c.slug === slug)
+}
+
+export function searchCalculators(query: string): CalculatorMeta[] {
+  const q = query.trim().toLowerCase()
+  if (!q) return []
+
+  return getImplementedCalculators().filter((calc) => {
+    const haystack = [
+      calc.title,
+      calc.description,
+      ...calc.keywords,
+      ...calc.categories,
+    ]
+      .join(' ')
+      .toLowerCase()
+    return haystack.includes(q) || calc.keywords.some((k) => k.includes(q))
+  })
+}
