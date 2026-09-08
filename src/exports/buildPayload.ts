@@ -1,6 +1,6 @@
 import { getCalculatorById } from '@/calculators/registry'
 import type { CalculationExplanation, ChartData, TableData } from '@/calculators/types'
-import type { ExportPayload, ExportRecord } from './types'
+import type { ExportPayload, ExportRecord, ResultSummaryItem } from './types'
 
 const DISCLAIMER =
   'Calculations are for informational purposes only and are not tax, legal, or investment advice.'
@@ -21,30 +21,41 @@ function flattenInputs(inputs: unknown): Record<string, unknown> {
   return out
 }
 
-function flattenResults(results: unknown): Array<{ label: string; value: string }> {
+export function humanizeKey(key: string): string {
+  const spaced = key
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .trim()
+    .toLowerCase()
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1)
+}
+
+function flattenResults(results: unknown): ResultSummaryItem[] {
   if (!results || typeof results !== 'object') {
-    return [{ label: 'Result', value: String(results ?? '') }]
+    return [{ label: 'Result', value: String(results ?? ''), primary: true }]
   }
-  const rows: Array<{ label: string; value: string }> = []
+  const rows: ResultSummaryItem[] = []
   for (const [key, val] of Object.entries(results as Record<string, unknown>)) {
     if (val === null || val === undefined) continue
     if (Array.isArray(val)) {
       if (val.length <= 5 && val.every((v) => typeof v !== 'object')) {
-        rows.push({ label: key, value: val.join(', ') })
+        rows.push({ label: humanizeKey(key), value: val.join(', ') })
       }
       continue
     }
     if (typeof val === 'object') continue
     if (typeof val === 'number') {
       rows.push({
-        label: key,
+        label: humanizeKey(key),
         value: Number.isInteger(val) ? val.toLocaleString() : val.toLocaleString(undefined, { maximumFractionDigits: 4 }),
       })
     } else {
-      rows.push({ label: key, value: String(val) })
+      rows.push({ label: humanizeKey(key), value: String(val) })
     }
   }
-  return rows.slice(0, 20)
+  const trimmed = rows.slice(0, 20)
+  if (trimmed[0]) trimmed[0] = { ...trimmed[0], primary: true }
+  return trimmed
 }
 
 export async function buildExportPayloadFromRecord(
@@ -56,7 +67,7 @@ export async function buildExportPayloadFromRecord(
     explanation?: CalculationExplanation
     table?: TableData
     charts?: ChartData[]
-    resultsSummary?: Array<{ label: string; value: string }>
+    resultsSummary?: ResultSummaryItem[]
   },
 ): Promise<ExportPayload> {
   const calc = getCalculatorById(record.calculatorId)
@@ -91,7 +102,7 @@ export function buildLiveExportPayload<TInput, TResult>(params: {
   explain: (input: TInput, result: TResult) => CalculationExplanation
   buildTable?: (result: TResult) => TableData
   buildCharts?: (result: TResult) => ChartData[]
-  resultsSummary?: Array<{ label: string; value: string }>
+  resultsSummary?: ResultSummaryItem[]
 }): ExportPayload {
   const calc = getCalculatorById(params.calculatorId)
   return {

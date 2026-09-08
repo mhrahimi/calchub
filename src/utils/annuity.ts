@@ -131,12 +131,15 @@ export function usMonthlyRate(apr: number): number {
 /** Periods per year from frequency string */
 export function periodsPerYear(frequency: string): number {
   const map: Record<string, number> = {
-    monthly: 12,
-    'bi-weekly': 26,
+    daily: 365,
     weekly: 52,
+    'bi-weekly': 26,
+    'bi-monthly': 24,
+    monthly: 12,
     quarterly: 4,
     'semi-annual': 2,
     annual: 1,
+    yearly: 1,
   }
   return map[frequency] ?? 12
 }

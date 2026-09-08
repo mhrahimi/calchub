@@ -3,6 +3,7 @@ import type { CompoundInterestInput, CompoundInterestResult } from './types'
 import type { CalculationExplanation, ChartData, TableData } from '@/calculators/types'
 
 export function calculateCompoundInterest(input: CompoundInterestInput): CompoundInterestResult {
+  const continuous = input.continuous || input.compoundingFrequency === 'continuous'
   const m = periodsPerYear(input.compoundingFrequency)
   const contribPpy = periodsPerYear(input.contributionFrequency)
   const years = input.durationUnit === 'years' ? input.duration : input.duration / 12
@@ -14,7 +15,7 @@ export function calculateCompoundInterest(input: CompoundInterestInput): Compoun
   let totalContributions = input.principal
   const schedule: CompoundInterestResult['schedule'] = []
 
-  if (input.continuous) {
+  if (continuous) {
     const R = input.interestRate / 100
     const steps = Math.max(1, Math.round(years * contribPpy))
     const dt = years / steps
@@ -82,12 +83,13 @@ export function explainCompoundInterest(
   input: CompoundInterestInput,
   result: CompoundInterestResult,
 ): CalculationExplanation {
+  const continuous = input.continuous || input.compoundingFrequency === 'continuous'
   return {
     title: 'Compound interest',
     steps: [
       {
-        label: input.continuous ? 'Continuous compounding' : 'Periodic compounding',
-        expression: input.continuous
+        label: continuous ? 'Continuous compounding' : 'Periodic compounding',
+        expression: continuous
           ? input.contribution > 0
             ? 'Between contributions, B grows by e^(R Δt); contributions applied at the selected timing'
             : 'A = P × e^(R×t)'

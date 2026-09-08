@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { fvEnd, fvBegin, pmtFromFv, pvFromFv, periodsFromFv, pmt } from './annuity'
+import { fvEnd, fvBegin, pmtFromFv, pvFromFv, periodsFromFv, pmt, periodsPerYear } from './annuity'
 
 describe('annuity', () => {
   it('does not extra-compound principal for beginning contributions', () => {
@@ -31,5 +31,15 @@ describe('annuity', () => {
 
   it('matches the standard 6% 30-year payment on $200k', () => {
     expect(pmt(200000, 0.06 / 12, 360)).toBeCloseTo(1199.1, 2)
+  })
+
+  it('maps frequency strings to periods per year', () => {
+    expect(periodsPerYear('daily')).toBe(365)
+    expect(periodsPerYear('weekly')).toBe(52)
+    expect(periodsPerYear('bi-weekly')).toBe(26)
+    expect(periodsPerYear('bi-monthly')).toBe(24)
+    expect(periodsPerYear('monthly')).toBe(12)
+    expect(periodsPerYear('yearly')).toBe(1)
+    expect(periodsPerYear('annual')).toBe(1)
   })
 })

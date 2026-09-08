@@ -65,4 +65,54 @@ describe('compound interest', () => {
     expect(withContrib.finalBalance).toBeGreaterThan(none.finalBalance)
     expect(withContrib.schedule.at(-1)!.balance).toBeCloseTo(withContrib.finalBalance, 1)
   })
+
+  const base = {
+    principal: 10000,
+    interestRate: 7,
+    duration: 10,
+    durationUnit: 'years' as const,
+    contribution: 0,
+    contributionFrequency: 'monthly',
+    contributionTiming: 'end' as const,
+    continuous: false,
+    adjustForInflation: false,
+    inflationRate: 0,
+  }
+
+  it('daily compounding outpaces monthly with no contributions', () => {
+    const monthly = calculateCompoundInterest({ ...base, compoundingFrequency: 'monthly' })
+    const daily = calculateCompoundInterest({ ...base, compoundingFrequency: 'daily' })
+    expect(daily.finalBalance).toBeGreaterThan(monthly.finalBalance)
+  })
+
+  it('treats compoundingFrequency continuous like the continuous flag', () => {
+    const viaFlag = calculateCompoundInterest({ ...base, compoundingFrequency: 'monthly', continuous: true })
+    const viaFreq = calculateCompoundInterest({ ...base, compoundingFrequency: 'continuous', continuous: false })
+    expect(viaFreq.finalBalance).toBeCloseTo(viaFlag.finalBalance, 6)
+    expect(viaFreq.finalBalance).toBeCloseTo(10000 * Math.exp(0.7), 1)
+  })
+
+  it('scales contributions with contribution frequency', () => {
+    const monthly = calculateCompoundInterest({
+      ...base,
+      compoundingFrequency: 'monthly',
+      contribution: 100,
+      contributionFrequency: 'monthly',
+    })
+    const weekly = calculateCompoundInterest({
+      ...base,
+      compoundingFrequency: 'monthly',
+      contribution: 100,
+      contributionFrequency: 'weekly',
+    })
+    const yearly = calculateCompoundInterest({
+      ...base,
+      compoundingFrequency: 'monthly',
+      contribution: 100,
+      contributionFrequency: 'yearly',
+    })
+    expect(weekly.totalContributions).toBeGreaterThan(monthly.totalContributions)
+    expect(monthly.totalContributions).toBeGreaterThan(yearly.totalContributions)
+    expect(weekly.totalContributions - 10000).toBeCloseTo((monthly.totalContributions - 10000) * (52 / 12), 0)
+  })
 })

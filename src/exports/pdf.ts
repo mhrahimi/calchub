@@ -1,7 +1,9 @@
 import type { ExportPayload, PdfExportOptions } from './types'
 import type { TableData } from '@/calculators/types'
+import { drawChart, PDF_CHART_BLOCK_HEIGHT } from './drawChart'
 
 const SUMMARY_ROW_LIMIT = 20
+const PRIMARY_CARD_H = 58
 
 function truncateTable(table: TableData, limit: number): TableData {
   if (table.rows.length <= limit) return table
@@ -78,18 +80,53 @@ export async function exportToPdf(
   addPageIfNeeded(60)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(11)
+  doc.setTextColor(0, 0, 0)
   doc.text('Results', margin, y)
   y += 14
 
-  autoTable(doc, {
-    startY: y,
-    head: [['Metric', 'Value']],
-    body: payload.resultsSummary.map((r) => [r.label, r.value]),
-    margin: { left: margin, right: margin },
-    styles: { fontSize: 9, cellPadding: 4 },
-    headStyles: { fillColor: [22, 59, 140] },
-  })
-  y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 16
+  const primary = payload.resultsSummary.filter((r) => r.primary)
+  const secondary = payload.resultsSummary.filter((r) => !r.primary)
+  for (const item of primary) {
+    addPageIfNeeded(PRIMARY_CARD_H + 12)
+    doc.setFillColor(238, 244, 255)
+    doc.setDrawColor(22, 59, 140)
+    doc.setLineWidth(0.6)
+    doc.roundedRect(margin, y, contentWidth, PRIMARY_CARD_H, 8, 8, 'FD')
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(91, 100, 117)
+    doc.text(item.label, margin + 14, y + 18)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(18)
+    doc.setTextColor(22, 59, 140)
+    doc.text(item.value, margin + 14, y + 42)
+    y += PRIMARY_CARD_H + 10
+  }
+
+  if (secondary.length) {
+    addPageIfNeeded(50)
+    autoTable(doc, {
+      startY: y,
+      head: [['Metric', 'Value']],
+      body: secondary.map((r) => [r.label, r.value]),
+      margin: { left: margin, right: margin },
+      styles: { fontSize: 9, cellPadding: 4 },
+      headStyles: { fillColor: [22, 59, 140] },
+    })
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 16
+  } else if (!primary.length) {
+    autoTable(doc, {
+      startY: y,
+      head: [['Metric', 'Value']],
+      body: [['—', '—']],
+      margin: { left: margin, right: margin },
+      styles: { fontSize: 9, cellPadding: 4 },
+      headStyles: { fillColor: [22, 59, 140] },
+    })
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 16
+  } else {
+    y += 6
+  }
 
   if (payload.explanation) {
     addPageIfNeeded(80)
@@ -158,26 +195,9 @@ export async function exportToPdf(
 
   if (payload.charts?.length) {
     for (const chart of payload.charts) {
-      addPageIfNeeded(60)
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(11)
-      doc.text(chart.title ?? 'Chart data', margin, y)
-      y += 14
-      const rows: string[][] = []
-      for (const series of chart.series) {
-        for (const point of series.data) {
-          rows.push([series.name, String(point.x), String(point.y)])
-        }
-      }
-      autoTable(doc, {
-        startY: y,
-        head: [['Series', 'X', 'Y']],
-        body: rows.slice(0, options.tableMode === 'full' ? rows.length : 40),
-        margin: { left: margin, right: margin },
-        styles: { fontSize: 8, cellPadding: 3 },
-        headStyles: { fillColor: [22, 59, 140] },
-      })
-      y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 16
+      addPageIfNeeded(PDF_CHART_BLOCK_HEIGHT + 8)
+      y += drawChart(doc, chart, margin, y, contentWidth)
+      y += 8
     }
   }
 
