@@ -93,6 +93,7 @@ export default function RetirementPage() {
             grouped
             value={form.annualContribution}
             onValueChange={(n) => set('annualContribution', n)}
+            hint="Negative amounts are withdrawals."
           />
           <Input
             label="Contribution growth"

@@ -22,12 +22,12 @@ export function calculateCompoundInterest(input: CompoundInterestInput): Compoun
     const growth = Math.exp(R * dt)
     const contrib = input.contribution
     for (let p = 1; p <= steps; p++) {
-      if (input.contributionTiming === 'begin' && contrib > 0) {
+      if (input.contributionTiming === 'begin' && contrib !== 0) {
         balance += contrib
         totalContributions += contrib
       }
       balance *= growth
-      if (input.contributionTiming === 'end' && contrib > 0) {
+      if (input.contributionTiming === 'end' && contrib !== 0) {
         balance += contrib
         totalContributions += contrib
       }
@@ -43,13 +43,13 @@ export function calculateCompoundInterest(input: CompoundInterestInput): Compoun
     }
   } else {
     for (let p = 1; p <= totalPeriods; p++) {
-      if (input.contributionTiming === 'begin' && contribPerPeriod > 0) {
+      if (input.contributionTiming === 'begin' && contribPerPeriod !== 0) {
         balance += contribPerPeriod
         totalContributions += contribPerPeriod
       }
       const interest = balance * r
       balance += interest
-      if (input.contributionTiming === 'end' && contribPerPeriod > 0) {
+      if (input.contributionTiming === 'end' && contribPerPeriod !== 0) {
         balance += contribPerPeriod
         totalContributions += contribPerPeriod
       }
@@ -90,7 +90,7 @@ export function explainCompoundInterest(
       {
         label: continuous ? 'Continuous compounding' : 'Periodic compounding',
         expression: continuous
-          ? input.contribution > 0
+          ? input.contribution !== 0
             ? 'Between contributions, B grows by e^(R Δt); contributions applied at the selected timing'
             : 'A = P × e^(R×t)'
           : `A = P × (1 + R/m)^(m×t) plus contributions (${input.contributionTiming} of period)`,

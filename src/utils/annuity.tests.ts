@@ -29,6 +29,24 @@ describe('annuity', () => {
     expect(nSolved!).toBeCloseTo(n, 6)
   })
 
+  it('solves periods for a drawdown to a lower target', () => {
+    const start = 100000
+    const r = 0.05 / 12
+    const pmtAmt = -1000
+    const target = 50000
+    const nSolved = periodsFromFv(start, r, pmtAmt, target)
+    expect(nSolved).not.toBeNull()
+    expect(nSolved!).toBeGreaterThan(0)
+    expect(fvEnd(start, r, nSolved!, pmtAmt)).toBeCloseTo(target, 4)
+
+    const zeroRate = periodsFromFv(100000, 0, -1000, 50000)
+    expect(zeroRate).toBeCloseTo(50, 8)
+  })
+
+  it('returns 0 when a higher savings goal is already met', () => {
+    expect(periodsFromFv(60000, 0.05 / 12, 300, 50000)).toBe(0)
+  })
+
   it('matches the standard 6% 30-year payment on $200k', () => {
     expect(pmt(200000, 0.06 / 12, 360)).toBeCloseTo(1199.1, 2)
   })

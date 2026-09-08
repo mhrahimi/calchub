@@ -18,7 +18,7 @@ export function calculateSavingsGoal(input: SavingsGoalInput): SavingsGoalResult
 
   if (input.solveFor === 'contribution') {
     requiredContribution = pmtFromFv(input.currentSavings, r, n, input.goalAmount)
-    pmt = Math.max(0, requiredContribution)
+    pmt = requiredContribution
     projectedBalance = input.goalAmount
     timeToGoal = years
   } else if (input.solveFor === 'time') {
@@ -52,7 +52,7 @@ export function calculateSavingsGoal(input: SavingsGoalInput): SavingsGoalResult
   const schedule = downsamplePoints(full, 21)
 
   return {
-    requiredContribution: Math.round(Math.max(0, requiredContribution) * 100) / 100,
+    requiredContribution: Math.round(requiredContribution * 100) / 100,
     timeToGoal: Math.round(timeToGoal * 100) / 100,
     projectedBalance: Math.round(projectedBalance * 100) / 100,
     totalContributions: Math.round((input.currentSavings + pmt * n) * 100) / 100,

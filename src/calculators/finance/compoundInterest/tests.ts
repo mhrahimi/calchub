@@ -115,4 +115,17 @@ describe('compound interest', () => {
     expect(monthly.totalContributions).toBeGreaterThan(yearly.totalContributions)
     expect(weekly.totalContributions - 10000).toBeCloseTo((monthly.totalContributions - 10000) * (52 / 12), 0)
   })
+
+  it('treats a negative contribution as a withdrawal', () => {
+    const none = calculateCompoundInterest({ ...base, compoundingFrequency: 'monthly' })
+    const withdraw = calculateCompoundInterest({
+      ...base,
+      compoundingFrequency: 'monthly',
+      contribution: -200,
+      contributionFrequency: 'monthly',
+    })
+    expect(withdraw.finalBalance).toBeLessThan(none.finalBalance)
+    expect(withdraw.totalContributions).toBeLessThan(none.totalContributions)
+    expect(withdraw.totalContributions).toBeCloseTo(10000 - 200 * 12 * 10, 0)
+  })
 })

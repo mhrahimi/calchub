@@ -80,18 +80,29 @@ export function periodsFromFv(
   fvTarget: number,
   beginning = false,
 ): number | null {
-  if (fvTarget <= pvAmount) return 0
+  if (fvTarget === pvAmount) return 0
+
   if (ratePerPeriod === 0) {
-    if (pmtAmount <= 0) return null
-    return (fvTarget - pvAmount) / pmtAmount
+    if (pmtAmount === 0) return null
+    const n = (fvTarget - pvAmount) / pmtAmount
+    if (n < 0) return null
+    return n
   }
+
   const r = ratePerPeriod
   const k = (pmtAmount * (beginning ? 1 + r : 1)) / r
   const denom = pvAmount + k
   if (denom === 0) return null
   const ratio = (fvTarget + k) / denom
   if (ratio <= 0) return null
-  return Math.log(ratio) / Math.log(1 + r)
+  const n = Math.log(ratio) / Math.log(1 + r)
+  if (!Number.isFinite(n)) return null
+  if (n < 0) {
+    if (pmtAmount >= 0 && pvAmount > fvTarget) return 0
+    if (pmtAmount < 0 && pvAmount < fvTarget) return 0
+    return null
+  }
+  return n
 }
 
 /** Solve for payment given FV target */

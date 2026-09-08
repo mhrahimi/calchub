@@ -51,7 +51,14 @@ export default function InvestmentPage() {
         <>
           <Select label="Solve for" value={form.solveFor} onChange={(v) => set('solveFor', v as InvestmentInput['solveFor'])} options={[{ value: 'fv', label: 'Future value' }, { value: 'pmt', label: 'Contribution' }, { value: 'rate', label: 'Return rate' }, { value: 'periods', label: 'Time' }]} />
           <Input label="Starting investment" prefix="$" grouped value={form.startingInvestment} onValueChange={(n) => set('startingInvestment', n)} />
-          <Input label="Periodic contribution" prefix="$" grouped value={form.periodicContribution} onValueChange={(n) => set('periodicContribution', n)} />
+          <Input
+            label="Periodic contribution"
+            prefix="$"
+            grouped
+            value={form.periodicContribution}
+            onValueChange={(n) => set('periodicContribution', n)}
+            hint="Negative amounts are withdrawals."
+          />
           <Input label="Return rate" suffix="%" type="number" value={form.returnRate} onChange={(e) => set('returnRate', +e.target.value)} error={errors.returnRate} />
           <div className="grid grid-cols-2 gap-3">
             <Input label="Period" type="number" value={form.period} onChange={(e) => set('period', +e.target.value)} error={errors.period} />

@@ -80,7 +80,14 @@ export default function CompoundInterestPage() {
             ]}
           />
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Contribution" prefix="$" grouped value={form.contribution} onValueChange={(n) => set('contribution', n)} />
+            <Input
+              label="Contribution"
+              prefix="$"
+              grouped
+              value={form.contribution}
+              onValueChange={(n) => set('contribution', n)}
+              hint="Negative amounts are withdrawals."
+            />
             <Select
               label="Contribution frequency"
               value={form.contributionFrequency}

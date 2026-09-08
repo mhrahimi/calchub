@@ -82,6 +82,7 @@ export default function SavingsGoalPage() {
               value={form.periodicContribution ?? 0}
               onValueChange={(n) => set('periodicContribution', n)}
               error={errors.periodicContribution}
+              hint="Negative amounts are withdrawals."
             />
           )}
           <Input label="Return rate" suffix="%" type="number" value={form.returnRate} onChange={(e) => set('returnRate', +e.target.value)} />

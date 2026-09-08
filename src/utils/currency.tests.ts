@@ -25,6 +25,11 @@ describe('formatGroupedInput', () => {
     expect(formatGroupedInput('', 'en-US')).toBe('')
     expect(formatGroupedInput('-', 'en-US')).toBe('-')
   })
+
+  it('keeps the minus on negative grouped amounts', () => {
+    expect(formatGroupedInput('-1200', 'en-US')).toBe('-1,200')
+    expect(formatGroupedInput(-1200, 'en-US')).toBe('-1,200')
+  })
 })
 
 describe('parseMoney', () => {
@@ -32,6 +37,11 @@ describe('parseMoney', () => {
     expect(parseMoney('50,000')).toBe(50000)
     expect(parseMoney('$ 50,000')).toBe(50000)
     expect(parseMoney('12.')).toBe(12)
+  })
+
+  it('parses negative grouped amounts', () => {
+    expect(parseMoney('-1,000')).toBe(-1000)
+    expect(parseMoney('-$1,200')).toBe(-1200)
   })
 })
 

@@ -34,4 +34,13 @@ describe('investment', () => {
     const begin = calculateInvestment({ ...base, solveFor: 'fv', contributionTiming: 'begin' })
     expect(begin.endingBalance).toBeGreaterThan(end.endingBalance)
   })
+
+  it('applies a negative contribution as a withdrawal in FV', () => {
+    const r = calculateInvestment({ ...base, solveFor: 'fv', periodicContribution: -200 })
+    const expected = fvEnd(10000, 0.07 / 12, 240, -200)
+    expect(r.endingBalance).toBeCloseTo(expected, 1)
+    expect(r.schedule.at(-1)!.balance).toBeCloseTo(r.endingBalance, 1)
+    expect(r.totalContributions).toBeCloseTo(10000 + -200 * 240, 1)
+    expect(r.endingBalance).toBeLessThan(fvEnd(10000, 0.07 / 12, 240, 0))
+  })
 })

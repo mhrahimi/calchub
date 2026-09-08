@@ -19,6 +19,7 @@ import {
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string
   error?: string
+  hint?: string
   suffix?: string
   prefix?: string
   grouped?: boolean
@@ -36,6 +37,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       className,
       label,
       error,
+      hint,
       suffix,
       prefix,
       id,
@@ -145,6 +147,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             </span>
           )}
         </div>
+        {hint && (
+          <p className="text-sm text-text-muted">{hint}</p>
+        )}
         {error && (
           <p className="text-sm text-red-600" role="alert">
             {error}
