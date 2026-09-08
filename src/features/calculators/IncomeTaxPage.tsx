@@ -116,17 +116,17 @@ export default function IncomeTaxPage() {
           <Input
             label="Gross income"
             prefix="$"
-            type="number"
+            grouped
             value={form.grossIncome}
-            onChange={(e) => set('grossIncome', +e.target.value)}
+            onValueChange={(n) => set('grossIncome', n)}
             error={errors.grossIncome}
           />
           <Input
             label="Pretax deductions"
             prefix="$"
-            type="number"
+            grouped
             value={form.pretaxDeductions}
-            onChange={(e) => set('pretaxDeductions', +e.target.value)}
+            onValueChange={(n) => set('pretaxDeductions', n)}
             error={errors.pretaxDeductions}
           />
         </>

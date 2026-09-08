@@ -43,9 +43,9 @@ export default function DtiPage() {
       onCalculate={() => handleCalculate(form)}
       inputs={
         <>
-          <Input label="Gross monthly income" prefix="$" type="number" value={form.grossMonthlyIncome} onChange={(e) => set('grossMonthlyIncome', +e.target.value)} error={errors.grossMonthlyIncome} />
-          <Input label="Housing cost" prefix="$" type="number" value={form.housingCost} onChange={(e) => set('housingCost', +e.target.value)} error={errors.housingCost} />
-          <Input label="Other monthly debt payments" prefix="$" type="number" value={form.debtPayments} onChange={(e) => set('debtPayments', +e.target.value)} />
+          <Input label="Gross monthly income" prefix="$" grouped value={form.grossMonthlyIncome} onValueChange={(n) => set('grossMonthlyIncome', n)} error={errors.grossMonthlyIncome} />
+          <Input label="Housing cost" prefix="$" grouped value={form.housingCost} onValueChange={(n) => set('housingCost', n)} error={errors.housingCost} />
+          <Input label="Other monthly debt payments" prefix="$" grouped value={form.debtPayments} onValueChange={(n) => set('debtPayments', n)} />
           <Input label="Lender guideline (back-end)" suffix="%" type="number" value={form.guideline} onChange={(e) => set('guideline', +e.target.value)} />
         </>
       }

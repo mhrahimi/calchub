@@ -48,15 +48,15 @@ export default function LoanPage() {
         <>
           <SegmentedControl options={[{ value: 'standard', label: 'Standard Loan' }, { value: 'auto', label: 'Auto Loan' }]} value={form.mode} onChange={(v) => set('mode', v)} />
           {form.mode === 'standard' ? (
-            <Input label="Loan amount" prefix="$" type="number" value={form.loanAmount ?? 0} onChange={(e) => set('loanAmount', +e.target.value)} error={errors.loanAmount} />
+            <Input label="Loan amount" prefix="$" grouped value={form.loanAmount ?? 0} onValueChange={(n) => set('loanAmount', n)} error={errors.loanAmount} />
           ) : (
             <>
-              <Input label="Vehicle price" prefix="$" type="number" value={form.vehiclePrice ?? 0} onChange={(e) => set('vehiclePrice', +e.target.value)} error={errors.vehiclePrice} />
-              <Input label="Cash down" prefix="$" type="number" value={form.cashDown ?? 0} onChange={(e) => set('cashDown', +e.target.value)} />
-              <Input label="Trade-in value" prefix="$" type="number" value={form.tradeIn ?? 0} onChange={(e) => set('tradeIn', +e.target.value)} />
-              <Input label="Rebates" prefix="$" type="number" value={form.rebates ?? 0} onChange={(e) => set('rebates', +e.target.value)} />
+              <Input label="Vehicle price" prefix="$" grouped value={form.vehiclePrice ?? 0} onValueChange={(n) => set('vehiclePrice', n)} error={errors.vehiclePrice} />
+              <Input label="Cash down" prefix="$" grouped value={form.cashDown ?? 0} onValueChange={(n) => set('cashDown', n)} />
+              <Input label="Trade-in value" prefix="$" grouped value={form.tradeIn ?? 0} onValueChange={(n) => set('tradeIn', n)} />
+              <Input label="Rebates" prefix="$" grouped value={form.rebates ?? 0} onValueChange={(n) => set('rebates', n)} />
               <Input label="Sales tax rate" suffix="%" type="number" value={form.salesTaxRate ?? 0} onChange={(e) => set('salesTaxRate', +e.target.value)} />
-              <Input label="Fees" prefix="$" type="number" value={form.taxableFees ?? 0} onChange={(e) => set('taxableFees', +e.target.value)} />
+              <Input label="Fees" prefix="$" grouped value={form.taxableFees ?? 0} onValueChange={(n) => set('taxableFees', n)} />
             </>
           )}
           <Input label="Interest rate" suffix="%" type="number" value={form.interestRate} onChange={(e) => set('interestRate', +e.target.value)} />

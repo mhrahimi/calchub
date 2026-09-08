@@ -54,14 +54,14 @@ export default function AmortizationPage() {
       onCalculate={() => handleCalculate(form)}
       inputs={
         <>
-          <Input label="Principal" prefix="$" type="number" inputMode="decimal" value={form.principal} onChange={(e) => set('principal', +e.target.value)} error={errors.principal} />
+          <Input label="Principal" prefix="$" grouped value={form.principal} onValueChange={(n) => set('principal', n)} error={errors.principal} />
           <Input label="Interest rate" suffix="%" type="number" inputMode="decimal" value={form.interestRate} onChange={(e) => set('interestRate', +e.target.value)} error={errors.interestRate} />
           <div className="grid grid-cols-2 gap-3">
             <Input label="Term" type="number" inputMode="numeric" value={form.term} onChange={(e) => set('term', +e.target.value)} error={errors.term} />
             <Select label="Term unit" value={form.termUnit} onChange={(v) => set('termUnit', v as 'years' | 'months')} options={[{ value: 'years', label: 'Years' }, { value: 'months', label: 'Months' }]} />
           </div>
           <Select label="Payment frequency" value={form.paymentFrequency} onChange={(v) => set('paymentFrequency', v)} options={[{ value: 'monthly', label: 'Monthly' }, { value: 'bi-weekly', label: 'Bi-weekly' }, { value: 'weekly', label: 'Weekly' }]} />
-          <Input label="Extra payment (optional)" prefix="$" type="number" inputMode="decimal" value={form.extraPayment ?? 0} onChange={(e) => set('extraPayment', +e.target.value)} />
+          <Input label="Extra payment (optional)" prefix="$" grouped value={form.extraPayment ?? 0} onValueChange={(n) => set('extraPayment', n)} />
         </>
       }
     />

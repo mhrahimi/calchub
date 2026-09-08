@@ -55,8 +55,8 @@ export default function BlackScholesPage() {
       onCalculate={() => handleCalculate(form)}
       inputs={
         <>
-          <Input label="Stock price" prefix="$" type="number" value={form.spot} onChange={(e) => set('spot', +e.target.value)} error={errors.spot} />
-          <Input label="Strike price" prefix="$" type="number" value={form.strike} onChange={(e) => set('strike', +e.target.value)} error={errors.strike} />
+          <Input label="Stock price" prefix="$" grouped value={form.spot} onValueChange={(n) => set('spot', n)} error={errors.spot} />
+          <Input label="Strike price" prefix="$" grouped value={form.strike} onValueChange={(n) => set('strike', n)} error={errors.strike} />
           <Input label="Time to expiration" suffix="years" type="number" value={form.timeYears} onChange={(e) => set('timeYears', +e.target.value)} error={errors.timeYears} />
           <Input label="Risk-free rate" suffix="%" type="number" value={form.riskFreeRate} onChange={(e) => set('riskFreeRate', +e.target.value)} />
           <Input label="Volatility" suffix="%" type="number" value={form.volatility} onChange={(e) => set('volatility', +e.target.value)} error={errors.volatility} />

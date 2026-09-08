@@ -51,8 +51,8 @@ export default function BondsPage() {
       onCalculate={() => handleCalculate(form)}
       inputs={
         <>
-          <Input label="Face value" prefix="$" type="number" value={form.faceValue} onChange={(e) => set('faceValue', +e.target.value)} error={errors.faceValue} />
-          <Input label="Bond price" prefix="$" type="number" value={form.bondPrice} onChange={(e) => set('bondPrice', +e.target.value)} error={errors.bondPrice} />
+          <Input label="Face value" prefix="$" grouped value={form.faceValue} onValueChange={(n) => set('faceValue', n)} error={errors.faceValue} />
+          <Input label="Bond price" prefix="$" grouped value={form.bondPrice} onValueChange={(n) => set('bondPrice', n)} error={errors.bondPrice} />
           <Input label="Coupon rate" suffix="%" type="number" value={form.couponRate} onChange={(e) => set('couponRate', +e.target.value)} />
           <Select
             label="Coupon frequency"

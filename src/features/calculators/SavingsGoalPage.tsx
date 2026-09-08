@@ -72,15 +72,15 @@ export default function SavingsGoalPage() {
               { value: 'balance', label: 'Projected balance' },
             ]}
           />
-          <Input label="Current savings" prefix="$" type="number" value={form.currentSavings} onChange={(e) => set('currentSavings', +e.target.value)} error={errors.currentSavings} />
-          <Input label="Goal amount" prefix="$" type="number" value={form.goalAmount} onChange={(e) => set('goalAmount', +e.target.value)} error={errors.goalAmount} />
+          <Input label="Current savings" prefix="$" grouped value={form.currentSavings} onValueChange={(n) => set('currentSavings', n)} error={errors.currentSavings} />
+          <Input label="Goal amount" prefix="$" grouped value={form.goalAmount} onValueChange={(n) => set('goalAmount', n)} error={errors.goalAmount} />
           {form.solveFor !== 'contribution' && (
             <Input
               label="Contribution per period"
               prefix="$"
-              type="number"
+              grouped
               value={form.periodicContribution ?? 0}
-              onChange={(e) => set('periodicContribution', +e.target.value)}
+              onValueChange={(n) => set('periodicContribution', n)}
               error={errors.periodicContribution}
             />
           )}

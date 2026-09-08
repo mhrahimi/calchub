@@ -51,9 +51,9 @@ export default function CreWaterfallPage() {
       onCalculate={() => handleCalculate(form)}
       inputs={
         <>
-          <Input label="LP contribution" prefix="$" type="number" value={form.lpContribution} onChange={(e) => set('lpContribution', +e.target.value)} error={errors.lpContribution} />
-          <Input label="GP contribution" prefix="$" type="number" value={form.gpContribution} onChange={(e) => set('gpContribution', +e.target.value)} error={errors.gpContribution} />
-          <Input label="Total distribution" prefix="$" type="number" value={form.totalDistribution} onChange={(e) => set('totalDistribution', +e.target.value)} error={errors.totalDistribution} />
+          <Input label="LP contribution" prefix="$" grouped value={form.lpContribution} onValueChange={(n) => set('lpContribution', n)} error={errors.lpContribution} />
+          <Input label="GP contribution" prefix="$" grouped value={form.gpContribution} onValueChange={(n) => set('gpContribution', n)} error={errors.gpContribution} />
+          <Input label="Total distribution" prefix="$" grouped value={form.totalDistribution} onValueChange={(n) => set('totalDistribution', n)} error={errors.totalDistribution} />
           <Input label="Preferred return (LP)" suffix="%" type="number" value={form.preferredReturnPercent} onChange={(e) => set('preferredReturnPercent', +e.target.value)} />
           <Input label="GP catch-up" suffix="%" type="number" value={form.catchUpPercent} onChange={(e) => set('catchUpPercent', +e.target.value)} />
           <Input label="LP promote share" suffix="%" type="number" value={form.lpPromotePercent} onChange={(e) => set('lpPromotePercent', +e.target.value)} error={errors.lpPromotePercent} />

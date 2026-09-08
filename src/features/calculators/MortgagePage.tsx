@@ -56,19 +56,19 @@ export default function MortgagePage() {
       inputs={
         <>
           <SegmentedControl options={[{ value: 'US', label: 'United States' }, { value: 'CA', label: 'Canada' }]} value={form.country} onChange={(v) => set('country', v)} />
-          <Input label="Home price" prefix="$" type="number" value={form.homePrice} onChange={(e) => set('homePrice', +e.target.value)} error={errors.homePrice} />
-          <Input label="Down payment" suffix={form.downPaymentIsPercent ? '%' : undefined} prefix={form.downPaymentIsPercent ? undefined : '$'} type="number" value={form.downPayment} onChange={(e) => set('downPayment', +e.target.value)} error={errors.downPayment} />
+          <Input label="Home price" prefix="$" grouped value={form.homePrice} onValueChange={(n) => set('homePrice', n)} error={errors.homePrice} />
+          <Input label="Down payment" suffix={form.downPaymentIsPercent ? '%' : undefined} prefix={form.downPaymentIsPercent ? undefined : '$'} grouped={!form.downPaymentIsPercent} type="number" value={form.downPayment} onValueChange={(n) => set('downPayment', n)} error={errors.downPayment} />
           <Input label="Interest rate" suffix="%" type="number" value={form.interestRate} onChange={(e) => set('interestRate', +e.target.value)} />
           <div className="grid grid-cols-2 gap-3">
             <Input label="Term" type="number" value={form.term} onChange={(e) => set('term', +e.target.value)} />
             <Select label="Term unit" value={form.termUnit} onChange={(v) => set('termUnit', v as 'years' | 'months')} options={[{ value: 'years', label: 'Years' }, { value: 'months', label: 'Months' }]} />
           </div>
-          <Input label="Property tax" prefix="$" type="number" value={form.propertyTax} onChange={(e) => set('propertyTax', +e.target.value)} />
+          <Input label="Property tax" prefix="$" grouped value={form.propertyTax} onValueChange={(n) => set('propertyTax', n)} />
           <Select label="Property tax period" value={form.propertyTaxPeriod} onChange={(v) => set('propertyTaxPeriod', v as 'monthly' | 'annual')} options={[{ value: 'annual', label: 'Annual' }, { value: 'monthly', label: 'Monthly' }]} />
-          <Input label="Home insurance" prefix="$" suffix="/mo" type="number" value={form.homeInsurance} onChange={(e) => set('homeInsurance', +e.target.value)} />
-          <Input label="HOA / strata" prefix="$" suffix="/mo" type="number" value={form.hoa} onChange={(e) => set('hoa', +e.target.value)} />
-          <Input label="PMI" prefix="$" suffix="/mo" type="number" value={form.pmi} onChange={(e) => set('pmi', +e.target.value)} />
-          <Input label="Extra payment" prefix="$" type="number" value={form.extraPayment ?? 0} onChange={(e) => set('extraPayment', +e.target.value)} />
+          <Input label="Home insurance" prefix="$" suffix="/mo" grouped value={form.homeInsurance} onValueChange={(n) => set('homeInsurance', n)} />
+          <Input label="HOA / strata" prefix="$" suffix="/mo" grouped value={form.hoa} onValueChange={(n) => set('hoa', n)} />
+          <Input label="PMI" prefix="$" suffix="/mo" grouped value={form.pmi} onValueChange={(n) => set('pmi', n)} />
+          <Input label="Extra payment" prefix="$" grouped value={form.extraPayment ?? 0} onValueChange={(n) => set('extraPayment', n)} />
         </>
       }
     />

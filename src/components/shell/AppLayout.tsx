@@ -5,7 +5,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 export function AppLayout() {
   return (
-    <div className="flex min-h-[100dvh] overflow-x-hidden">
+    <div className="flex h-[100dvh] overflow-hidden">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:rounded-lg focus:bg-primary focus:text-white"

@@ -165,15 +165,15 @@ export default function DcfLboPage() {
               {dcfForm.terminalMethod === 'exitMultiple' && (
                 <Input label="Exit multiple" suffix="x" type="number" value={dcfForm.exitMultiple} onChange={(e) => setDcfForm((f) => ({ ...f, exitMultiple: +e.target.value }))} error={dcfPage.errors.exitMultiple} />
               )}
-              <Input label="Net debt" prefix="$" type="number" value={dcfForm.netDebt} onChange={(e) => setDcfForm((f) => ({ ...f, netDebt: +e.target.value }))} />
-              <Input label="Cash" prefix="$" type="number" value={dcfForm.cash} onChange={(e) => setDcfForm((f) => ({ ...f, cash: +e.target.value }))} />
+              <Input label="Net debt" prefix="$" grouped value={dcfForm.netDebt} onValueChange={(n) => setDcfForm((f) => ({ ...f, netDebt: n }))} />
+              <Input label="Cash" prefix="$" grouped value={dcfForm.cash} onValueChange={(n) => setDcfForm((f) => ({ ...f, cash: n }))} />
               <p className="text-xs text-text-muted">Forecast uses 5 years with 10% revenue growth baked into defaults.</p>
             </>
           ) : (
             <>
-              <Input label="Purchase EV" prefix="$" type="number" value={lboForm.purchaseEv} onChange={(e) => setLboForm((f) => ({ ...f, purchaseEv: +e.target.value }))} error={lboPage.errors.purchaseEv} />
-              <Input label="Sponsor equity" prefix="$" type="number" value={lboForm.sponsorEquity} onChange={(e) => setLboForm((f) => ({ ...f, sponsorEquity: +e.target.value }))} error={lboPage.errors.sponsorEquity} />
-              <Input label="Initial debt" prefix="$" type="number" value={lboForm.initialDebt} onChange={(e) => setLboForm((f) => ({ ...f, initialDebt: +e.target.value }))} />
+              <Input label="Purchase EV" prefix="$" grouped value={lboForm.purchaseEv} onValueChange={(n) => setLboForm((f) => ({ ...f, purchaseEv: n }))} error={lboPage.errors.purchaseEv} />
+              <Input label="Sponsor equity" prefix="$" grouped value={lboForm.sponsorEquity} onValueChange={(n) => setLboForm((f) => ({ ...f, sponsorEquity: n }))} error={lboPage.errors.sponsorEquity} />
+              <Input label="Initial debt" prefix="$" grouped value={lboForm.initialDebt} onValueChange={(n) => setLboForm((f) => ({ ...f, initialDebt: n }))} />
               <Input label="Interest rate" suffix="%" type="number" value={lboForm.interestRate} onChange={(e) => setLboForm((f) => ({ ...f, interestRate: +e.target.value }))} />
               <Input label="Exit multiple" suffix="x" type="number" value={lboForm.exitMultiple} onChange={(e) => setLboForm((f) => ({ ...f, exitMultiple: +e.target.value }))} error={lboPage.errors.exitMultiple} />
               <Input label="Exit year" type="number" min={1} max={5} value={lboForm.exitYear} onChange={(e) => setLboForm((f) => ({ ...f, exitYear: +e.target.value }))} error={lboPage.errors.exitYear} />

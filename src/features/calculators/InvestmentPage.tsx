@@ -50,8 +50,8 @@ export default function InvestmentPage() {
       inputs={
         <>
           <Select label="Solve for" value={form.solveFor} onChange={(v) => set('solveFor', v as InvestmentInput['solveFor'])} options={[{ value: 'fv', label: 'Future value' }, { value: 'pmt', label: 'Contribution' }, { value: 'rate', label: 'Return rate' }, { value: 'periods', label: 'Time' }]} />
-          <Input label="Starting investment" prefix="$" type="number" value={form.startingInvestment} onChange={(e) => set('startingInvestment', +e.target.value)} />
-          <Input label="Periodic contribution" prefix="$" type="number" value={form.periodicContribution} onChange={(e) => set('periodicContribution', +e.target.value)} />
+          <Input label="Starting investment" prefix="$" grouped value={form.startingInvestment} onValueChange={(n) => set('startingInvestment', n)} />
+          <Input label="Periodic contribution" prefix="$" grouped value={form.periodicContribution} onValueChange={(n) => set('periodicContribution', n)} />
           <Input label="Return rate" suffix="%" type="number" value={form.returnRate} onChange={(e) => set('returnRate', +e.target.value)} error={errors.returnRate} />
           <div className="grid grid-cols-2 gap-3">
             <Input label="Period" type="number" value={form.period} onChange={(e) => set('period', +e.target.value)} error={errors.period} />
@@ -59,7 +59,7 @@ export default function InvestmentPage() {
           </div>
           <SegmentedControl options={[{ value: 'end', label: 'End of period' }, { value: 'begin', label: 'Beginning' }]} value={form.contributionTiming} onChange={(v) => set('contributionTiming', v)} />
           {form.solveFor !== 'fv' && (
-            <Input label="Target value" prefix="$" type="number" value={form.targetValue ?? 0} onChange={(e) => set('targetValue', +e.target.value)} />
+            <Input label="Target value" prefix="$" grouped value={form.targetValue ?? 0} onValueChange={(n) => set('targetValue', n)} />
           )}
         </>
       }

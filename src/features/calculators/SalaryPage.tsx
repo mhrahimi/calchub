@@ -110,9 +110,9 @@ export default function SalaryPage() {
           <Input
             label="Amount"
             prefix="$"
-            type="number"
+            grouped
             value={form.amount}
-            onChange={(e) => set('amount', +e.target.value)}
+            onValueChange={(n) => set('amount', n)}
             error={errors.amount}
           />
           <Select
@@ -182,9 +182,9 @@ export default function SalaryPage() {
               <Input
                 label="Pretax deductions (annual)"
                 prefix="$"
-                type="number"
+                grouped
                 value={form.pretaxDeductions ?? 0}
-                onChange={(e) => set('pretaxDeductions', +e.target.value)}
+                onValueChange={(n) => set('pretaxDeductions', n)}
               />
             </>
           )}

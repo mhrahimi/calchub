@@ -53,14 +53,14 @@ export default function CompoundInterestPage() {
       onCalculate={() => handleCalculate(form)}
       inputs={
         <>
-          <Input label="Principal" prefix="$" type="number" value={form.principal} onChange={(e) => set('principal', +e.target.value)} error={errors.principal} />
+          <Input label="Principal" prefix="$" grouped value={form.principal} onValueChange={(n) => set('principal', n)} error={errors.principal} />
           <Input label="Interest rate" suffix="%" type="number" value={form.interestRate} onChange={(e) => set('interestRate', +e.target.value)} />
           <div className="grid grid-cols-2 gap-3">
             <Input label="Duration" type="number" value={form.duration} onChange={(e) => set('duration', +e.target.value)} />
             <Select label="Duration unit" value={form.durationUnit} onChange={(v) => set('durationUnit', v as 'years' | 'months')} options={[{ value: 'years', label: 'Years' }, { value: 'months', label: 'Months' }]} />
           </div>
           <Select label="Compounding" value={form.compoundingFrequency} onChange={(v) => set('compoundingFrequency', v)} options={[{ value: 'monthly', label: 'Monthly' }, { value: 'quarterly', label: 'Quarterly' }, { value: 'annual', label: 'Annual' }]} />
-          <Input label="Contribution" prefix="$" type="number" value={form.contribution} onChange={(e) => set('contribution', +e.target.value)} />
+          <Input label="Contribution" prefix="$" grouped value={form.contribution} onValueChange={(n) => set('contribution', n)} />
           <SegmentedControl options={[{ value: 'end', label: 'End of period' }, { value: 'begin', label: 'Beginning' }]} value={form.contributionTiming} onChange={(v) => set('contributionTiming', v)} />
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={form.adjustForInflation} onChange={(e) => set('adjustForInflation', e.target.checked)} />

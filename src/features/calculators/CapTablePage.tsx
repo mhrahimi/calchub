@@ -87,8 +87,8 @@ export default function CapTablePage() {
             ))}
             {errors.holders && <p className="text-sm text-red-600">{errors.holders}</p>}
           </div>
-          <Input label="Pre-money valuation" prefix="$" type="number" value={form.preMoneyValuation} onChange={(e) => setForm((f) => ({ ...f, preMoneyValuation: +e.target.value }))} error={errors.preMoneyValuation} />
-          <Input label="Investment amount" prefix="$" type="number" value={form.investmentAmount} onChange={(e) => setForm((f) => ({ ...f, investmentAmount: +e.target.value }))} error={errors.investmentAmount} />
+          <Input label="Pre-money valuation" prefix="$" grouped value={form.preMoneyValuation} onValueChange={(n) => setForm((f) => ({ ...f, preMoneyValuation: n }))} error={errors.preMoneyValuation} />
+          <Input label="Investment amount" prefix="$" grouped value={form.investmentAmount} onValueChange={(n) => setForm((f) => ({ ...f, investmentAmount: n }))} error={errors.investmentAmount} />
           <Input label="Option pool top-up" suffix="%" type="number" value={form.optionPoolTopUpPercent} onChange={(e) => setForm((f) => ({ ...f, optionPoolTopUpPercent: +e.target.value }))} error={errors.optionPoolTopUpPercent} />
         </>
       }

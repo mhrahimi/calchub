@@ -82,17 +82,17 @@ export default function RetirementPage() {
           <Input
             label="Current savings"
             prefix="$"
-            type="number"
+            grouped
             value={form.currentSavings}
-            onChange={(e) => set('currentSavings', +e.target.value)}
+            onValueChange={(n) => set('currentSavings', n)}
             error={errors.currentSavings}
           />
           <Input
             label="Annual contribution"
             prefix="$"
-            type="number"
+            grouped
             value={form.annualContribution}
-            onChange={(e) => set('annualContribution', +e.target.value)}
+            onValueChange={(n) => set('annualContribution', n)}
           />
           <Input
             label="Contribution growth"
@@ -119,9 +119,9 @@ export default function RetirementPage() {
           <Input
             label="Retirement spending (annual)"
             prefix="$"
-            type="number"
+            grouped
             value={form.retirementSpending}
-            onChange={(e) => set('retirementSpending', +e.target.value)}
+            onValueChange={(n) => set('retirementSpending', n)}
           />
           <Input
             label="Retirement duration (years)"
@@ -133,9 +133,9 @@ export default function RetirementPage() {
           <Input
             label="Other retirement income (annual)"
             prefix="$"
-            type="number"
+            grouped
             value={form.otherRetirementIncome}
-            onChange={(e) => set('otherRetirementIncome', +e.target.value)}
+            onValueChange={(n) => set('otherRetirementIncome', n)}
           />
         </>
       }

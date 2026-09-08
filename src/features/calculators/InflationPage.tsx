@@ -99,9 +99,9 @@ export default function InflationPage() {
           <Input
             label="Amount"
             prefix="$"
-            type="number"
+            grouped
             value={form.amount}
-            onChange={(e) => set('amount', +e.target.value)}
+            onValueChange={(n) => set('amount', n)}
             error={errors.amount}
           />
           {form.mode === 'historical' ? (
