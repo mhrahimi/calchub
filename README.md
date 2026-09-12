@@ -11,6 +11,7 @@
 - 27 calculators covering loans, tax, corporate finance, statistics, and unit conversion
 - History, favorites, and saved calculations stay in IndexedDB on your device
 - Export results as PDF or CSV
+- Installable PWA — works offline after the first visit (service worker precaches the full app)
 - Static site, built for GitHub Pages with route-level code splitting
 
 ---
@@ -71,7 +72,7 @@ Your calculations are stored locally in this browser unless you explicitly expor
 
 ## Stack
 
-React 19 · TypeScript · Vite · Tailwind CSS v4 · Recharts · Decimal.js · IndexedDB
+React 19 · TypeScript · Vite · Tailwind CSS v4 · Recharts · Decimal.js · IndexedDB · PWA (vite-plugin-pwa)
 
 Architecture and product specs: [docs/README.md](docs/README.md)
 
