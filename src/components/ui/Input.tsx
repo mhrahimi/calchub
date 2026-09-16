@@ -117,17 +117,17 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={assignRef}
             id={inputId}
             className={cn(
-              'w-full h-11 rounded-xl border border-border bg-white px-3 text-text-primary text-sm',
+              'w-full h-11 rounded-xl border border-border bg-white px-3 text-text-primary text-base',
               'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:border-primary',
               'tabular-nums placeholder:text-text-muted',
-              prefix && 'pl-7',
+              prefix && 'pl-8',
               suffix && 'pr-10',
               error && 'border-red-400 focus:border-red-400 focus:ring-red-200',
               className,
             )}
             {...props}
             type={grouped ? 'text' : type}
-            inputMode={grouped ? 'decimal' : inputMode}
+            inputMode={grouped ? 'decimal' : (inputMode ?? (type === 'number' ? 'decimal' : undefined))}
             autoComplete={grouped ? 'off' : autoComplete}
             value={grouped ? display : value}
             onChange={

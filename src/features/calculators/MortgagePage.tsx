@@ -59,7 +59,7 @@ export default function MortgagePage() {
           <Input label="Home price" prefix="$" grouped value={form.homePrice} onValueChange={(n) => set('homePrice', n)} error={errors.homePrice} />
           <Input label="Down payment" suffix={form.downPaymentIsPercent ? '%' : undefined} prefix={form.downPaymentIsPercent ? undefined : '$'} grouped={!form.downPaymentIsPercent} type="number" value={form.downPayment} onValueChange={(n) => set('downPayment', n)} error={errors.downPayment} />
           <Input label="Interest rate" suffix="%" type="number" value={form.interestRate} onChange={(e) => set('interestRate', +e.target.value)} />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label="Term" type="number" value={form.term} onChange={(e) => set('term', +e.target.value)} />
             <Select label="Term unit" value={form.termUnit} onChange={(v) => set('termUnit', v as 'years' | 'months')} options={[{ value: 'years', label: 'Years' }, { value: 'months', label: 'Months' }]} />
           </div>

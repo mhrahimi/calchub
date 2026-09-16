@@ -48,7 +48,7 @@ export function CalculatorLayout({
   const [methodOpen, setMethodOpen] = useState(false)
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 lg:py-10">
+    <div className="max-w-7xl mx-auto px-4 py-6 lg:py-10 min-w-0">
       <header className="mb-8 pb-6 border-b border-border">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -57,7 +57,7 @@ export function CalculatorLayout({
           </div>
           <button
             onClick={onFavoriteToggle}
-            className="p-2.5 rounded-full border border-border hover:border-primary hover:bg-surface-lighter transition-colors shrink-0"
+            className="min-h-11 min-w-11 inline-flex items-center justify-center p-2.5 rounded-full border border-border hover:border-primary hover:bg-surface-lighter transition-colors shrink-0"
             aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
           >
             <Star
@@ -67,15 +67,15 @@ export function CalculatorLayout({
         </div>
       </header>
 
-      <div className="grid lg:grid-cols-[2fr_3fr] gap-8 lg:gap-10">
-        <section className="space-y-6">
-          <div className="rounded-2xl border border-border bg-white p-6 space-y-5">{inputs}</div>
+      <div className="grid lg:grid-cols-[2fr_3fr] gap-8 lg:gap-10 min-w-0">
+        <section className="min-w-0 space-y-6">
+          <div className="rounded-2xl border border-border bg-white p-4 sm:p-6 space-y-5">{inputs}</div>
           <Button onClick={onCalculate} className="w-full lg:w-auto">
             Calculate
           </Button>
         </section>
 
-        <section className="space-y-6 lg:sticky lg:top-6 lg:self-start" aria-live="polite" aria-atomic="true">
+        <section className="min-w-0 space-y-6 lg:sticky lg:top-6 lg:self-start" aria-live="polite" aria-atomic="true">
           {results ? (
             <>
               {results}
@@ -141,12 +141,14 @@ export function CalculatorLayout({
                         <div key={i}>
                           <p className="text-sm font-medium text-text-primary">{step.label}</p>
                           {step.expression && (
-                            <pre className="text-sm text-text-secondary font-mono mt-1 whitespace-pre-wrap">
+                            <pre className="text-sm text-text-secondary font-mono mt-1 whitespace-pre-wrap break-all [overflow-wrap:anywhere]">
                               {step.expression}
                             </pre>
                           )}
                           {step.result && (
-                            <p className="text-sm text-primary tabular-nums mt-1">{step.result}</p>
+                            <p className="text-sm text-primary tabular-nums mt-1 break-all [overflow-wrap:anywhere]">
+                              {step.result}
+                            </p>
                           )}
                         </div>
                       ))}

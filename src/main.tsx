@@ -4,7 +4,13 @@ import { registerSW } from 'virtual:pwa-register'
 import { App } from './app/App'
 import './styles/globals.css'
 
-registerSW({ immediate: true })
+// Register immediately so the first visit finishes precaching before the user goes offline
+registerSW({
+  immediate: true,
+  onRegisterError(error) {
+    console.error('[CalcHub] Service worker registration failed', error)
+  },
+})
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

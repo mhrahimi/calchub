@@ -37,7 +37,7 @@ export function CalculatorCard({
                 e.stopPropagation()
                 onFavoriteToggle(calculator.id)
               }}
-              className="p-1.5 rounded-full hover:bg-surface-lighter transition-colors"
+              className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-full hover:bg-surface-lighter transition-colors"
               aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
             >
               <Star

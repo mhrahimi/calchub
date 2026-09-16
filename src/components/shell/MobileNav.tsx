@@ -15,7 +15,7 @@ export function MobileHeader() {
   const isHome = location.pathname === '/'
 
   return (
-    <header className="lg:hidden sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-border px-4 py-3">
+    <header className="lg:hidden sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-border px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-bold text-primary">CalcHub</h1>
@@ -28,9 +28,17 @@ export function MobileHeader() {
   )
 }
 
-export function MobileNav() {
+export function MobileNav({ hidden = false }: { hidden?: boolean }) {
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-border safe-area-pb" aria-label="Main navigation">
+    <nav
+      className={cn(
+        'lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-border safe-area-pb transition-transform duration-200',
+        hidden && 'translate-y-full pointer-events-none',
+      )}
+      aria-label="Main navigation"
+      aria-hidden={hidden || undefined}
+      inert={hidden || undefined}
+    >
       <div className="flex items-center justify-around py-2">
         {tabs.map(({ to, label, icon: Icon }) => (
           <NavLink

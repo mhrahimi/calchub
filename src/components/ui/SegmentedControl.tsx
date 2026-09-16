@@ -14,14 +14,19 @@ export function SegmentedControl<T extends string>({
   className,
 }: SegmentedControlProps<T>) {
   return (
-    <div className={cn('inline-flex rounded-full bg-surface-lighter p-1 border border-border', className)}>
+    <div
+      className={cn(
+        'flex w-full max-w-full rounded-full bg-surface-lighter p-1 border border-border',
+        className,
+      )}
+    >
       {options.map((opt) => (
         <button
           key={opt.value}
           type="button"
           onClick={() => onChange(opt.value)}
           className={cn(
-            'px-4 py-2 text-sm rounded-full transition-all duration-200',
+            'flex-1 min-w-0 min-h-11 px-2 sm:px-4 py-2 text-xs sm:text-sm leading-tight text-center rounded-full transition-all duration-200 whitespace-normal',
             value === opt.value
               ? 'bg-white text-primary font-medium shadow-sm border border-border'
               : 'text-text-secondary hover:text-text-primary',

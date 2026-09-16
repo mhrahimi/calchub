@@ -35,8 +35,8 @@ function formatTick(value: number, format?: ChartData['valueFormat']): string {
   if (format === 'currency') {
     const abs = Math.abs(value)
     if (abs >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`
-    if (abs >= 10_000) return `$${(value / 1000).toFixed(0)}k`
-    return formatCurrency(value)
+    if (abs >= 1_000) return `$${(value / 1000).toFixed(0)}k`
+    return `$${value.toFixed(0)}`
   }
   return formatValue(value, format)
 }
@@ -83,17 +83,17 @@ export function ChartPanel({ data }: ChartPanelProps) {
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-white p-4">
+    <div className="rounded-2xl border border-border bg-white p-4 min-w-0">
       {data.title && (
         <h3 className="text-sm font-medium text-text-primary mb-4">{data.title}</h3>
       )}
-      <div className="min-h-48 sm:h-64 w-full">
+      <div className="h-52 sm:h-64 w-full min-w-0">
         <ResponsiveContainer width="100%" height="100%">
           {data.type === 'line' ? (
             <LineChart data={chartData} margin={margin}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E3E8F0" />
               <XAxis dataKey="x" tick={{ fontSize: 12, fill: '#5B6475' }} label={axisLabel(data.xLabel, 'x')} />
-              <YAxis tick={{ fontSize: 12, fill: '#5B6475' }} tickFormatter={(v) => formatTick(v, data.valueFormat)} label={axisLabel(data.yLabel, 'y')} />
+              <YAxis width={48} tick={{ fontSize: 12, fill: '#5B6475' }} tickFormatter={(v) => formatTick(v, data.valueFormat)} label={axisLabel(data.yLabel, 'y')} />
               <Tooltip content={<ChartTooltip valueFormat={data.valueFormat} />} />
               <Legend />
               {data.series.map((s, i) => (
@@ -111,7 +111,7 @@ export function ChartPanel({ data }: ChartPanelProps) {
             <AreaChart data={chartData} margin={margin}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E3E8F0" />
               <XAxis dataKey="x" tick={{ fontSize: 12, fill: '#5B6475' }} label={axisLabel(data.xLabel, 'x')} />
-              <YAxis tick={{ fontSize: 12, fill: '#5B6475' }} tickFormatter={(v) => formatTick(v, data.valueFormat)} label={axisLabel(data.yLabel, 'y')} />
+              <YAxis width={48} tick={{ fontSize: 12, fill: '#5B6475' }} tickFormatter={(v) => formatTick(v, data.valueFormat)} label={axisLabel(data.yLabel, 'y')} />
               <Tooltip content={<ChartTooltip valueFormat={data.valueFormat} />} />
               <Legend />
               {data.series.map((s, i) => (
@@ -130,7 +130,7 @@ export function ChartPanel({ data }: ChartPanelProps) {
             <BarChart data={chartData} margin={margin}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E3E8F0" />
               <XAxis dataKey="x" tick={{ fontSize: 12, fill: '#5B6475' }} label={axisLabel(data.xLabel, 'x')} />
-              <YAxis tick={{ fontSize: 12, fill: '#5B6475' }} tickFormatter={(v) => formatTick(v, data.valueFormat)} label={axisLabel(data.yLabel, 'y')} />
+              <YAxis width={48} tick={{ fontSize: 12, fill: '#5B6475' }} tickFormatter={(v) => formatTick(v, data.valueFormat)} label={axisLabel(data.yLabel, 'y')} />
               <Tooltip content={<ChartTooltip valueFormat={data.valueFormat} />} />
               <Legend />
               {data.series.map((s, i) => (
@@ -150,8 +150,8 @@ export function ChartPanel({ data }: ChartPanelProps) {
                 nameKey="name"
                 cx="50%"
                 cy="50%"
-                outerRadius={80}
-                label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                outerRadius={64}
+                label={false}
               >
                 {(data.series[0]?.data ?? []).map((_, i) => (
                   <Cell key={i} fill={COLORS[i % COLORS.length]} />

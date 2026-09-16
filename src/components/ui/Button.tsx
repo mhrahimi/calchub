@@ -19,7 +19,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             'bg-surface-light text-primary border border-border hover:border-primary rounded-full',
           variant === 'ghost' &&
             'text-text-secondary hover:text-primary hover:bg-surface-lighter rounded-lg',
-          size === 'sm' && 'h-9 px-4 text-sm',
+          size === 'sm' && 'h-11 px-4 text-sm',
           size === 'md' && 'h-11 px-6 text-sm',
           size === 'lg' && 'h-12 px-8 text-base',
           className,

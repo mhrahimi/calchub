@@ -22,8 +22,8 @@ export function ResultBlock({ label, value, sublabel, primary, className }: Resu
       <p className="text-sm text-text-secondary mb-1">{label}</p>
       <p
         className={cn(
-          'tabular-nums font-semibold text-primary',
-          primary ? 'text-3xl md:text-4xl' : 'text-xl',
+          'tabular-nums font-semibold text-primary break-all [overflow-wrap:anywhere]',
+          primary ? 'text-2xl sm:text-3xl md:text-4xl' : 'text-xl',
         )}
       >
         {value}
@@ -40,9 +40,11 @@ interface MetricRowProps {
 
 export function MetricRow({ label, value }: MetricRowProps) {
   return (
-    <div className="flex justify-between items-center py-3 border-b border-border last:border-0">
-      <span className="text-sm text-text-secondary">{label}</span>
-      <span className="text-sm font-medium tabular-nums text-text-primary">{value}</span>
+    <div className="flex flex-col items-start gap-0.5 py-3 border-b border-border last:border-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <span className="text-sm text-text-secondary shrink-0">{label}</span>
+      <span className="text-sm font-medium tabular-nums text-text-primary min-w-0 break-all [overflow-wrap:anywhere] sm:text-right">
+        {value}
+      </span>
     </div>
   )
 }

@@ -39,7 +39,7 @@ export function JurisdictionSelect({
         onChange={(e) => setQuery(e.target.value)}
         placeholder={selected ? selected.name : 'Search jurisdictions...'}
         className={cn(
-          'w-full h-11 rounded-xl border border-border bg-white px-3 text-sm text-text-primary',
+          'w-full h-11 rounded-xl border border-border bg-white px-3 text-base text-text-primary',
           'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary',
           error && 'border-red-400',
         )}
@@ -48,7 +48,7 @@ export function JurisdictionSelect({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className={cn(
-          'w-full h-11 rounded-xl border border-border bg-white px-3 text-sm text-text-primary',
+          'w-full h-11 rounded-xl border border-border bg-white px-3 text-base text-text-primary',
           'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary',
           error && 'border-red-400',
         )}

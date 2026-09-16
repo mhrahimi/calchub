@@ -55,7 +55,7 @@ export default function CompoundInterestPage() {
         <>
           <Input label="Principal" prefix="$" grouped value={form.principal} onValueChange={(n) => set('principal', n)} error={errors.principal} />
           <Input label="Interest rate" suffix="%" type="number" value={form.interestRate} onChange={(e) => set('interestRate', +e.target.value)} />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label="Duration" type="number" value={form.duration} onChange={(e) => set('duration', +e.target.value)} />
             <Select label="Duration unit" value={form.durationUnit} onChange={(v) => set('durationUnit', v as 'years' | 'months')} options={[{ value: 'years', label: 'Years' }, { value: 'months', label: 'Months' }]} />
           </div>
@@ -79,7 +79,7 @@ export default function CompoundInterestPage() {
               { value: 'continuous', label: 'Continuous' },
             ]}
           />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               label="Contribution"
               prefix="$"

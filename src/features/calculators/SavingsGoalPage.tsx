@@ -87,7 +87,7 @@ export default function SavingsGoalPage() {
           )}
           <Input label="Return rate" suffix="%" type="number" value={form.returnRate} onChange={(e) => set('returnRate', +e.target.value)} />
           {form.solveFor !== 'time' && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input label="Period" type="number" value={form.period} onChange={(e) => set('period', +e.target.value)} />
               <Select label="Period unit" value={form.periodUnit} onChange={(v) => set('periodUnit', v as 'years' | 'months')} options={[{ value: 'years', label: 'Years' }, { value: 'months', label: 'Months' }]} />
             </div>

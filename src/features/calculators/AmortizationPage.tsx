@@ -56,7 +56,7 @@ export default function AmortizationPage() {
         <>
           <Input label="Principal" prefix="$" grouped value={form.principal} onValueChange={(n) => set('principal', n)} error={errors.principal} />
           <Input label="Interest rate" suffix="%" type="number" inputMode="decimal" value={form.interestRate} onChange={(e) => set('interestRate', +e.target.value)} error={errors.interestRate} />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label="Term" type="number" inputMode="numeric" value={form.term} onChange={(e) => set('term', +e.target.value)} error={errors.term} />
             <Select label="Term unit" value={form.termUnit} onChange={(v) => set('termUnit', v as 'years' | 'months')} options={[{ value: 'years', label: 'Years' }, { value: 'months', label: 'Months' }]} />
           </div>

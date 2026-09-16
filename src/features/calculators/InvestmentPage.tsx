@@ -60,7 +60,7 @@ export default function InvestmentPage() {
             hint="Negative amounts are withdrawals."
           />
           <Input label="Return rate" suffix="%" type="number" value={form.returnRate} onChange={(e) => set('returnRate', +e.target.value)} error={errors.returnRate} />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label="Period" type="number" value={form.period} onChange={(e) => set('period', +e.target.value)} error={errors.period} />
             <Select label="Period unit" value={form.periodUnit} onChange={(v) => set('periodUnit', v as 'years' | 'months')} options={[{ value: 'years', label: 'Years' }, { value: 'months', label: 'Months' }]} />
           </div>

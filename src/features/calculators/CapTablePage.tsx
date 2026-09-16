@@ -72,15 +72,20 @@ export default function CapTablePage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Holders</span>
-              <button type="button" onClick={addHolder} className="flex items-center gap-1 text-sm text-primary">
+              <button type="button" onClick={addHolder} className="min-h-11 inline-flex items-center gap-1 text-sm text-primary">
                 <Plus className="w-4 h-4" /> Add
               </button>
             </div>
             {form.holders.map((h) => (
-              <div key={h.id} className="flex gap-2 items-end">
-                <Input label="Name" value={h.name} onChange={(e) => updateHolder(h.id, { name: e.target.value })} className="flex-1" />
-                <Input label="Shares" type="number" value={h.shares} onChange={(e) => updateHolder(h.id, { shares: +e.target.value })} className="w-32" />
-                <button type="button" onClick={() => removeHolder(h.id)} className="p-2 text-text-muted hover:text-red-600" aria-label="Remove holder">
+              <div key={h.id} className="grid grid-cols-1 sm:grid-cols-[1fr_8rem_auto] gap-2 items-end">
+                <Input label="Name" value={h.name} onChange={(e) => updateHolder(h.id, { name: e.target.value })} />
+                <Input label="Shares" type="number" value={h.shares} onChange={(e) => updateHolder(h.id, { shares: +e.target.value })} />
+                <button
+                  type="button"
+                  onClick={() => removeHolder(h.id)}
+                  className="h-11 w-11 inline-flex items-center justify-center justify-self-start text-text-muted hover:text-red-600"
+                  aria-label="Remove holder"
+                >
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
