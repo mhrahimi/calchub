@@ -84,6 +84,7 @@ export default function CompoundInterestPage() {
               label="Contribution"
               prefix="$"
               grouped
+              signed
               value={form.contribution}
               onValueChange={(n) => set('contribution', n)}
               hint="Negative amounts are withdrawals."
@@ -108,7 +109,7 @@ export default function CompoundInterestPage() {
             Adjust for inflation
           </label>
           {form.adjustForInflation && (
-            <Input label="Inflation rate" suffix="%" type="number" value={form.inflationRate} onChange={(e) => set('inflationRate', +e.target.value)} />
+            <Input label="Inflation rate" suffix="%" type="number" signed value={form.inflationRate} onChange={(e) => set('inflationRate', +e.target.value)} />
           )}
         </>
       }

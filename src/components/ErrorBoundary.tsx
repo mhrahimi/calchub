@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/Button'
 interface ErrorBoundaryProps {
   children: ReactNode
   title?: string
+  /** Compact fallback for nested UI (e.g. a single chart) */
+  fallback?: ReactNode
 }
 
 interface ErrorBoundaryState {
@@ -29,6 +31,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   render() {
     if (this.state.hasError) {
+      if (this.props.fallback) return this.props.fallback
       return (
         <div className="max-w-lg mx-auto px-4 py-16 text-center space-y-4" role="alert">
           <h2 className="text-xl font-semibold text-text-primary">

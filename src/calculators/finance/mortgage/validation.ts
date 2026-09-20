@@ -12,6 +12,7 @@ export const mortgageSchema = z.object({
   propertyTax: z.number().min(0),
   propertyTaxPeriod: z.enum(['monthly', 'annual']),
   homeInsurance: z.number().min(0),
+  includeMiscCosts: z.boolean().default(false),
   hoa: z.number().min(0),
   pmi: z.number().min(0),
   otherCosts: z.number().min(0),

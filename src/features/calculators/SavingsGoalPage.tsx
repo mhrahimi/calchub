@@ -79,6 +79,7 @@ export default function SavingsGoalPage() {
               label="Contribution per period"
               prefix="$"
               grouped
+              signed
               value={form.periodicContribution ?? 0}
               onValueChange={(n) => set('periodicContribution', n)}
               error={errors.periodicContribution}

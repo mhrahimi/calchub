@@ -96,6 +96,7 @@ describe('regression snapshots', () => {
       propertyTax: 4000,
       propertyTaxPeriod: 'annual',
       homeInsurance: 1200,
+      includeMiscCosts: false,
       hoa: 0,
       pmi: 0,
       otherCosts: 0,

@@ -127,6 +127,7 @@ export default function InflationPage() {
                 label="Assumed inflation rate"
                 suffix="%"
                 type="number"
+                signed
                 value={form.inflationRate ?? 3}
                 onChange={(e) => set('inflationRate', +e.target.value)}
                 error={errors.inflationRate}

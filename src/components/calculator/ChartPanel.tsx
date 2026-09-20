@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react'
 import {
   LineChart,
   Line,
@@ -17,11 +18,32 @@ import {
 } from 'recharts'
 import type { ChartData } from '@/calculators/types'
 import { formatCurrency } from '@/utils/currency'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 const COLORS = ['#163B8C', '#4A7FD4', '#8A94A6', '#102A66', '#6B8F71', '#C07850', '#7A6B9A', '#3D6B8A']
 
+/** Explicit heights — percentage height on ResponsiveContainer blanks on iOS/mobile. */
+const CHART_HEIGHT_MOBILE = 208
+const CHART_HEIGHT_DESKTOP = 256
+const SM_QUERY = '(min-width: 640px)'
+
 interface ChartPanelProps {
   data: ChartData
+}
+
+function subscribeSm(onChange: () => void) {
+  const mq = window.matchMedia(SM_QUERY)
+  mq.addEventListener('change', onChange)
+  return () => mq.removeEventListener('change', onChange)
+}
+
+function getSmSnapshot() {
+  return window.matchMedia(SM_QUERY).matches
+}
+
+function useChartHeight() {
+  const isSm = useSyncExternalStore(subscribeSm, getSmSnapshot, () => false)
+  return isSm ? CHART_HEIGHT_DESKTOP : CHART_HEIGHT_MOBILE
 }
 
 function formatValue(value: number, format?: ChartData['valueFormat']): string {
@@ -72,9 +94,19 @@ function ChartTooltip({
   )
 }
 
-export function ChartPanel({ data }: ChartPanelProps) {
+function ChartUnavailable({ title }: { title?: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-white p-4 min-w-0" role="status">
+      {title && <h3 className="text-sm font-medium text-text-primary mb-2">{title}</h3>}
+      <p className="text-sm text-text-muted">Chart unavailable</p>
+    </div>
+  )
+}
+
+function ChartPanelInner({ data }: ChartPanelProps) {
   const chartData = mergeSeries(data)
   const showDots = data.series.every((s) => s.data.length <= 8)
+  const height = useChartHeight()
   const margin = {
     top: 8,
     right: 12,
@@ -87,8 +119,8 @@ export function ChartPanel({ data }: ChartPanelProps) {
       {data.title && (
         <h3 className="text-sm font-medium text-text-primary mb-4">{data.title}</h3>
       )}
-      <div className="h-52 sm:h-64 w-full min-w-0">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="w-full min-w-0" style={{ height, minHeight: height }}>
+        <ResponsiveContainer width="100%" height={height}>
           {data.type === 'line' ? (
             <LineChart data={chartData} margin={margin}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E3E8F0" />
@@ -187,6 +219,14 @@ export function ChartPanel({ data }: ChartPanelProps) {
         </tbody>
       </table>
     </div>
+  )
+}
+
+export function ChartPanel({ data }: ChartPanelProps) {
+  return (
+    <ErrorBoundary fallback={<ChartUnavailable title={data.title} />}>
+      <ChartPanelInner data={data} />
+    </ErrorBoundary>
   )
 }
 

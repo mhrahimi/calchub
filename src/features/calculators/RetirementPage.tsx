@@ -91,6 +91,7 @@ export default function RetirementPage() {
             label="Annual contribution"
             prefix="$"
             grouped
+            signed
             value={form.annualContribution}
             onValueChange={(n) => set('annualContribution', n)}
             hint="Negative amounts are withdrawals."
@@ -99,6 +100,7 @@ export default function RetirementPage() {
             label="Contribution growth"
             suffix="%"
             type="number"
+            signed
             value={form.contributionGrowth}
             onChange={(e) => set('contributionGrowth', +e.target.value)}
           />
@@ -114,6 +116,7 @@ export default function RetirementPage() {
             label="Inflation"
             suffix="%"
             type="number"
+            signed
             value={form.inflation}
             onChange={(e) => set('inflation', +e.target.value)}
           />

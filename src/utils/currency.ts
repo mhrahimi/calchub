@@ -34,6 +34,55 @@ export function parseMoney(value: string | number): number {
   return parseFloat(cleaned) || 0
 }
 
+/** Draft display for non-grouped numeric/percent fields (no thousands separators). */
+export function formatDecimalDisplay(value: number): string {
+  if (!Number.isFinite(value)) return '0'
+  return String(value)
+}
+
+/**
+ * Keep digits and at most one `.`. When `allowSign` is false (UI sign toggle),
+ * strip minus so the keyboard cannot introduce a sign.
+ */
+export function sanitizeDecimalDraft(raw: string, options?: { allowSign?: boolean }): string {
+  const allowSign = options?.allowSign ?? false
+  const negative = allowSign && raw.trimStart().startsWith('-')
+  let cleaned = raw.replace(/[^0-9.]/g, '')
+  const firstDot = cleaned.indexOf('.')
+  if (firstDot !== -1) {
+    cleaned =
+      cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, '')
+  }
+  if (cleaned === '') return negative ? '-' : ''
+  return negative ? `-${cleaned}` : cleaned
+}
+
+export function parseDecimalDraft(raw: string): number {
+  if (raw === '' || raw === '-' || raw === '.' || raw === '-.') return 0
+  const n = parseFloat(raw)
+  return Number.isFinite(n) ? n : 0
+}
+
+/** Flip sign on a live draft string (`''` / `'0'` stay non-negative empty/zero). */
+export function toggleDraftSign(raw: string): string {
+  const trimmed = raw.trim()
+  if (trimmed === '' || trimmed === '-') return trimmed === '-' ? '' : '-'
+  if (trimmed.startsWith('-')) return trimmed.slice(1)
+  return `-${trimmed}`
+}
+
+export function draftIsNegative(raw: string): boolean {
+  return raw.trimStart().startsWith('-')
+}
+
+/** Apply an explicit sign to a draft, stripping any existing minus first. */
+export function applyDraftSign(raw: string, negative: boolean): string {
+  const body = raw.trimStart().startsWith('-') ? raw.trimStart().slice(1) : raw
+  if (!negative) return body
+  if (body === '') return '-'
+  return `-${body}`
+}
+
 /** Live input grouping: thousands separators, no forced trailing decimals. */
 export function formatGroupedInput(value: string | number, locale?: string): string {
   const loc = locale ?? getSettings().numberFormat

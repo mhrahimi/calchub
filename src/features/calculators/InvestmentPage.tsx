@@ -55,6 +55,7 @@ export default function InvestmentPage() {
             label="Periodic contribution"
             prefix="$"
             grouped
+            signed
             value={form.periodicContribution}
             onValueChange={(n) => set('periodicContribution', n)}
             hint="Negative amounts are withdrawals."

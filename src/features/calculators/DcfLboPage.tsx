@@ -152,7 +152,7 @@ export default function DcfLboPage() {
           {mode === 'dcf' ? (
             <>
               <Input label="WACC" suffix="%" type="number" value={dcfForm.wacc} onChange={(e) => setDcfForm((f) => ({ ...f, wacc: +e.target.value }))} error={dcfPage.errors.wacc} />
-              <Input label="Terminal growth" suffix="%" type="number" value={dcfForm.terminalGrowth} onChange={(e) => setDcfForm((f) => ({ ...f, terminalGrowth: +e.target.value }))} error={dcfPage.errors.terminalGrowth} />
+              <Input label="Terminal growth" suffix="%" type="number" signed value={dcfForm.terminalGrowth} onChange={(e) => setDcfForm((f) => ({ ...f, terminalGrowth: +e.target.value }))} error={dcfPage.errors.terminalGrowth} />
               <Select
                 label="Terminal method"
                 value={dcfForm.terminalMethod}
