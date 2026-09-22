@@ -91,15 +91,18 @@ describe('regression snapshots', () => {
       downPayment: 100000,
       downPaymentIsPercent: false,
       interestRate: 5.5,
-      term: 25,
-      termUnit: 'years',
+      termYears: 25,
+      termMonths: 0,
+      includeTaxesAndCosts: false,
       propertyTax: 4000,
       propertyTaxPeriod: 'annual',
       homeInsurance: 1200,
-      includeMiscCosts: false,
       hoa: 0,
       pmi: 0,
       otherCosts: 0,
+      includeExtraPayments: false,
+      extraPayment: 0,
+      extraFrequency: 'every',
     })
     expect(r.principalAndInterest).toBeGreaterThan(2400)
     expect(r.principalAndInterest).toBeLessThan(2500)

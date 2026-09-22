@@ -1,4 +1,4 @@
-import { usMonthlyRate, canadianMonthlyRate, termToPeriods } from '@/utils/annuity'
+import { usMonthlyRate, canadianMonthlyRate } from '@/utils/annuity'
 import { buildAmortizationSchedule, compareSchedules } from '@/utils/amortization'
 import type { CostSlice, MortgageInput, MortgageResult } from './types'
 import type { CalculationExplanation, ChartData, TableData } from '@/calculators/types'
@@ -12,11 +12,23 @@ function withPercents(items: { label: string; amount: number }[]): CostSlice[] {
   }))
 }
 
-function effectiveMisc(input: MortgageInput) {
-  if (!input.includeMiscCosts) {
-    return { hoa: 0, pmi: 0, otherCosts: 0 }
+function effectiveHousingExtras(input: MortgageInput) {
+  if (!input.includeTaxesAndCosts) {
+    return {
+      propertyTax: 0,
+      homeInsurance: 0,
+      hoa: 0,
+      pmi: 0,
+      otherCosts: 0,
+    }
   }
-  return { hoa: input.hoa, pmi: input.pmi, otherCosts: input.otherCosts }
+  return {
+    propertyTax: input.propertyTax,
+    homeInsurance: input.homeInsurance,
+    hoa: input.hoa,
+    pmi: input.pmi,
+    otherCosts: input.otherCosts,
+  }
 }
 
 export function calculateMortgage(input: MortgageInput): MortgageResult {
@@ -24,7 +36,7 @@ export function calculateMortgage(input: MortgageInput): MortgageResult {
     ? (input.homePrice * input.downPayment) / 100
     : input.downPayment
   const loanAmount = input.homePrice - downPaymentAmount
-  const periods = termToPeriods(input.term, input.termUnit, 'monthly')
+  const periods = input.termYears * 12 + input.termMonths
   const monthlyRate =
     input.country === 'CA'
       ? canadianMonthlyRate(input.interestRate / 100)
@@ -40,13 +52,19 @@ export function calculateMortgage(input: MortgageInput): MortgageResult {
   let interestSaved: number | undefined
   let periodsSaved: number | undefined
 
-  if (input.extraPayment && input.extraPayment > 0) {
+  const extraPayment =
+    input.includeExtraPayments && input.extraPayment && input.extraPayment > 0
+      ? input.extraPayment
+      : 0
+  const extraFrequency = input.extraFrequency ?? 'every'
+
+  if (extraPayment > 0) {
     const accelerated = buildAmortizationSchedule({
       principal: loanAmount,
       ratePerPeriod: monthlyRate,
       periods,
-      extraPayment: input.extraPayment,
-      extraFrequency: 'every',
+      extraPayment,
+      extraFrequency,
     })
     const cmp = compareSchedules(baseline, accelerated)
     interestSaved = cmp.interestSaved
@@ -54,9 +72,9 @@ export function calculateMortgage(input: MortgageInput): MortgageResult {
     scheduleResult = accelerated
   }
 
-  const misc = effectiveMisc(input)
+  const extras = effectiveHousingExtras(input)
   const monthlyTax =
-    input.propertyTaxPeriod === 'annual' ? input.propertyTax / 12 : input.propertyTax
+    input.propertyTaxPeriod === 'annual' ? extras.propertyTax / 12 : extras.propertyTax
 
   const first = scheduleResult.schedule[0]
   const firstPaymentPrincipal = first?.principal ?? 0
@@ -66,19 +84,19 @@ export function calculateMortgage(input: MortgageInput): MortgageResult {
     { label: 'Principal', amount: firstPaymentPrincipal },
     { label: 'Interest', amount: firstPaymentInterest },
     { label: 'Property tax', amount: monthlyTax },
-    { label: 'Home insurance', amount: input.homeInsurance },
-    { label: 'HOA / strata', amount: misc.hoa },
-    { label: 'PMI', amount: misc.pmi },
-    { label: 'Other', amount: misc.otherCosts },
+    { label: 'Home insurance', amount: extras.homeInsurance },
+    { label: 'HOA / strata', amount: extras.hoa },
+    { label: 'PMI', amount: extras.pmi },
+    { label: 'Other', amount: extras.otherCosts },
   ].filter((b) => b.amount > 0)
 
   const housingBreakdown = [
     { label: 'Principal & interest', amount: baseline.payment },
     { label: 'Property tax', amount: monthlyTax },
-    { label: 'Home insurance', amount: input.homeInsurance },
-    { label: 'HOA / strata', amount: misc.hoa },
-    { label: 'PMI', amount: misc.pmi },
-    { label: 'Other', amount: misc.otherCosts },
+    { label: 'Home insurance', amount: extras.homeInsurance },
+    { label: 'HOA / strata', amount: extras.hoa },
+    { label: 'PMI', amount: extras.pmi },
+    { label: 'Other', amount: extras.otherCosts },
   ].filter((b) => b.amount > 0)
 
   const totalMonthlyHousing = housingBreakdown.reduce((s, b) => s + b.amount, 0)
@@ -88,10 +106,10 @@ export function calculateMortgage(input: MortgageInput): MortgageResult {
   const totalPrincipalPaid = scheduleResult.schedule.reduce((s, r) => s + r.principal, 0)
   const totalInterest = scheduleResult.totalInterest
   const totalTax = monthlyTax * payoffMonths
-  const totalInsurance = input.homeInsurance * payoffMonths
-  const totalHoa = misc.hoa * payoffMonths
-  const totalPmi = misc.pmi * payoffMonths
-  const totalOther = misc.otherCosts * payoffMonths
+  const totalInsurance = extras.homeInsurance * payoffMonths
+  const totalHoa = extras.hoa * payoffMonths
+  const totalPmi = extras.pmi * payoffMonths
+  const totalOther = extras.otherCosts * payoffMonths
   const totalLifetimeExtras = totalTax + totalInsurance + totalHoa + totalPmi + totalOther
   const totalLifetimeCost =
     scheduleResult.totalPayments + totalLifetimeExtras

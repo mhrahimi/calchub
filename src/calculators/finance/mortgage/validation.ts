@@ -7,16 +7,18 @@ export const mortgageSchema = z.object({
   downPayment: z.number().min(0),
   downPaymentIsPercent: z.boolean(),
   interestRate: z.number().min(0),
-  term: z.number().min(1),
-  termUnit: z.enum(['years', 'months']),
+  termYears: z.number().min(0),
+  termMonths: z.number().min(0),
+  includeTaxesAndCosts: z.boolean().default(false),
   propertyTax: z.number().min(0),
   propertyTaxPeriod: z.enum(['monthly', 'annual']),
   homeInsurance: z.number().min(0),
-  includeMiscCosts: z.boolean().default(false),
   hoa: z.number().min(0),
   pmi: z.number().min(0),
   otherCosts: z.number().min(0),
+  includeExtraPayments: z.boolean().default(false),
   extraPayment: z.number().min(0).optional(),
+  extraFrequency: z.enum(['every', 'yearly', 'once']).optional(),
 })
 
 export function validateMortgage(input: MortgageInput) {
@@ -33,6 +35,10 @@ export function validateMortgage(input: MortgageInput) {
     : input.downPayment
   if (down >= input.homePrice) {
     return { valid: false as const, errors: { downPayment: 'Down payment cannot exceed home price' } }
+  }
+  const totalMonths = input.termYears * 12 + input.termMonths
+  if (totalMonths < 1) {
+    return { valid: false as const, errors: { termYears: 'Term must be at least 1 month' } }
   }
   return { valid: true as const, data: result.data }
 }

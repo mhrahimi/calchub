@@ -9,15 +9,18 @@ const base: MortgageInput = {
   downPayment: 100000,
   downPaymentIsPercent: false,
   interestRate: 6,
-  term: 30,
-  termUnit: 'years',
+  termYears: 30,
+  termMonths: 0,
+  includeTaxesAndCosts: false,
   propertyTax: 6000,
   propertyTaxPeriod: 'annual',
   homeInsurance: 150,
-  includeMiscCosts: false,
   hoa: 0,
   pmi: 0,
   otherCosts: 0,
+  includeExtraPayments: false,
+  extraPayment: 0,
+  extraFrequency: 'every',
 }
 
 describe('mortgage', () => {
@@ -25,7 +28,7 @@ describe('mortgage', () => {
     const r = calculateMortgage(base)
     expect(r.loanAmount).toBe(400000)
     expect(r.principalAndInterest).toBeCloseTo(2398.2, 0)
-    expect(r.totalMonthlyHousing).toBeGreaterThan(r.principalAndInterest)
+    expect(r.totalMonthlyHousing).toBeCloseTo(r.principalAndInterest, 2)
     expect(r.firstPaymentPrincipal + r.firstPaymentInterest).toBeCloseTo(r.principalAndInterest, 1)
   })
 
@@ -33,30 +36,61 @@ describe('mortgage', () => {
     const usRate = usMonthlyRate(0.06)
     const caRate = canadianMonthlyRate(0.06)
     expect(caRate).toBeLessThan(usRate)
-    const ca = calculateMortgage({ ...base, country: 'CA', propertyTax: 0, homeInsurance: 0 })
-    const us = calculateMortgage({ ...base, propertyTax: 0, homeInsurance: 0 })
+    const ca = calculateMortgage({ ...base, country: 'CA' })
+    const us = calculateMortgage(base)
     expect(ca.principalAndInterest).toBeLessThan(us.principalAndInterest)
   })
 
-  it('ignores HOA/PMI/other unless includeMiscCosts is on', () => {
+  it('ignores taxes and costs unless includeTaxesAndCosts is on', () => {
     const hidden = calculateMortgage({
       ...base,
-      includeMiscCosts: false,
+      includeTaxesAndCosts: false,
+      propertyTax: 6000,
+      homeInsurance: 150,
       hoa: 200,
       pmi: 100,
       otherCosts: 50,
     })
     const shown = calculateMortgage({
       ...base,
-      includeMiscCosts: true,
+      includeTaxesAndCosts: true,
+      propertyTax: 6000,
+      homeInsurance: 150,
       hoa: 200,
       pmi: 100,
       otherCosts: 50,
     })
-    expect(hidden.totalMonthlyHousing).toBeLessThan(shown.totalMonthlyHousing)
-    expect(hidden.monthlyBreakdown.some((b) => b.label === 'HOA / strata')).toBe(false)
+    expect(hidden.totalMonthlyHousing).toBeCloseTo(hidden.principalAndInterest, 2)
+    expect(hidden.monthlyBreakdown.some((b) => b.label === 'Property tax')).toBe(false)
+    expect(shown.monthlyBreakdown.some((b) => b.label === 'Property tax')).toBe(true)
     expect(shown.monthlyBreakdown.some((b) => b.label === 'HOA / strata')).toBe(true)
-    expect(shown.totalMonthlyHousing - hidden.totalMonthlyHousing).toBeCloseTo(350, 5)
+    // tax 6000/12=500 + insurance 150 + hoa 200 + pmi 100 + other 50 = 1000
+    expect(shown.totalMonthlyHousing - hidden.totalMonthlyHousing).toBeCloseTo(1000, 5)
+  })
+
+  it('ignores extra payments unless includeExtraPayments is on', () => {
+    const without = calculateMortgage({
+      ...base,
+      includeExtraPayments: false,
+      extraPayment: 500,
+    })
+    const withExtras = calculateMortgage({
+      ...base,
+      includeExtraPayments: true,
+      extraPayment: 500,
+      extraFrequency: 'every',
+    })
+    expect(without.interestSaved).toBeUndefined()
+    expect(withExtras.interestSaved).toBeGreaterThan(0)
+    expect(withExtras.periodsSaved).toBeGreaterThan(0)
+    expect(withExtras.payoffPeriod).toBeLessThan(without.payoffPeriod)
+  })
+
+  it('combines term years and months into periods', () => {
+    const fullYears = calculateMortgage({ ...base, termYears: 30, termMonths: 0 })
+    const withMonths = calculateMortgage({ ...base, termYears: 29, termMonths: 12 })
+    expect(withMonths.principalAndInterest).toBeCloseTo(fullYears.principalAndInterest, 2)
+    expect(withMonths.payoffPeriod).toBe(fullYears.payoffPeriod)
   })
 
   it('reports principal/interest percentages for the first month', () => {
@@ -65,7 +99,7 @@ describe('mortgage', () => {
     const interest = r.monthlyBreakdown.find((b) => b.label === 'Interest')
     expect(principal).toBeTruthy()
     expect(interest).toBeTruthy()
-    expect((principal?.percent ?? 0) + (interest?.percent ?? 0)).toBeLessThan(100)
+    expect((principal?.percent ?? 0) + (interest?.percent ?? 0)).toBeCloseTo(100, 0)
     expect(r.lifetimeBreakdown.find((b) => b.label === 'Principal')?.percent).toBeGreaterThan(0)
     expect(r.lifetimeBreakdown.find((b) => b.label === 'Interest')?.percent).toBeGreaterThan(0)
     const pctSum = r.lifetimeBreakdown.reduce((s, b) => s + b.percent, 0)

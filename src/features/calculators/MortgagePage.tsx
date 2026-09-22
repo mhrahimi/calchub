@@ -11,7 +11,7 @@ import {
   buildMortgageTable,
 } from '@/calculators/finance/mortgage/calculate'
 import { validateMortgage } from '@/calculators/finance/mortgage/validation'
-import type { CostSlice, MortgageInput } from '@/calculators/finance/mortgage/types'
+import type { CostSlice, ExtraPaymentFrequency, MortgageInput } from '@/calculators/finance/mortgage/types'
 
 const defaultInput: MortgageInput = {
   country: 'US',
@@ -19,16 +19,18 @@ const defaultInput: MortgageInput = {
   downPayment: 20,
   downPaymentIsPercent: true,
   interestRate: 6.5,
-  term: 30,
-  termUnit: 'years',
+  termYears: 30,
+  termMonths: 0,
+  includeTaxesAndCosts: false,
   propertyTax: 6000,
   propertyTaxPeriod: 'annual',
   homeInsurance: 150,
-  includeMiscCosts: false,
   hoa: 0,
   pmi: 0,
   otherCosts: 0,
+  includeExtraPayments: false,
   extraPayment: 0,
+  extraFrequency: 'every',
 }
 
 function formatPct(n: number) {
@@ -108,14 +110,6 @@ export default function MortgagePage() {
       onCalculate={() => handleCalculate(form)}
       inputs={
         <>
-          <SegmentedControl
-            options={[
-              { value: 'US', label: 'United States' },
-              { value: 'CA', label: 'Canada' },
-            ]}
-            value={form.country}
-            onChange={(v) => set('country', v)}
-          />
           <Input
             label="Home price"
             prefix="$"
@@ -151,55 +145,54 @@ export default function MortgagePage() {
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
-              label="Term"
+              label="Term (years)"
               type="number"
-              value={form.term}
-              onChange={(e) => set('term', +e.target.value)}
+              value={form.termYears}
+              onChange={(e) => set('termYears', +e.target.value)}
+              error={errors.termYears}
             />
-            <Select
-              label="Term unit"
-              value={form.termUnit}
-              onChange={(v) => set('termUnit', v as 'years' | 'months')}
-              options={[
-                { value: 'years', label: 'Years' },
-                { value: 'months', label: 'Months' },
-              ]}
+            <Input
+              label="Term (months)"
+              type="number"
+              value={form.termMonths}
+              onChange={(e) => set('termMonths', +e.target.value)}
+              error={errors.termMonths}
             />
           </div>
-          <Input
-            label="Property tax"
-            prefix="$"
-            grouped
-            value={form.propertyTax}
-            onValueChange={(n) => set('propertyTax', n)}
-          />
-          <Select
-            label="Property tax period"
-            value={form.propertyTaxPeriod}
-            onChange={(v) => set('propertyTaxPeriod', v as 'monthly' | 'annual')}
-            options={[
-              { value: 'annual', label: 'Annual' },
-              { value: 'monthly', label: 'Monthly' },
-            ]}
-          />
-          <Input
-            label="Home insurance"
-            prefix="$"
-            suffix="/mo"
-            grouped
-            value={form.homeInsurance}
-            onValueChange={(n) => set('homeInsurance', n)}
-          />
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
-              checked={form.includeMiscCosts}
-              onChange={(e) => set('includeMiscCosts', e.target.checked)}
+              checked={form.includeTaxesAndCosts}
+              onChange={(e) => set('includeTaxesAndCosts', e.target.checked)}
             />
-            Include HOA, PMI, and other monthly costs
+            Include taxes & costs
           </label>
-          {form.includeMiscCosts && (
+          {form.includeTaxesAndCosts && (
             <>
+              <Input
+                label="Property tax"
+                prefix="$"
+                grouped
+                value={form.propertyTax}
+                onValueChange={(n) => set('propertyTax', n)}
+              />
+              <Select
+                label="Property tax period"
+                value={form.propertyTaxPeriod}
+                onChange={(v) => set('propertyTaxPeriod', v as 'monthly' | 'annual')}
+                options={[
+                  { value: 'annual', label: 'Annual' },
+                  { value: 'monthly', label: 'Monthly' },
+                ]}
+              />
+              <Input
+                label="Home insurance"
+                prefix="$"
+                suffix="/mo"
+                grouped
+                value={form.homeInsurance}
+                onValueChange={(n) => set('homeInsurance', n)}
+              />
               <Input
                 label="HOA / strata"
                 prefix="$"
@@ -227,13 +220,50 @@ export default function MortgagePage() {
               />
             </>
           )}
-          <Input
-            label="Extra payment"
-            prefix="$"
-            grouped
-            value={form.extraPayment ?? 0}
-            onValueChange={(n) => set('extraPayment', n)}
-          />
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={form.includeExtraPayments}
+              onChange={(e) => set('includeExtraPayments', e.target.checked)}
+            />
+            Make extra payments
+          </label>
+          {form.includeExtraPayments && (
+            <>
+              <Input
+                label="Extra payment"
+                prefix="$"
+                grouped
+                value={form.extraPayment ?? 0}
+                onValueChange={(n) => set('extraPayment', n)}
+              />
+              <Select
+                label="Extra payment frequency"
+                value={form.extraFrequency ?? 'every'}
+                onChange={(v) => set('extraFrequency', v as ExtraPaymentFrequency)}
+                options={[
+                  { value: 'every', label: 'Every month' },
+                  { value: 'yearly', label: 'Once a year' },
+                  { value: 'once', label: 'One-time' },
+                ]}
+              />
+            </>
+          )}
+          <div className="space-y-2">
+            <SegmentedControl
+              options={[
+                { value: 'US', label: 'United States' },
+                { value: 'CA', label: 'Canada' },
+              ]}
+              value={form.country}
+              onChange={(v) => set('country', v)}
+            />
+            <p className="text-sm text-text-muted">
+              US rates use APR ÷ 12 (monthly compounding). Canada converts the quoted rate from
+              semi-annual compounding to a monthly equivalent, so the same nominal rate usually
+              produces a slightly lower payment.
+            </p>
+          </div>
         </>
       }
     />

@@ -1,22 +1,27 @@
 export type MortgageCountry = 'US' | 'CA'
 
+export type ExtraPaymentFrequency = 'every' | 'yearly' | 'once'
+
 export interface MortgageInput {
   country: MortgageCountry
   homePrice: number
   downPayment: number
   downPaymentIsPercent: boolean
   interestRate: number
-  term: number
-  termUnit: 'years' | 'months'
+  termYears: number
+  termMonths: number
+  /** When false, property tax, insurance, HOA, PMI, and other costs are ignored (treated as 0). */
+  includeTaxesAndCosts: boolean
   propertyTax: number
   propertyTaxPeriod: 'monthly' | 'annual'
   homeInsurance: number
-  /** When false, HOA / PMI / other monthly costs are ignored (treated as 0). */
-  includeMiscCosts: boolean
   hoa: number
   pmi: number
   otherCosts: number
+  /** When false, extra payments are ignored. */
+  includeExtraPayments: boolean
   extraPayment?: number
+  extraFrequency?: ExtraPaymentFrequency
 }
 
 export interface CostSlice {
