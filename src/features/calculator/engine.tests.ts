@@ -6,6 +6,7 @@ import {
   initialCalculatorState,
   reduceCalculator,
   type CalculatorAction,
+  type FnName,
   type Operator,
 } from './engine'
 
@@ -129,11 +130,73 @@ describe('calculator engine', () => {
     expect(actionFromKey('^')).toEqual({ type: 'operator', operator: '^' })
     expect(actionFromKey('(')).toEqual({ type: 'paren', which: '(' })
     expect(actionFromKey(')')).toEqual({ type: 'paren', which: ')' })
+    expect(actionFromKey(',')).toEqual({ type: 'comma' })
+    expect(actionFromKey('!')).toEqual({ type: 'postfix', name: '!' })
     expect(actionFromKey('Enter')).toEqual({ type: 'equals' })
     expect(actionFromKey('=')).toEqual({ type: 'equals' })
     expect(actionFromKey('Backspace')).toEqual({ type: 'backspace' })
     expect(actionFromKey('Escape')).toEqual({ type: 'allClear' })
     expect(actionFromKey('%')).toEqual({ type: 'percent' })
     expect(actionFromKey('a')).toBeNull()
+  })
+})
+
+describe('scientific functions', () => {
+  const fn = (name: FnName): CalculatorAction => ({ type: 'fn', name })
+  const constant = (name: 'π' | 'e'): CalculatorAction => ({ type: 'constant', name })
+  const postfix = (name: '!' | '²' | 'reciprocal' | 'abs'): CalculatorAction => ({
+    type: 'postfix',
+    name,
+  })
+  const comma: CalculatorAction = { type: 'comma' }
+  const toggleAngle: CalculatorAction = { type: 'toggleAngle' }
+
+  it('computes trig in degrees by default', () => {
+    expect(run([fn('sin'), ...keys('30=')]).entry).toBe('0.5')
+    expect(Number(run([fn('cos'), ...keys('60=')]).entry)).toBeCloseTo(0.5, 8)
+    expect(Number(run([fn('tan'), ...keys('45=')]).entry)).toBeCloseTo(1, 8)
+  })
+
+  it('computes trig in radians when toggled', () => {
+    const r2 = run([toggleAngle, fn('sin'), constant('π'), op('÷'), digit('6'), eq])
+    expect(r2.angleMode).toBe('rad')
+    expect(Number(r2.entry)).toBeCloseTo(0.5, 6)
+  })
+
+  it('computes hyperbolic smoke values', () => {
+    expect(Number(run([fn('sinh'), digit('0'), eq]).entry)).toBeCloseTo(0, 10)
+    expect(Number(run([fn('cosh'), digit('0'), eq]).entry)).toBeCloseTo(1, 10)
+    expect(Number(run([fn('tanh'), digit('0'), eq]).entry)).toBeCloseTo(0, 10)
+  })
+
+  it('computes logs, roots, factorial, and constants', () => {
+    expect(run([fn('ln'), constant('e'), eq]).entry).toBe('1')
+    expect(run([fn('log'), ...keys('100=')]).entry).toBe('2')
+    expect(run([fn('logx'), digit('2'), comma, digit('8'), eq]).entry).toBe('3')
+    expect(run([fn('sqrt'), digit('9'), eq]).entry).toBe('3')
+    expect(run([...keys('5'), postfix('!'), eq]).entry).toBe('120')
+    expect(Number(run([constant('π')]).entry)).toBeCloseTo(Math.PI, 8)
+    expect(Number(run([constant('e')]).entry)).toBeCloseTo(Math.E, 8)
+  })
+
+  it('applies immediate postfix helpers', () => {
+    expect(run([...keys('5'), postfix('²')]).entry).toBe('25')
+    expect(run([...keys('4'), postfix('reciprocal')]).entry).toBe('0.25')
+    expect(run([sign, digit('3'), postfix('abs')]).entry).toBe('3')
+  })
+
+  it('respects function precedence with multiplication and addition', () => {
+    expect(run([...keys('2+3*'), fn('sin'), digit('0'), eq]).entry).toBe('2')
+    expect(run([fn('sqrt'), ...keys('16'), paren(')'), op('+'), ...keys('2^3=')]).entry).toBe('12')
+  })
+
+  it('applies factorial before power when written as 2^3!', () => {
+    expect(run([...keys('2^3'), postfix('!'), eq]).entry).toBe('64')
+  })
+
+  it('errors on invalid domains', () => {
+    expect(run([fn('ln'), ...keys('0=')]).error).toBe(true)
+    expect(run([fn('sqrt'), sign, digit('1'), eq]).error).toBe(true)
+    expect(run([sign, digit('3'), postfix('!'), eq]).error).toBe(true)
   })
 })
