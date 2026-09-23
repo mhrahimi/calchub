@@ -28,6 +28,7 @@ export type CalculatorAction =
   | { type: 'backspace' }
   | { type: 'clear' }
   | { type: 'allClear' }
+  | { type: 'loadResult'; value: string }
 
 type Token =
   | { kind: 'number'; value: string }
@@ -345,6 +346,17 @@ export function reduceCalculator(state: CalculatorState, action: CalculatorActio
   switch (action.type) {
     case 'allClear':
       return initialCalculatorState
+
+    case 'loadResult': {
+      const value = action.value.trim()
+      if (!value || value === 'Error' || !Number.isFinite(Number(value))) return state
+      return {
+        ...initialCalculatorState,
+        entry: value,
+        overwrite: true,
+        justEvaluated: true,
+      }
+    }
 
     case 'clear':
       if (state.error || state.overwrite || state.justEvaluated) return initialCalculatorState
