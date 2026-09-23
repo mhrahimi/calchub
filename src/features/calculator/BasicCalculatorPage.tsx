@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useReducer, useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { ChevronLeft, ChevronUp } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { isFormField } from '@/utils/keyboard'
@@ -155,6 +156,7 @@ export default function BasicCalculatorPage() {
   const [scientificOpen, setScientificOpen] = useState(() =>
     getItem<boolean>(SCIENTIFIC_OPEN_KEY, false),
   )
+  const reduceMotion = useReducedMotion()
 
   const toggleScientific = () => {
     setScientificOpen((open) => {
@@ -186,12 +188,14 @@ export default function BasicCalculatorPage() {
       if (isFormField(event.target)) return
       const action = actionFromKey(event.key)
       if (!action) return
+      // Stop browser defaults (e.g. Enter activating a focused keypad button).
       event.preventDefault()
+      event.stopPropagation()
       onAction(action)
     }
 
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    window.addEventListener('keydown', onKeyDown, true)
+    return () => window.removeEventListener('keydown', onKeyDown, true)
   }, [onAction])
 
   const clearHistory = () => {
@@ -315,25 +319,44 @@ export default function BasicCalculatorPage() {
               })}
             </div>
 
-            {scientificOpen && (
-              <div
-                id="scientific-pad"
-                className="grid grid-cols-4 gap-2 w-full lg:w-[17rem] lg:shrink-0 order-first lg:order-none"
-                role="group"
-                aria-label="Scientific keypad"
-              >
-                {sciKeys.map((key) => (
-                  <KeyButton
-                    key={key.name}
-                    label={key.label}
-                    name={key.name}
-                    tone={key.action.type === 'toggleAngle' ? 'op' : 'fn'}
-                    onClick={() => onAction(key.action)}
-                    className="text-xs lg:text-sm"
-                  />
-                ))}
-              </div>
-            )}
+            <AnimatePresence initial={false}>
+              {scientificOpen && (
+                <motion.div
+                  id="scientific-pad"
+                  key="scientific-pad"
+                  role="group"
+                  aria-label="Scientific keypad"
+                  className="grid grid-cols-4 gap-2 w-full lg:w-[17rem] lg:shrink-0 order-first lg:order-none overflow-hidden"
+                  initial={
+                    reduceMotion
+                      ? { opacity: 0 }
+                      : { opacity: 0, height: 0, y: -8 }
+                  }
+                  animate={
+                    reduceMotion
+                      ? { opacity: 1 }
+                      : { opacity: 1, height: 'auto', y: 0 }
+                  }
+                  exit={
+                    reduceMotion
+                      ? { opacity: 0 }
+                      : { opacity: 0, height: 0, y: -8 }
+                  }
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                >
+                  {sciKeys.map((key) => (
+                    <KeyButton
+                      key={key.name}
+                      label={key.label}
+                      name={key.name}
+                      tone={key.action.type === 'toggleAngle' ? 'op' : 'fn'}
+                      onClick={() => onAction(key.action)}
+                      className="text-xs lg:text-sm"
+                    />
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 

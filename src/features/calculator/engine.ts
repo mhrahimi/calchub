@@ -140,7 +140,9 @@ export function actionFromKey(key: string): CalculatorAction | null {
   if (key === 'Enter' || key === '=') return { type: 'equals' }
   if (key === 'Backspace') return { type: 'backspace' }
   if (key === 'Escape') return { type: 'allClear' }
+  if (key === 'Delete') return { type: 'clear' }
   if (key === '%') return { type: 'percent' }
+  if (key === 'p' || key === 'P') return { type: 'constant', name: 'π' }
   return null
 }
 
