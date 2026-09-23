@@ -4,10 +4,10 @@ import { isFormField } from '@/utils/keyboard'
 import {
   actionFromKey,
   clearLabel,
+  displayExpression,
   initialCalculatorState,
   reduceCalculator,
   type CalculatorAction,
-  type Operator,
 } from './engine'
 
 type Key =
@@ -17,8 +17,8 @@ type Key =
 const keys: Key[][] = [
   [
     { kind: 'clear', tone: 'fn' },
-    { kind: 'action', action: { type: 'sign' }, label: '±', name: 'Change sign', tone: 'fn' },
-    { kind: 'action', action: { type: 'percent' }, label: '%', name: 'Percent', tone: 'fn' },
+    { kind: 'action', action: { type: 'paren', which: '(' }, label: '(', name: 'Open parenthesis', tone: 'fn' },
+    { kind: 'action', action: { type: 'paren', which: ')' }, label: ')', name: 'Close parenthesis', tone: 'fn' },
     { kind: 'action', action: { type: 'operator', operator: '÷' }, label: '÷', name: 'Divide', tone: 'op' },
   ],
   [
@@ -40,16 +40,16 @@ const keys: Key[][] = [
     { kind: 'action', action: { type: 'operator', operator: '+' }, label: '+', name: 'Add', tone: 'op' },
   ],
   [
-    { kind: 'action', action: { type: 'digit', digit: '0' }, label: '0', name: '0', tone: 'digit' },
-    { kind: 'action', action: { type: 'decimal' }, label: '.', name: 'Decimal point', tone: 'digit' },
+    { kind: 'action', action: { type: 'sign' }, label: '±', name: 'Change sign', tone: 'fn' },
+    { kind: 'action', action: { type: 'percent' }, label: '%', name: 'Percent', tone: 'fn' },
+    { kind: 'action', action: { type: 'operator', operator: '^' }, label: '^', name: 'Power', tone: 'op' },
     { kind: 'action', action: { type: 'equals' }, label: '=', name: 'Equals', tone: 'op' },
   ],
+  [
+    { kind: 'action', action: { type: 'digit', digit: '0' }, label: '0', name: '0', tone: 'digit' },
+    { kind: 'action', action: { type: 'decimal' }, label: '.', name: 'Decimal point', tone: 'digit' },
+  ],
 ]
-
-function operatorSymbol(operator: Operator): string {
-  if (operator === '-') return '−'
-  return operator
-}
 
 export default function BasicCalculatorPage() {
   const [state, dispatch] = useReducer(reduceCalculator, initialCalculatorState)
@@ -68,17 +68,18 @@ export default function BasicCalculatorPage() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  const expression =
-    !state.error && state.operator && state.accumulator != null
-      ? `${state.accumulator} ${operatorSymbol(state.operator)}`
-      : ''
+  const expression = displayExpression(state)
 
   return (
     <div className="max-w-md mx-auto px-4 py-8 lg:py-12">
       <h1 className="text-2xl font-bold text-text-primary mb-6">Calculator</h1>
       <div className="rounded-2xl border border-border bg-white p-4">
-        <div className="min-h-16 mb-4 px-2 text-right">
-          <p className="h-5 text-sm text-text-muted tabular-nums truncate" aria-hidden={expression === ''}>
+        <div className="min-h-20 mb-4 px-2 text-right">
+          <p
+            className="min-h-10 text-sm text-text-muted tabular-nums break-all leading-snug"
+            aria-hidden={expression === ''}
+            aria-label={expression ? 'Expression' : undefined}
+          >
             {expression || '\u00a0'}
           </p>
           <p
@@ -91,7 +92,7 @@ export default function BasicCalculatorPage() {
             aria-atomic="true"
             aria-label="Result"
           >
-            {state.display}
+            {state.entry}
           </p>
         </div>
 
