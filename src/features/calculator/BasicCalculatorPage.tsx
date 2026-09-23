@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useReducer, useState } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { ChevronLeft, ChevronUp } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { isFormField } from '@/utils/keyboard'
 import { getItem, setItem } from '@/persistence/storage'
 import {
-  actionFromKey,
   clearLabel,
   displayExpression,
   initialCalculatorState,
@@ -14,6 +13,8 @@ import {
   type CalculatorState,
 } from './engine'
 import { FxIcon } from './FxIcon'
+import { keyBindings } from './keyBindings'
+import { createKeyChordController } from './keyChordController'
 import {
   clearHistoryStore,
   loadHistory,
@@ -156,7 +157,11 @@ export default function BasicCalculatorPage() {
   const [scientificOpen, setScientificOpen] = useState(() =>
     getItem<boolean>(SCIENTIFIC_OPEN_KEY, false),
   )
+  const [helpOpen, setHelpOpen] = useState(false)
   const reduceMotion = useReducedMotion()
+  const chordRef = useRef(createKeyChordController())
+  const onActionRef = useRef<(action: CalculatorAction) => void>(() => {})
+  const helpRef = useRef<HTMLDivElement>(null)
 
   const toggleScientific = () => {
     setScientificOpen((open) => {
@@ -181,22 +186,69 @@ export default function BasicCalculatorPage() {
     },
     [state],
   )
+  onActionRef.current = onAction
 
   useEffect(() => {
+    const chord = chordRef.current
+
+    const apply = (actions: CalculatorAction[]) => {
+      for (const action of actions) onActionRef.current(action)
+    }
+
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return
       if (isFormField(event.target)) return
-      const action = actionFromKey(event.key)
-      if (!action) return
-      // Stop browser defaults (e.g. Enter activating a focused keypad button).
+
+      if (helpOpen && event.key === 'Escape') {
+        event.preventDefault()
+        event.stopPropagation()
+        setHelpOpen(false)
+        return
+      }
+
+      const result = chord.onKeyDown(event.key, performance.now(), {
+        repeat: event.repeat,
+      })
+      if (!result.handled) return
       event.preventDefault()
       event.stopPropagation()
-      onAction(action)
+      apply(result.actions)
     }
 
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return
+      if (isFormField(event.target)) return
+      const result = chord.onKeyUp(event.key, performance.now())
+      if (!result.handled) return
+      event.preventDefault()
+      event.stopPropagation()
+      apply(result.actions)
+    }
+
+    const pollId = window.setInterval(() => {
+      const result = chord.poll(performance.now())
+      if (result.handled) apply(result.actions)
+    }, 50)
+
     window.addEventListener('keydown', onKeyDown, true)
-    return () => window.removeEventListener('keydown', onKeyDown, true)
-  }, [onAction])
+    window.addEventListener('keyup', onKeyUp, true)
+    return () => {
+      window.clearInterval(pollId)
+      window.removeEventListener('keydown', onKeyDown, true)
+      window.removeEventListener('keyup', onKeyUp, true)
+    }
+  }, [helpOpen])
+
+  useEffect(() => {
+    if (!helpOpen) return
+    const onPointer = (event: MouseEvent) => {
+      if (helpRef.current && !helpRef.current.contains(event.target as Node)) {
+        setHelpOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onPointer)
+    return () => document.removeEventListener('mousedown', onPointer)
+  }, [helpOpen])
 
   const clearHistory = () => {
     clearHistoryStore()
@@ -228,35 +280,80 @@ export default function BasicCalculatorPage() {
       >
         <div className="rounded-2xl border border-border bg-white p-4 relative">
           <div className="flex items-start justify-between gap-2 mb-2">
-            <button
-              type="button"
-              onClick={toggleScientific}
-              aria-expanded={scientificOpen}
-              aria-controls="scientific-pad"
-              className={cn(
-                'inline-flex items-center gap-1.5 h-11 px-3 rounded-xl text-white bg-primary hover:bg-primary-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
-                scientificOpen && 'bg-primary-dark',
-              )}
-              aria-label={
-                scientificOpen ? 'Hide scientific keypad' : 'Show scientific keypad'
-              }
-            >
-              <FxIcon className="w-9 h-6" />
-              <ChevronUp
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleScientific}
+                aria-expanded={scientificOpen}
+                aria-controls="scientific-pad"
                 className={cn(
-                  'w-4 h-4 lg:hidden transition-transform',
-                  scientificOpen && 'rotate-180',
+                  'inline-flex items-center gap-1.5 h-11 px-3 rounded-xl text-white bg-primary hover:bg-primary-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+                  scientificOpen && 'bg-primary-dark',
                 )}
-                aria-hidden
-              />
-              <ChevronLeft
-                className={cn(
-                  'w-4 h-4 hidden lg:block transition-transform',
-                  scientificOpen && 'rotate-180',
+                aria-label={
+                  scientificOpen ? 'Hide scientific keypad' : 'Show scientific keypad'
+                }
+              >
+                <FxIcon className="w-9 h-6" />
+                <ChevronUp
+                  className={cn(
+                    'w-4 h-4 lg:hidden transition-transform',
+                    scientificOpen && 'rotate-180',
+                  )}
+                  aria-hidden
+                />
+                <ChevronLeft
+                  className={cn(
+                    'w-4 h-4 hidden lg:block transition-transform',
+                    scientificOpen && 'rotate-180',
+                  )}
+                  aria-hidden
+                />
+              </button>
+
+              <div className="relative" ref={helpRef}>
+                <button
+                  type="button"
+                  onClick={() => setHelpOpen((open) => !open)}
+                  aria-expanded={helpOpen}
+                  aria-controls="keyboard-shortcuts"
+                  aria-label="Keyboard shortcuts"
+                  className={cn(
+                    'inline-flex items-center justify-center w-8 h-8 rounded-full border text-sm font-serif italic transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+                    helpOpen
+                      ? 'border-primary bg-surface-light text-primary'
+                      : 'border-border text-text-muted hover:text-primary hover:border-primary',
+                  )}
+                >
+                  i
+                </button>
+                {helpOpen && (
+                  <div
+                    id="keyboard-shortcuts"
+                    role="dialog"
+                    aria-label="Keyboard shortcuts"
+                    className="absolute left-0 top-full z-20 mt-2 w-64 rounded-xl border border-border bg-white p-3 shadow-soft"
+                  >
+                    <p className="text-xs font-semibold text-text-primary mb-2">
+                      Keyboard shortcuts
+                    </p>
+                    <ul className="space-y-1.5">
+                      {keyBindings.help.map((row) => (
+                        <li
+                          key={row.keys}
+                          className="flex items-baseline justify-between gap-3 text-xs"
+                        >
+                          <span className="font-medium text-text-secondary tabular-nums shrink-0">
+                            {row.keys}
+                          </span>
+                          <span className="text-text-muted text-right">{row.meaning}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
-                aria-hidden
-              />
-            </button>
+              </div>
+            </div>
             <span className="text-xs font-medium text-text-muted tabular-nums pt-3">
               {state.angleMode.toUpperCase()}
             </span>
