@@ -521,6 +521,18 @@ function evaluateTokens(tokens: Token[], angleMode: AngleMode): string | null {
   return evaluateRpn(toRpn(tokens), angleMode)
 }
 
+/** Evaluate a free-form expression string (used by clipboard paste). */
+export function tryEvaluateExpression(
+  source: string,
+  angleMode: AngleMode = 'deg',
+): string | null {
+  const tokens = tokenize(source)
+  if (!tokens || tokens.length === 0) return null
+  const result = evaluateTokens(tokens, angleMode)
+  if (result == null || result === 'Error') return null
+  return result
+}
+
 function formulaSource(state: CalculatorState, autoClose = false): string {
   let source: string
   if (!state.expression) {

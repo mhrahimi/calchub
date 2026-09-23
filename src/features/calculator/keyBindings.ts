@@ -41,6 +41,8 @@ export const keyBindings = {
     { keys: 'Hold 0 + *', meaning: ')' },
     { keys: '** (double *)', meaning: 'Power ^' },
     { keys: 'p', meaning: 'π' },
+    { keys: '⌘/Ctrl+C', meaning: 'Copy result' },
+    { keys: '⌘/Ctrl+V', meaning: 'Paste number or expression' },
     { keys: 'Delete', meaning: 'Clear entry / all clear' },
     { keys: 'Escape', meaning: 'All clear' },
     { keys: 'Backspace', meaning: 'Delete last digit' },

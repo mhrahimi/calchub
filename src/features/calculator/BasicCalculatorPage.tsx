@@ -13,6 +13,7 @@ import {
   type CalculatorState,
 } from './engine'
 import { FxIcon } from './FxIcon'
+import { getCopyText, parsePastedText } from './clipboard'
 import { formatCalculatorDisplay } from './formatDisplay'
 import { keyBindings } from './keyBindings'
 import { createKeyChordController } from './keyChordController'
@@ -162,7 +163,9 @@ export default function BasicCalculatorPage() {
   const reduceMotion = useReducedMotion()
   const chordRef = useRef(createKeyChordController())
   const onActionRef = useRef<(action: CalculatorAction) => void>(() => {})
+  const stateRef = useRef(state)
   const helpRef = useRef<HTMLDivElement>(null)
+  stateRef.current = state
 
   const toggleScientific = () => {
     setScientificOpen((open) => {
@@ -231,12 +234,40 @@ export default function BasicCalculatorPage() {
       if (result.handled) apply(result.actions)
     }, 50)
 
+    const onCopy = (event: ClipboardEvent) => {
+      if (isFormField(event.target)) return
+      const selection = window.getSelection()?.toString()
+      if (selection) return
+
+      const text = getCopyText(stateRef.current)
+      if (text == null) return
+
+      event.preventDefault()
+      event.clipboardData?.setData('text/plain', text)
+    }
+
+    const onPaste = (event: ClipboardEvent) => {
+      if (isFormField(event.target)) return
+
+      const raw = event.clipboardData?.getData('text/plain') ?? ''
+      const parsed = parsePastedText(raw, stateRef.current.angleMode)
+      if (!parsed) return
+
+      event.preventDefault()
+      event.stopPropagation()
+      onActionRef.current({ type: 'loadResult', value: parsed.value })
+    }
+
     window.addEventListener('keydown', onKeyDown, true)
     window.addEventListener('keyup', onKeyUp, true)
+    window.addEventListener('copy', onCopy, true)
+    window.addEventListener('paste', onPaste, true)
     return () => {
       window.clearInterval(pollId)
       window.removeEventListener('keydown', onKeyDown, true)
       window.removeEventListener('keyup', onKeyUp, true)
+      window.removeEventListener('copy', onCopy, true)
+      window.removeEventListener('paste', onPaste, true)
     }
   }, [helpOpen])
 
