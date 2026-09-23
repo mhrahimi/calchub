@@ -54,6 +54,7 @@ export interface MortgageResult {
   schedule: Array<{
     period: number
     payment: number
+    extraPrincipal?: number
     principal: number
     interest: number
     balance: number

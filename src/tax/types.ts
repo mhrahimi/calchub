@@ -55,6 +55,8 @@ export interface ProgressiveTaxResult {
 }
 
 export interface CombinedTaxResult {
+  regionalTaxableIncome: number
+  regionalStandardDeduction: number
   taxableIncome: number
   federalTax: number
   regionalTax: number

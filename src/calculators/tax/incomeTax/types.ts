@@ -11,6 +11,8 @@ export interface IncomeTaxInput {
 }
 
 export interface IncomeTaxResult {
+  regionalTaxableIncome: number
+  regionalStandardDeduction: number
   taxableIncome: number
   federalTax: number
   regionalTax: number
@@ -38,4 +40,5 @@ export interface IncomeTaxResult {
   regionalSurtax: number
   taxConfigVersion: string
   notes: string[]
+  coverage: { status: 'approximate'; taxYear: number; jurisdiction: string; sourceDate: string | null; sources: string[]; included: string[]; excluded: string[] }
 }

@@ -1,3 +1,4 @@
+import { resultMetadata } from './resultMetadata'
 import { getCalculatorById } from '@/calculators/registry'
 import type { CalculationExplanation, ChartData, TableData } from '@/calculators/types'
 import type { ExportPayload, ExportRecord, ResultSummaryItem } from './types'
@@ -13,7 +14,7 @@ function flattenInputs(inputs: unknown): Record<string, unknown> {
     if (typeof val === 'object' && !Array.isArray(val)) {
       out[key] = JSON.stringify(val)
     } else if (Array.isArray(val)) {
-      out[key] = val.length > 3 ? `[${val.length} items]` : JSON.stringify(val)
+      out[key] = JSON.stringify(val)
     } else {
       out[key] = val
     }
@@ -30,15 +31,15 @@ export function humanizeKey(key: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1)
 }
 
-function flattenResults(results: unknown): ResultSummaryItem[] {
+function flattenResults(results: unknown, primaryKey: string | null): ResultSummaryItem[] {
   if (!results || typeof results !== 'object') {
     return [{ label: 'Result', value: String(results ?? ''), primary: true }]
   }
   const rows: ResultSummaryItem[] = []
   for (const [key, val] of Object.entries(results as Record<string, unknown>)) {
-    if (val === null || val === undefined) continue
+    if (key === 'metadata' || val === null || val === undefined) continue
     if (Array.isArray(val)) {
-      if (val.length <= 5 && val.every((v) => typeof v !== 'object')) {
+      if (key === primaryKey || (val.length <= 5 && val.every((v) => typeof v !== 'object'))) {
         rows.push({ label: humanizeKey(key), value: val.join(', ') })
       }
       continue
@@ -53,8 +54,8 @@ function flattenResults(results: unknown): ResultSummaryItem[] {
       rows.push({ label: humanizeKey(key), value: String(val) })
     }
   }
-  const trimmed = rows.slice(0, 20)
-  if (trimmed[0]) trimmed[0] = { ...trimmed[0], primary: true }
+  const trimmed = rows
+  for (const row of trimmed) row.primary = primaryKey !== null && row.label === humanizeKey(primaryKey)
   return trimmed
 }
 
@@ -79,13 +80,15 @@ export async function buildExportPayloadFromRecord(
   const table = options?.table ?? (engine?.buildTable ? engine.buildTable(record.results) : undefined)
   const charts = options?.charts ?? (engine?.buildCharts ? engine.buildCharts(record.results) : undefined)
 
+  const metadata = resultMetadata(record.calculatorId, record.results, explanation, true)
   return {
+    metadata, rawResults: record.results,
     title: options?.title ?? calc?.title ?? record.calculatorId,
     calculatorId: record.calculatorId,
     date: record.createdAt,
     label: options?.label ?? record.label,
     inputs: flattenInputs(record.inputs),
-    resultsSummary: options?.resultsSummary ?? flattenResults(record.results),
+    resultsSummary: options?.resultsSummary ?? flattenResults(record.results, metadata.primaryResult),
     explanation,
     table,
     charts,
@@ -105,12 +108,14 @@ export function buildLiveExportPayload<TInput, TResult>(params: {
   resultsSummary?: ResultSummaryItem[]
 }): ExportPayload {
   const calc = getCalculatorById(params.calculatorId)
+  const metadata = resultMetadata(params.calculatorId, params.results, params.explain(params.inputs, params.results))
   return {
+    metadata, rawResults: params.results,
     title: calc?.title ?? params.calculatorId,
     calculatorId: params.calculatorId,
     date: new Date().toISOString(),
     inputs: flattenInputs(params.inputs),
-    resultsSummary: params.resultsSummary ?? flattenResults(params.results),
+    resultsSummary: params.resultsSummary ?? flattenResults(params.results, metadata.primaryResult),
     explanation: params.explain(params.inputs, params.results),
     table: params.buildTable?.(params.results),
     charts: params.buildCharts?.(params.results),

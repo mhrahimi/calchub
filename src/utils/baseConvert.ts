@@ -11,7 +11,7 @@ export function isValidDigit(char: string, base: number): boolean {
 }
 
 export function validateBaseString(value: string, base: number): void {
-  if (base < 2 || base > 36) throw new Error('Base must be between 2 and 36')
+  if (!Number.isInteger(base) || base < 2 || base > 36) throw new Error('Base must be between 2 and 36')
   const trimmed = value.trim()
   if (!trimmed) throw new Error('Value is required')
   const parts = trimmed.replace(/^[-+]/, '').split('.')
@@ -40,7 +40,7 @@ export function parseIntegerPart(value: string, base: number): bigint {
 }
 
 export function encodeIntegerPart(value: bigint, base: number): string {
-  if (base < 2 || base > 36) throw new Error('Base must be between 2 and 36')
+  if (!Number.isInteger(base) || base < 2 || base > 36) throw new Error('Base must be between 2 and 36')
   if (value === 0n) return '0'
   const sign = value < 0n ? '-' : ''
   let n = value < 0n ? -value : value
@@ -61,24 +61,27 @@ export function convertFractionalPart(
   maxDigits = 12,
 ): string {
   if (!fractional) return ''
-  let value = 0
-  const fb = fromBase
+  if (!Number.isInteger(fromBase) || !Number.isInteger(toBase) || fromBase < 2 || fromBase > 36 || toBase < 2 || toBase > 36 || !Number.isInteger(maxDigits) || maxDigits < 1 || maxDigits > 10000) throw new Error('Invalid base or precision')
+  let numerator = 0n, denominator = 1n
   for (const ch of fractional) {
     if (!isValidDigit(ch, fromBase)) throw new Error(`Invalid digit "${ch}"`)
-    value = (value + DIGIT_VALUES[ch]) / fb
+    numerator = numerator * BigInt(fromBase) + BigInt(DIGIT_VALUES[ch])
+    denominator *= BigInt(fromBase)
   }
   let result = ''
   for (let i = 0; i < maxDigits; i++) {
-    value *= toBase
-    const digit = Math.floor(value)
-    result += digit < 10 ? String(digit) : String.fromCharCode(65 + digit - 10)
-    value -= digit
-    if (value === 0) break
+    numerator *= BigInt(toBase)
+    const digit = Number(numerator / denominator)
+    result += digit.toString(36).toUpperCase()
+    numerator %= denominator
+    if (numerator === 0n) break
   }
   return result
 }
 
 export interface BaseConversionResult {
+  repeating: boolean
+  truncated: boolean
   sourceValue: string
   sourceBase: number
   targetBase: number
@@ -103,20 +106,19 @@ export function convertBase(
   const intVal = parseIntegerPart(intStr || '0', fromBase)
   const targetInt = encodeIntegerPart(intVal, toBase)
 
-  let targetFrac = ''
-  if (fracStr) {
-    let decimal = 0
-    for (const ch of fracStr) {
-      decimal = (decimal + DIGIT_VALUES[ch]) / fromBase
-    }
-    for (let i = 0; i < fractionalPrecision; i++) {
-      decimal *= toBase
-      const digit = Math.floor(decimal)
-      targetFrac += digit < 10 ? String(digit) : String.fromCharCode(65 + digit - 10)
-      decimal -= digit
-      if (decimal === 0) break
-    }
+  const targetFrac = fracStr ? convertFractionalPart(fracStr, fromBase, toBase, fractionalPrecision) : ''
+  let remainder = 0n, denominator = 1n
+  for (const ch of fracStr) { remainder = remainder * BigInt(fromBase) + BigInt(DIGIT_VALUES[ch]); denominator *= BigInt(fromBase) }
+  const seen = new Set<bigint>()
+  let repeating = false
+  for (let i = 0; remainder && i < 10000; i++) {
+    if (seen.has(remainder)) { repeating = true; break }
+    seen.add(remainder); remainder = remainder * BigInt(toBase) % denominator
   }
+  let residual = 0n
+  for (const ch of fracStr) residual = residual * BigInt(fromBase) + BigInt(DIGIT_VALUES[ch])
+  for (let i = 0; i < targetFrac.length; i++) residual = residual * BigInt(toBase) % denominator
+  const truncated = residual !== 0n
 
   const targetValue = targetFrac ? `${sign}${targetInt}.${targetFrac}` : `${sign}${targetInt}`
 
@@ -124,11 +126,14 @@ export function convertBase(
     { label: 'Parse integer in source base', value: intVal.toString() },
     { label: 'Encode integer in target base', value: targetInt },
   ]
+  if (truncated) steps.push({ label: repeating ? 'Repeating fraction' : 'Precision limit', value: `Truncated to ${fractionalPrecision} digits` })
   if (fracStr) {
     steps.push({ label: 'Convert fractional part', value: targetFrac || '0' })
   }
 
   return {
+    repeating,
+    truncated,
     sourceValue: trimmed,
     sourceBase: fromBase,
     targetBase: toBase,

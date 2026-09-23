@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { AppLayout } from '@/components/shell/AppLayout'
 
 const HomePage = lazy(() => import('@/features/home/HomePage'))
+const BasicCalculatorPage = lazy(() => import('@/features/calculator/BasicCalculatorPage'))
 const FavoritesPage = lazy(() => import('@/features/favorites/FavoritesPage'))
 const HistoryPage = lazy(() => import('@/features/history/HistoryPage'))
 const SavedPage = lazy(() => import('@/features/saved/SavedPage'))
@@ -57,6 +58,7 @@ export function AppRoutes() {
         <Route element={<AppLayout />}>
           <Route index element={<HomePage />} />
           <Route path="favorites" element={<FavoritesPage />} />
+          <Route path="calculator" element={<BasicCalculatorPage />} />
           <Route path="history" element={<HistoryPage />} />
           <Route path="saved" element={<SavedPage />} />
           <Route path="settings" element={<SettingsPage />} />
@@ -87,6 +89,8 @@ export function AppRoutes() {
           <Route path="calculators/bonds" element={<BondsPage />} />
           <Route path="calculators/cap-table" element={<CapTablePage />} />
           <Route path="calculators/cre-waterfall" element={<CreWaterfallPage />} />
+          <Route path="calculators/dcf" element={<DcfLboPage key="dcf" fixedMode="dcf" />} />
+          <Route path="calculators/lbo" element={<DcfLboPage key="lbo" fixedMode="lbo" />} />
           <Route path="calculators/dcf-lbo" element={<DcfLboPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

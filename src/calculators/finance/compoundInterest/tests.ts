@@ -113,7 +113,8 @@ describe('compound interest', () => {
     })
     expect(weekly.totalContributions).toBeGreaterThan(monthly.totalContributions)
     expect(monthly.totalContributions).toBeGreaterThan(yearly.totalContributions)
-    expect(weekly.totalContributions - 10000).toBeCloseTo((monthly.totalContributions - 10000) * (52 / 12), 0)
+    // 2026-01-01 through 2036-01-01 contains 521 actual weekly events.
+    expect(weekly.totalContributions - 10000).toBe(52100)
   })
 
   it('treats a negative contribution as a withdrawal', () => {

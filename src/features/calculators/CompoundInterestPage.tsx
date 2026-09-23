@@ -53,6 +53,7 @@ export default function CompoundInterestPage() {
       onCalculate={() => handleCalculate(form)}
       inputs={
         <>
+          <Input label="Start date" type="date" value={form.startDate ?? '2026-01-01'} onChange={e=>set('startDate',e.target.value)} />
           <Input label="Principal" prefix="$" grouped value={form.principal} onValueChange={(n) => set('principal', n)} error={errors.principal} />
           <Input label="Interest rate" suffix="%" type="number" value={form.interestRate} onChange={(e) => set('interestRate', +e.target.value)} />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

@@ -1,5 +1,6 @@
 import { Plus, Trash2 } from 'lucide-react'
 import { CalculatorLayout } from '@/components/calculator/CalculatorLayout'
+import { Select } from '@/components/ui/Select'
 import { Input } from '@/components/ui/Input'
 import { ResultBlock, MetricRow } from '@/components/ui/ResultBlock'
 import { useCalculatorPage, formatResultCurrency } from './useCalculatorPage'
@@ -15,7 +16,7 @@ import type { CapTableHolder, CapTableInput } from '@/calculators/finance/capTab
 const defaultInput: CapTableInput = {
   holders: [
     { id: '1', name: 'Founder', type: 'common', shares: 8_000_000 },
-    { id: '2', name: 'Option pool', type: 'options', shares: 2_000_000 },
+    { id: '2', name: 'Option pool', type: 'unallocated', shares: 2_000_000 },
   ],
   preMoneyValuation: 8_000_000,
   investmentAmount: 2_000_000,
@@ -39,6 +40,8 @@ export default function CapTablePage() {
         <div className="rounded-2xl border border-border bg-white p-4">
           <MetricRow label="Post-money valuation" value={formatResultCurrency(r.postMoneyValuation)} />
           <MetricRow label="New investor shares" value={r.newInvestorShares.toLocaleString()} />
+          <MetricRow label="Ownership reconciliation" value={`${r.ownershipTotal.toFixed(6)}%`} />
+          <MetricRow label="Available pool" value={`${r.availablePoolPercent.toFixed(4)}%`} />
           <MetricRow label="Fully diluted shares" value={r.postMoneyFds.toLocaleString()} />
         </div>
       </div>
@@ -78,8 +81,9 @@ export default function CapTablePage() {
             </div>
             {form.holders.map((h) => (
               <div key={h.id} className="grid grid-cols-1 sm:grid-cols-[1fr_8rem_auto] gap-2 items-end">
-                <Input label="Name" value={h.name} onChange={(e) => updateHolder(h.id, { name: e.target.value })} />
-                <Input label="Shares" type="number" value={h.shares} onChange={(e) => updateHolder(h.id, { shares: +e.target.value })} />
+                <Input id={`holder-${h.id}-name`} label="Name" value={h.name} onChange={(e) => updateHolder(h.id, { name: e.target.value })} />
+                <Select label={`Share type — ${h.name} (${h.id})`} value={h.type} onChange={(v) => updateHolder(h.id, {type: v as CapTableHolder['type']})} options={[{value:'common',label:'Common shares'},{value:'options',label:'Granted options'},{value:'unallocated',label:'Available option pool'}]} />
+                <Input id={`holder-${h.id}-shares`} label="Shares" type="number" value={h.shares} onChange={(e) => updateHolder(h.id, { shares: +e.target.value })} />
                 <button
                   type="button"
                   onClick={() => removeHolder(h.id)}
@@ -94,7 +98,7 @@ export default function CapTablePage() {
           </div>
           <Input label="Pre-money valuation" prefix="$" grouped value={form.preMoneyValuation} onValueChange={(n) => setForm((f) => ({ ...f, preMoneyValuation: n }))} error={errors.preMoneyValuation} />
           <Input label="Investment amount" prefix="$" grouped value={form.investmentAmount} onValueChange={(n) => setForm((f) => ({ ...f, investmentAmount: n }))} error={errors.investmentAmount} />
-          <Input label="Option pool top-up" suffix="%" type="number" value={form.optionPoolTopUpPercent} onChange={(e) => setForm((f) => ({ ...f, optionPoolTopUpPercent: +e.target.value }))} error={errors.optionPoolTopUpPercent} />
+          <Input label="Target available pool after financing" suffix="%" type="number" value={form.optionPoolTopUpPercent} onChange={(e) => setForm((f) => ({ ...f, optionPoolTopUpPercent: +e.target.value }))} error={errors.optionPoolTopUpPercent} />
         </>
       }
     />

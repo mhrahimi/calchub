@@ -1,4 +1,4 @@
-export type HolderType = 'common' | 'options'
+export type HolderType = 'common' | 'options' | 'unallocated'
 
 export interface CapTableHolder {
   id: string
@@ -32,4 +32,6 @@ export interface CapTableResult {
   newInvestorShares: number
   optionPoolShares: number
   postMoneyValuation: number
+  ownershipTotal: number
+  availablePoolPercent: number
 }

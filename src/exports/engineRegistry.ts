@@ -174,6 +174,8 @@ const REGISTRY: Record<string, EngineExportFns> = {
     buildTable: buildCreWaterfallTable as EngineExportFns['buildTable'],
     buildCharts: buildCreWaterfallCharts as EngineExportFns['buildCharts'],
   },
+  dcf: { explain: explainDcf as EngineExportFns['explain'], buildTable: buildDcfTable as EngineExportFns['buildTable'], buildCharts: buildDcfCharts as EngineExportFns['buildCharts'] },
+  lbo: { explain: explainLbo as EngineExportFns['explain'], buildTable: buildLboTable as EngineExportFns['buildTable'], buildCharts: buildLboCharts as EngineExportFns['buildCharts'] },
   'dcf-lbo': {
     explain: (input, result) => {
       const inp = input as { forecast?: Array<{ ebitda?: number; revenue?: number }> }

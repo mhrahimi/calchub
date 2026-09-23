@@ -42,13 +42,14 @@ export default function IncomeTaxPage() {
     renderResults: (r) => (
       <div className="space-y-4">
         <ResultBlock
-          label="Total tax"
+          label="Rough headline tax estimate"
           value={formatResultCurrency(r.totalTax)}
           sublabel={`After-tax income ${formatResultCurrency(r.afterTaxIncome)}`}
           primary
         />
         <div className="rounded-2xl border border-border bg-white p-4">
           <MetricRow label="Taxable income" value={formatResultCurrency(r.taxableIncome)} />
+          <MetricRow label="Regional taxable income" value={formatResultCurrency(r.regionalTaxableIncome)} />
           <MetricRow label="Federal tax" value={formatResultCurrency(r.federalTax)} />
           <MetricRow label="State / provincial" value={formatResultCurrency(r.regionalTax)} />
           <MetricRow label="Effective rate" value={`${(r.effectiveRate * 100).toFixed(2)}%`} />

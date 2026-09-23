@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { Home, Star, History, Bookmark, Settings } from 'lucide-react'
+import { Calculator, Home, Star, History, Bookmark, Settings } from 'lucide-react'
 import { cn } from '@/utils/cn'
 
 const tabs = [
@@ -17,12 +17,26 @@ export function MobileHeader() {
   return (
     <header className="lg:hidden sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-border px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
       <div className="flex items-center justify-between">
-        <div>
+        <div className="min-w-0">
           <h1 className="font-bold text-primary">CalcHub</h1>
           {isHome && (
             <p className="text-xs text-text-muted">Every calculation. One place.</p>
           )}
         </div>
+        <NavLink
+          to="/calculator"
+          aria-label="Calculator"
+          className={({ isActive }) =>
+            cn(
+              'inline-flex items-center justify-center w-11 h-11 shrink-0 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+              isActive
+                ? 'bg-surface-light text-primary'
+                : 'text-text-secondary hover:bg-surface-lighter hover:text-primary',
+            )
+          }
+        >
+          <Calculator className="w-5 h-5" />
+        </NavLink>
       </div>
     </header>
   )

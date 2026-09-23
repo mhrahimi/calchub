@@ -6,36 +6,41 @@ export function calculateCapTable(input: CapTableInput): CapTableResult {
   const postMoney = input.preMoneyValuation + input.investmentAmount
   const poolPct = input.optionPoolTopUpPercent / 100
 
-  const optionPoolShares = Math.round((preMoneyFds * poolPct) / (1 - poolPct))
+  const existingPool = input.holders.filter(h => h.type === 'unallocated').reduce((s,h) => s+h.shares,0)
+  const financingFactor = 1 + input.investmentAmount / input.preMoneyValuation
+  if (!Number.isFinite(financingFactor) || input.preMoneyValuation <= 0 || input.investmentAmount < 0 || preMoneyFds <= 0 || !Number.isFinite(poolPct) || poolPct < 0 || poolPct * financingFactor >= 1 || input.holders.some(h => !Number.isFinite(h.shares) || h.shares < 0)) throw new Error('Invalid or infeasible post-money option pool target')
+  const optionPoolShares = Math.max(0, (poolPct * financingFactor * preMoneyFds - existingPool) / (1 - poolPct * financingFactor))
   const preMoneyWithPool = preMoneyFds + optionPoolShares
   const pricePerShare = input.preMoneyValuation / preMoneyWithPool
-  const newInvestorShares = Math.round(input.investmentAmount / pricePerShare)
+  const newInvestorShares = input.investmentAmount / pricePerShare
   const postMoneyFds = preMoneyWithPool + newInvestorShares
 
   const allHolders = [
     ...input.holders,
     ...(optionPoolShares > 0
-      ? [{ id: '__pool__', name: 'Option pool (new)', type: 'options' as const, shares: optionPoolShares }]
+      ? [{ id: '__pool__', name: 'Option pool (new)', type: 'unallocated' as const, shares: optionPoolShares }]
       : []),
     { id: '__investor__', name: 'New investor', type: 'common' as const, shares: newInvestorShares },
   ]
 
   const holders = allHolders.map((h) => {
-    const preOwnership = preMoneyFds > 0 ? (h.shares / preMoneyFds) * 100 : 0
+    const preOwnership = !['__pool__', '__investor__'].includes(h.id) && preMoneyFds > 0 ? (h.shares / preMoneyFds) * 100 : 0
     const postOwnership = (h.shares / postMoneyFds) * 100
     return {
       id: h.id,
       name: h.name,
       type: h.type,
       shares: h.shares,
-      preOwnership: Math.round(preOwnership * 100) / 100,
-      postOwnership: Math.round(postOwnership * 100) / 100,
-      dilution: Math.round((preOwnership - postOwnership) * 100) / 100,
+      preOwnership: preOwnership,
+      postOwnership: postOwnership,
+      dilution: preOwnership - postOwnership,
     }
   })
 
   return {
     holders,
+    ownershipTotal: holders.reduce((s,h) => s+h.postOwnership,0),
+    availablePoolPercent: (existingPool + optionPoolShares) / postMoneyFds * 100,
     preMoneyFds,
     postMoneyFds,
     pricePerShare,
@@ -67,7 +72,9 @@ export function explainCapTable(input: CapTableInput, _result: CapTableResult): 
       },
     ],
     assumptions: [
-      'Fully diluted shares include option pool top-up before pricing',
+      'Granted options count as issued; only unallocated shares count toward the available pool target.',
+      'Fractional shares are retained to reconcile ownership; an existing pool above target is not reduced.',
+      'Legacy options holders are treated as granted options; mark available pools as unallocated.',
       'Instrument-specific SAFE/convertible rules vary and are not modeled here',
     ],
   }

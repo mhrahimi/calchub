@@ -66,7 +66,7 @@ export async function exportToPdf(
   doc.text('Inputs', margin, y)
   y += 14
 
-  const inputRows = Object.entries(payload.inputs).map(([k, v]) => [k, String(v)])
+  const inputRows = [...Object.entries(payload.inputs).map(([k, v]) => [k, String(v)]), ...Object.entries(payload.metadata ?? {}).map(([k,v])=>[k,Array.isArray(v)?v.join('\n'):String(v)])]
   autoTable(doc, {
     startY: y,
     head: [['Field', 'Value']],

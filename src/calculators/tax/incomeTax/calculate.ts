@@ -18,7 +18,15 @@ export function calculateIncomeTax(input: IncomeTaxInput): IncomeTaxResult {
     regional,
   })
 
+  const excluded = ['Payroll contributions and local taxes', 'Itemized deductions, personal credits, benefits, capital gains and special income treatment', ...(input.country === 'CA' ? ['Basic personal and employment credits', ...(input.jurisdictionId === 'ontario' ? ['Ontario health premium and provincial surtax'] : []), ...(input.jurisdictionId === 'quebec' ? ['Quebec federal abatement'] : [])] : ['Unconfigured state deductions and exemptions', 'Filing-status-specific state brackets where only a generic schedule is configured'])]
+  const coverage = { status: 'approximate' as const, taxYear: input.taxYear, jurisdiction: `${input.country}/${regional.name}`, sourceDate: null,
+    sources: [federal.metadata?.source, regional.metadata?.source].filter((s): s is string => !!s),
+    included: ['Configured federal and regional brackets / flat rates', 'Configured surtaxes and standard deductions; entered pretax deductions'], excluded }
   const notes: string[] = [
+    'Rough headline estimate. Configuration source date is not recorded; some 2026 values remain provisional.',
+    `Coverage: ${coverage.jurisdiction}; included: ${coverage.included.join('; ')}.`,
+    `Excluded: ${excluded.join('; ')}.`,
+    `Sources: ${coverage.sources.join('; ')}.`,
     `Tax year ${input.taxYear}. Estimated liability, not a filed return.`,
   ]
   if (federal.metadata?.notes) notes.push(...federal.metadata.notes)
@@ -27,13 +35,14 @@ export function calculateIncomeTax(input: IncomeTaxInput): IncomeTaxResult {
   return {
     ...result,
     taxConfigVersion: TAX_CONFIG_VERSION,
+    coverage,
     notes,
   }
 }
 
 export function explainIncomeTax(input: IncomeTaxInput, result: IncomeTaxResult): CalculationExplanation {
   return {
-    title: 'Income tax calculation',
+    title: 'Rough headline income-tax estimate',
     steps: [
       {
         label: 'Taxable income',

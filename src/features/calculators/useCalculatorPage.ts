@@ -1,11 +1,13 @@
-import { useState, useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from 'react'
+import { resultMetadata } from '@/exports/resultMetadata'
+import { payloadToCsv } from '@/exports/recordCsv'
+import { createElement, useState, useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from 'react'
 import { getCalculatorById } from '@/calculators/registry'
 import { useApp } from '@/app/providers'
 import { addRecentlyUsed } from '@/persistence/recentlyUsed'
 import { saveHistoryRecord } from '@/persistence/history'
 import { saveCalculation } from '@/persistence/saved'
 import { consumePendingRestore } from '@/persistence/restore'
-import { downloadCsv, tableToCsv } from '@/utils/csv'
+import { downloadCsv } from '@/utils/csv'
 import { formatCurrency } from '@/utils/currency'
 import { buildLiveExportPayload } from '@/exports/buildPayload'
 import { downloadPdf } from '@/exports/pdf'
@@ -62,11 +64,22 @@ export function useCalculatorPage<TInput extends object, TResult>({
     (formInput: TInput, options?: { skipHistory?: boolean }) => {
       const validation = validate(formInput)
       if (!validation.valid) {
+        setResult(null)
+        setInput(null)
         setErrors(validation.errors)
         return
       }
       setErrors({})
-      const computed = calculate(formInput)
+      let computed: TResult
+      try {
+        const raw = calculate(formInput)
+        computed = { ...raw, metadata: resultMetadata(calculatorId, raw, explain(formInput, raw)) }
+      } catch (error) {
+        setResult(null)
+        setInput(null)
+        setErrors({calculation: error instanceof Error ? error.message : 'Calculation failed'})
+        return
+      }
       setResult(computed)
       setInput(formInput)
       addRecentlyUsed(calculatorId)
@@ -127,9 +140,9 @@ export function useCalculatorPage<TInput extends object, TResult>({
 
   const handleExportCsv = useCallback(() => {
     if (!result || !buildTable) return
-    const table = buildTable(result)
-    downloadCsv(csvFilename ?? `${calculatorId}.csv`, tableToCsv(table))
-  }, [result, buildTable, csvFilename, calculatorId])
+    const payload = getExportPayload()
+    if (payload) downloadCsv(csvFilename ?? `${calculatorId}.csv`, payloadToCsv(payload))
+  }, [result, buildTable, csvFilename, calculatorId, getExportPayload])
 
   const handleExportPdf = useCallback(async () => {
     const payload = getExportPayload()
@@ -191,7 +204,11 @@ export function useCalculatorPage<TInput extends object, TResult>({
     description: calc.description,
     isFavorite,
     onFavoriteToggle: handleFavoriteToggle,
-    results: result && input ? renderResults(result, input) : null,
+    calculationError: errors.calculation,
+    results: result && input ? createElement('div', {},
+      ...resultMetadata(calculatorId,result,explain(input,result), !(result as Record<string,unknown>).metadata).warnings.map((w,i)=>createElement('p',{key:i,className:'text-sm text-amber-800'},w)),
+      ...(['income-tax','cre-waterfall','lbo'].includes(calculatorId) ? (explain(input,result).assumptions??[]).map((w,i)=>createElement('p',{key:`assumption-${i}`,className:'text-sm'},w)) : []),
+      renderResults(result,input)) : null,
     explanation: result && input ? explain(input, result) : null,
     charts: result && buildCharts ? buildCharts(result) : undefined,
     table: result && buildTable ? buildTable(result) : null,

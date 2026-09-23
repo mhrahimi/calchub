@@ -19,6 +19,10 @@ export interface LoanInput {
 }
 
 export interface LoanResult {
+  status?: string
+  warnings?: string[]
+  remainingBalance?: number
+  balloonPaid?: number
   financedAmount: number
   payment: number
   totalInterest: number

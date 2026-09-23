@@ -1,110 +1,47 @@
-/** Brent's method for root finding on f(x)=0 in [a,b] */
-export function brentSolve(
-  f: (x: number) => number,
-  a: number,
-  b: number,
-  tolerance = 1e-10,
-  maxIter = 100,
-): number | null {
-  let fa = f(a)
-  let fb = f(b)
-  if (fa * fb > 0) return null
-
-  if (Math.abs(fa) < Math.abs(fb)) {
-    ;[a, b] = [b, a]
-    ;[fa, fb] = [fb, fa]
-  }
-
-  let c = a
-  let fc = fa
-  let d = a
-  let mFlag = true
-
-  for (let iter = 0; iter < maxIter; iter++) {
-    if (Math.abs(fb) < tolerance || Math.abs(b - a) < tolerance) return b
-
-    let s: number
-    if (fa !== fc && fb !== fc) {
-      s =
-        (a * fb * fc) / ((fa - fb) * (fa - fc)) +
-        (b * fa * fc) / ((fb - fa) * (fb - fc)) +
-        (c * fa * fb) / ((fc - fa) * (fc - fb))
-    } else {
-      s = b - (fb * (b - a)) / (fb - fa)
-    }
-
-    const cond1 = s <= (3 * a + b) / 4 || s >= b
-    const cond2 = mFlag && Math.abs(s - b) >= Math.abs(b - c) / 2
-    const cond3 = !mFlag && Math.abs(s - b) >= Math.abs(c - d) / 2
-    const cond4 = mFlag && Math.abs(b - c) < tolerance
-    const cond5 = !mFlag && Math.abs(c - d) < tolerance
-
-    if (cond1 || cond2 || cond3 || cond4 || cond5) {
-      s = (a + b) / 2
-      mFlag = true
-    } else {
-      mFlag = false
-    }
-
-    const fs = f(s)
-    d = c
-    c = b
-    fc = fb
-
-    if (fa * fs < 0) {
-      b = s
-      fb = fs
-    } else {
-      a = s
-      fa = fs
-    }
-
-    if (Math.abs(fa) < Math.abs(fb)) {
-      ;[a, b] = [b, a]
-      ;[fa, fb] = [fb, fa]
-    }
-  }
-
-  return b
+export type SolveStatus = 'success' | 'no_solution' | 'unreachable' | 'invalid_domain' | 'negative_amortization' | 'max_iterations'
+export type SolveResult = { status: 'success'; value: number; iterations: number } | { status: Exclude<SolveStatus,'success'>; value: null; message: string; range?: [number,number] }
+export class CalculationError extends Error {
+  constructor(public status: Exclude<SolveStatus,'success'>, message: string) { super(message) }
 }
-
-/** Find bracket [lo, hi] where f changes sign, then solve */
-export function findRate(
-  objective: (rate: number) => number,
-  initialGuess = 0.05,
-): number | null {
-  let lo = 0.0001
-  let hi = initialGuess
-
-  let fLo = objective(lo)
-  let fHi = objective(hi)
-
-  if (fLo * fHi > 0) {
-    hi = 0.5
-    fHi = objective(hi)
-    if (fLo * fHi > 0) {
-      hi = 2
-      fHi = objective(hi)
-      if (fLo * fHi > 0) return null
-    }
-  }
-
-  return brentSolve(objective, lo, hi)
+export function requireSolution(r: SolveResult): number {
+  if(r.status!=='success') throw new CalculationError(r.status,r.message)
+  return r.value
 }
-
-/** Solve loan rate: PV = PMT * (1-(1+r)^(-n))/r + FV/(1+r)^n */
-export function solveLoanRate(
-  principal: number,
-  payment: number,
-  periods: number,
-  balloon = 0,
-): number | null {
-  const objective = (r: number) => {
-    if (r === 0) return principal - payment * periods - balloon
-    const factor = Math.pow(1 + r, periods)
-    const pvPmt = (payment * (factor - 1)) / (r * factor)
-    const pvBalloon = balloon / factor
-    return principal - pvPmt - pvBalloon
+/** Bracketed bisection; no unconverged estimates are returned as success. */
+export function solveRoot(f:(x:number)=>number,a:number,b:number,tolerance=1e-10,maxIter=200):SolveResult {
+  const fail=(status:Exclude<SolveStatus,'success'>,message:string):SolveResult=>({status,value:null,message,range:[a,b]})
+  if(![a,b,tolerance].every(Number.isFinite)||a>=b||tolerance<=0||maxIter<1) return fail('invalid_domain','Invalid solver bounds')
+  let fa=f(a); const fb=f(b)
+  if(!Number.isFinite(fa)||!Number.isFinite(fb)) return fail('invalid_domain','Non-finite objective at endpoints')
+  if(fa===0) return {status:'success',value:a,iterations:0}
+  if(fb===0) return {status:'success',value:b,iterations:0}
+  if(Math.sign(fa)===Math.sign(fb)) return fail('no_solution','No sign-changing root in bracket')
+  for(let i=1;i<=maxIter;i++) {
+    const mid=a+(b-a)/2, fm=f(mid)
+    if(!Number.isFinite(fm)) return fail('invalid_domain','Non-finite objective in bracket')
+    if(fm===0||Math.abs(b-a)<=tolerance*Math.max(1,Math.abs(mid))) return {status:'success',value:mid,iterations:i}
+    if(Math.sign(fa)!==Math.sign(fm)) b=mid; else {a=mid;fa=fm}
   }
-  return findRate(objective)
+  return fail('max_iterations','Root solver did not converge')
 }
+export function findRateResult(f:(r:number)=>number,guess=0.05):SolveResult {
+  if(f(0)===0) return {status:'success',value:0,iterations:0}
+  const points=[...new Set([-0.999999,-0.99,-0.9,-0.5,-0.1,-0.01,0,0.01,guess,0.1,0.5,1,2,5,10,100])].filter(x=>Number.isFinite(x)&&x>-1).sort((a,b)=>a-b)
+  let prev:{x:number;y:number}|undefined
+  for(const x of points) {
+    const y=f(x)
+    if(!Number.isFinite(y)) {prev=undefined;continue}
+    if(y===0) return {status:'success',value:x,iterations:0}
+    if(prev&&Math.sign(y)!==Math.sign(prev.y)) return solveRoot(f,prev.x,x)
+    prev={x,y}
+  }
+  return {status:prev?'no_solution':'invalid_domain',value:null,message:'No root found in searched periodic-rate range; roots outside it or multiple roots may exist.',range:[points[0],points[points.length-1]]}
+}
+export function solveLoanRateResult(p:number,payment:number,n:number,balloon=0):SolveResult {
+  if(![p,payment,n,balloon].every(Number.isFinite)||p<=0||payment<0||n<=0||balloon<0) return {status:'invalid_domain',value:null,message:'Invalid loan inputs'}
+  return findRateResult(r=>r===0?p-payment*n-balloon:p-payment*(-Math.expm1(-n*Math.log1p(r)))/r-balloon*Math.exp(-n*Math.log1p(r)))
+}
+/** Legacy adapters preserve null-on-failure contracts. */
+export function brentSolve(f:(x:number)=>number,a:number,b:number,t=1e-10,n=200):number|null{return solveRoot(f,a,b,t,n).value}
+export function findRate(f:(r:number)=>number,g=0.05):number|null{return findRateResult(f,g).value}
+export function solveLoanRate(p:number,pmt:number,n:number,b=0):number|null{return solveLoanRateResult(p,pmt,n,b).value}

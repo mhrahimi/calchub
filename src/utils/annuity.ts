@@ -146,6 +146,7 @@ export function periodsPerYear(frequency: string): number {
     weekly: 52,
     'bi-weekly': 26,
     'bi-monthly': 24,
+    semimonthly: 24,
     monthly: 12,
     quarterly: 4,
     'semi-annual': 2,

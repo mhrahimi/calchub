@@ -141,7 +141,7 @@ export const CALCULATOR_REGISTRY: CalculatorMeta[] = [
   },
   {
     id: 'income-tax',
-    title: 'Income Tax Calculator',
+    title: 'Income Tax — Rough Headline Estimate',
     description: 'Estimate federal and state/provincial income tax.',
     categories: ['tax-salary'],
     categorySlug: 'tax-salary',
@@ -186,8 +186,8 @@ export const CALCULATOR_REGISTRY: CalculatorMeta[] = [
   },
   {
     id: 'cre-waterfall',
-    title: 'Commercial Real Estate Waterfalls',
-    description: 'Model tiered LP/GP cash flow distributions.',
+    title: 'Simplified CRE Distribution Illustration',
+    description: 'Single one-year distribution illustration; no dated waterfall, lookback or clawback.',
     categories: ['corporate-finance'],
     categorySlug: 'corporate-finance',
     keywords: ['CRE', 'waterfall', 'real estate', 'LP', 'GP', 'promote'],
@@ -196,8 +196,30 @@ export const CALCULATOR_REGISTRY: CalculatorMeta[] = [
     route: '/calculators/cre-waterfall',
   },
   {
+    id: 'dcf',
+    title: 'DCF Valuation',
+    description: 'Unlevered cash flow valuation with an explicit net-debt bridge.',
+    categories: ['corporate-finance'],
+    categorySlug: 'corporate-finance',
+    keywords: ['DCF', 'LBO', 'valuation', 'WACC', 'IRR', 'MOIC'],
+    icon: 'TrendingUp',
+    implemented: true,
+    route: '/calculators/dcf',
+  },
+  {
+    id: 'lbo',
+    title: 'LBO Returns',
+    description: 'Leveraged buyout returns with balanced funding and retained cash.',
+    categories: ['corporate-finance'],
+    categorySlug: 'corporate-finance',
+    keywords: ['DCF', 'LBO', 'valuation', 'WACC', 'IRR', 'MOIC'],
+    icon: 'TrendingUp',
+    implemented: true,
+    route: '/calculators/lbo',
+  },
+  {
     id: 'dcf-lbo',
-    title: 'DCF & LBO Models',
+    title: 'DCF / LBO — Legacy Entry',
     description: 'Discounted cash flow and leveraged buyout modeling.',
     categories: ['corporate-finance'],
     categorySlug: 'corporate-finance',
@@ -336,7 +358,7 @@ export function getCalculatorById(id: string): CalculatorMeta | undefined {
 }
 
 export function getImplementedCalculators(): CalculatorMeta[] {
-  return CALCULATOR_REGISTRY.filter((c) => c.implemented)
+  return CALCULATOR_REGISTRY.filter((c) => c.implemented && c.id !== 'dcf-lbo')
 }
 
 export function getByCategory(slug: string): CalculatorMeta[] {

@@ -25,6 +25,7 @@ interface CalculatorLayoutProps {
   copyNotice?: boolean
   onCalculate: () => void
   calculating?: boolean
+  calculationError?: string
 }
 
 export function CalculatorLayout({
@@ -44,6 +45,7 @@ export function CalculatorLayout({
   pdfLoading,
   copyNotice,
   onCalculate,
+  calculationError,
 }: CalculatorLayoutProps) {
   const [methodOpen, setMethodOpen] = useState(false)
 
@@ -76,6 +78,7 @@ export function CalculatorLayout({
         </section>
 
         <section className="min-w-0 space-y-6 lg:sticky lg:top-6 lg:self-start" aria-live="polite" aria-atomic="true">
+          {calculationError && <p role="alert" className="text-red-700">{calculationError}</p>}
           {results ? (
             <>
               {results}

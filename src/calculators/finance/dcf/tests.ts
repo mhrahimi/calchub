@@ -18,7 +18,7 @@ describe('dcf', () => {
       cash: 10,
     })
     expect(r.enterpriseValue).toBeGreaterThan(0)
-    expect(r.equityValue).toBe(r.enterpriseValue - 50 + 10)
+    expect(r.equityValue).toBe(r.enterpriseValue - 50)
     expect(r.terminalValue).toBeGreaterThan(0)
   })
   it('computes exit multiple terminal value', () => {

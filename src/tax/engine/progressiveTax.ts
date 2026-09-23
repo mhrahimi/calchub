@@ -71,7 +71,8 @@ export function getBracketsForStatus(
   if (config.bracketsByStatus?.[filingStatus]) {
     return config.bracketsByStatus[filingStatus]!
   }
-  return config.brackets ?? []
+  if (!config.brackets?.length) throw new Error(`Unsupported filing status ${filingStatus} for ${config.name}`)
+  return config.brackets
 }
 
 export function computeJurisdictionTax(
@@ -126,13 +127,17 @@ export function computeCombinedTax(options: {
   const taxableIncome = Math.max(0, options.grossIncome - pretax - stdDeduction)
 
   const federal = computeJurisdictionTax(taxableIncome, options.federal, options.filingStatus)
-  const regional = computeJurisdictionTax(taxableIncome, options.regional, options.filingStatus)
+  const regionalStandardDeduction = useStd ? (options.regional.standardDeductionByStatus?.[options.filingStatus] ?? 0) : 0
+  const regionalTaxableIncome = Math.max(0, options.grossIncome - pretax - regionalStandardDeduction)
+  const regional = computeJurisdictionTax(regionalTaxableIncome, options.regional, options.filingStatus)
 
   const totalTax = round2(federal.tax + regional.tax)
   const afterTaxIncome = round2(options.grossIncome - pretax - totalTax)
 
   return {
     taxableIncome: round2(taxableIncome),
+    regionalTaxableIncome: round2(regionalTaxableIncome),
+    regionalStandardDeduction,
     federalTax: federal.tax,
     regionalTax: regional.tax,
     totalTax,

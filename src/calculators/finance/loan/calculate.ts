@@ -31,6 +31,7 @@ export function calculateLoan(input: LoanInput): LoanResult {
     principal: financedAmount,
     ratePerPeriod,
     periods,
+    paymentFrequency: input.paymentFrequency,
     balloon: input.balloon ?? 0,
     extraPayment: input.extraPayment,
     extraFrequency: 'every',
@@ -41,6 +42,7 @@ export function calculateLoan(input: LoanInput): LoanResult {
   }
 
   return {
+    status: sched.status, warnings: sched.warnings, remainingBalance: sched.remainingBalance, balloonPaid: sched.balloonPaid,
     financedAmount,
     payment: sched.payment,
     totalInterest: sched.totalInterest,
@@ -115,6 +117,8 @@ export function buildLoanTable(result: LoanResult): TableData {
     title: 'Amortization schedule',
     columns: [
       { key: 'period', label: '#', align: 'right' },
+      { key: 'date', label: 'Date', align: 'left' },
+      { key: 'extraPrincipal', label: 'Extra principal', align: 'right', format: 'currency' },
       { key: 'payment', label: 'Payment', align: 'right', format: 'currency' },
       { key: 'principal', label: 'Principal', align: 'right', format: 'currency' },
       { key: 'interest', label: 'Interest', align: 'right', format: 'currency' },

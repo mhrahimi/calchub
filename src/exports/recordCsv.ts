@@ -1,34 +1,14 @@
-import { getCalculatorById } from '@/calculators/registry'
 import type { HistoryRecord, SavedCalculation } from '@/calculators/types'
+import type { ExportPayload } from './types'
 import { buildExportPayloadFromRecord } from './buildPayload'
 import { downloadCsv, tableToCsv } from '@/utils/csv'
-
-export async function exportRecordCsv(record: HistoryRecord | SavedCalculation): Promise<void> {
-  const calc = getCalculatorById(record.calculatorId)
-  const { getEngineExportFns } = await import('./engineRegistry')
-  const engine = getEngineExportFns(record.calculatorId)
-  const table = engine?.buildTable?.(record.results)
-  if (table && table.rows.length > 0) {
-    const name = 'name' in record ? record.name : record.label
-    const base = name ?? calc?.title ?? record.calculatorId
-    downloadCsv(`${base.replace(/[^a-z0-9-_]+/gi, '-').toLowerCase()}.csv`, tableToCsv(table))
-    return
-  }
-  const payload = await buildExportPayloadFromRecord(record)
-  const rows = [
-    ['Field', 'Value'],
-    ...Object.entries(payload.inputs).map(([k, v]) => [k, String(v)]),
-    ['', ''],
-    ['Metric', 'Value'],
-    ...payload.resultsSummary.map((r) => [r.label, r.value]),
-  ]
-  const csv = rows.map((r) => r.map(escapeCsv).join(',')).join('\n')
-  downloadCsv(`${record.calculatorId}-export.csv`, csv)
+export function payloadToCsv(payload:ExportPayload):string {
+  const rows=[['Field','Value'], ...Object.entries(payload.inputs).map(([k,v])=>[k,String(v)]),
+    ...Object.entries(payload.metadata??{}).map(([k,v])=>[k,JSON.stringify(v)]),
+    ...payload.resultsSummary.map(r=>[r.label,r.value]),['Full result (JSON)',JSON.stringify(payload.rawResults??null)]]
+  return rows.map(r=>r.map(v=>`"${v.replace(/"/g,'""')}"`).join(',')).join('\n') + (payload.table?'\n\n'+tableToCsv(payload.table):'')
 }
-
-function escapeCsv(value: string): string {
-  if (value.includes(',') || value.includes('"') || value.includes('\n')) {
-    return `"${value.replace(/"/g, '""')}"`
-  }
-  return value
+export async function exportRecordCsv(record:HistoryRecord|SavedCalculation):Promise<void> {
+  const payload=await buildExportPayloadFromRecord(record)
+  downloadCsv(`${record.calculatorId}-export.csv`,payloadToCsv(payload))
 }

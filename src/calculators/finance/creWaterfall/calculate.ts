@@ -3,6 +3,7 @@ import type { CreWaterfallInput, CreWaterfallResult, CreWaterfallTier } from './
 import type { CalculationExplanation, ChartData, TableData } from '@/calculators/types'
 
 export function calculateCreWaterfall(input: CreWaterfallInput): CreWaterfallResult {
+  if (![input.lpContribution,input.gpContribution,input.totalDistribution,input.preferredReturnPercent,input.catchUpPercent,input.lpPromotePercent].every(Number.isFinite) || input.lpContribution < 0 || input.gpContribution < 0 || input.lpContribution+input.gpContribution <= 0 || input.totalDistribution < 0 || input.catchUpPercent < 0 || input.catchUpPercent >= 100 || input.preferredReturnPercent < 0 || input.lpPromotePercent < 0 || input.lpPromotePercent > 100) throw new Error('Invalid illustrative waterfall inputs')
   let remaining = input.totalDistribution
   const tiers: CreWaterfallTier[] = []
   const totalCapital = input.lpContribution + input.gpContribution
@@ -26,7 +27,7 @@ export function calculateCreWaterfall(input: CreWaterfallInput): CreWaterfallRes
   }
 
   if (remaining > 0 && input.catchUpPercent > 0) {
-    const catchUpTarget = (prefLp + rocGp) * (input.catchUpPercent / 100) / (1 - input.catchUpPercent / 100)
+    const catchUpTarget = prefLp * (input.catchUpPercent / 100) / (1 - input.catchUpPercent / 100)
     const catchUpGp = Math.min(remaining, catchUpTarget)
     if (catchUpGp > 0) {
       tiers.push({ tier: 'GP catch-up', lpAmount: 0, gpAmount: catchUpGp, total: catchUpGp })
@@ -63,11 +64,13 @@ export function calculateCreWaterfall(input: CreWaterfallInput): CreWaterfallRes
 
 export function explainCreWaterfall(_input: CreWaterfallInput, _result: CreWaterfallResult): CalculationExplanation {
   return {
-    title: 'CRE waterfall',
+    title: 'Simplified one-year CRE distribution illustration',
     steps: [
       { label: 'Tier order', result: 'ROC → Pref → Catch-up → Promote' },
     ],
     assumptions: [
+      'Assumes initial contributions and a single distribution exactly one year later. IRR is a one-year return, not XIRR.',
+      'No interim flows, cumulative preferred accrual, multiple hurdles, lookback or clawback.',
       'Waterfall structures vary by agreement; this is a simplified illustrative model',
       'Preferred return is simple (non-compounding) on LP capital',
       'Catch-up allocates to GP until target promote split is reached',

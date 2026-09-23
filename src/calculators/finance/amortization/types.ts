@@ -10,6 +10,10 @@ export interface AmortizationInput {
 }
 
 export interface AmortizationResult {
+  status?: string
+  warnings?: string[]
+  remainingBalance?: number
+  balloonPaid?: number
   payment: number
   totalPayments: number
   totalInterest: number

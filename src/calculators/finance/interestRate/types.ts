@@ -8,6 +8,10 @@ export interface InterestRateInput {
 }
 
 export interface InterestRateResult {
+  status?: string
+  warnings?: string[]
+  remainingBalance?: number
+  balloonPaid?: number
   periodicRate: number
   annualRate: number
   effectiveAnnualRate: number

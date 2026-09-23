@@ -103,7 +103,7 @@ export function calculateMortgage(input: MortgageInput): MortgageResult {
   const monthlyBreakdown = withPercents(monthlyPieces)
 
   const payoffMonths = scheduleResult.payoffPeriod
-  const totalPrincipalPaid = scheduleResult.schedule.reduce((s, r) => s + r.principal, 0)
+  const totalPrincipalPaid = scheduleResult.schedule.reduce((s, r) => s + r.principal + r.extraPrincipal, 0)
   const totalInterest = scheduleResult.totalInterest
   const totalTax = monthlyTax * payoffMonths
   const totalInsurance = extras.homeInsurance * payoffMonths
@@ -183,7 +183,7 @@ export function buildMortgageCharts(result: MortgageResult): ChartData[] {
   for (const row of result.schedule) {
     const year = Math.ceil(row.period / 12)
     const entry = yearly.get(year) ?? { principal: 0, interest: 0 }
-    entry.principal += row.principal
+    entry.principal += row.principal + (row.extraPrincipal ?? 0)
     entry.interest += row.interest
     yearly.set(year, entry)
   }
@@ -254,6 +254,8 @@ export function buildMortgageTable(result: MortgageResult): TableData {
     title: 'Amortization schedule',
     columns: [
       { key: 'period', label: '#', align: 'right' },
+      { key: 'date', label: 'Date', align: 'left' },
+      { key: 'extraPrincipal', label: 'Extra principal', align: 'right', format: 'currency' },
       { key: 'payment', label: 'Payment', align: 'right', format: 'currency' },
       { key: 'principal', label: 'Principal', align: 'right', format: 'currency' },
       { key: 'interest', label: 'Interest', align: 'right', format: 'currency' },

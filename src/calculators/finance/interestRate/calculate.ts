@@ -1,5 +1,5 @@
 import { termToPeriods, periodsPerYear } from '@/utils/annuity'
-import { solveLoanRate } from '@/utils/rootSolve'
+import { solveLoanRateResult, requireSolution } from '@/utils/rootSolve'
 import { buildAmortizationSchedule } from '@/utils/amortization'
 import type { InterestRateInput, InterestRateResult } from './types'
 import type { CalculationExplanation, ChartData, TableData } from '@/calculators/types'
@@ -9,7 +9,7 @@ export function calculateInterestRate(input: InterestRateInput): InterestRateRes
   const periods = termToPeriods(input.term, input.termUnit, input.paymentFrequency)
   const balloon = input.balloon ?? 0
 
-  const periodicRate = solveLoanRate(input.principal, input.payment, periods, balloon) ?? 0
+  const periodicRate = requireSolution(solveLoanRateResult(input.principal, input.payment, periods, balloon))
   const annualRate = periodicRate * ppy
   const effectiveAnnualRate = Math.pow(1 + periodicRate, ppy) - 1
 
@@ -17,11 +17,13 @@ export function calculateInterestRate(input: InterestRateInput): InterestRateRes
     principal: input.principal,
     ratePerPeriod: periodicRate,
     periods,
+    paymentFrequency: input.paymentFrequency,
     payment: input.payment,
     balloon,
   })
 
   return {
+    status: sched.status, warnings: sched.warnings, remainingBalance: sched.remainingBalance, balloonPaid: sched.balloonPaid,
     periodicRate,
     annualRate,
     effectiveAnnualRate,
@@ -56,6 +58,8 @@ export function buildInterestRateTable(result: InterestRateResult): TableData {
     title: 'Amortization schedule',
     columns: [
       { key: 'period', label: '#', align: 'right' },
+      { key: 'date', label: 'Date', align: 'left' },
+      { key: 'extraPrincipal', label: 'Extra principal', align: 'right', format: 'currency' },
       { key: 'payment', label: 'Payment', align: 'right', format: 'currency' },
       { key: 'principal', label: 'Principal', align: 'right', format: 'currency' },
       { key: 'interest', label: 'Interest', align: 'right', format: 'currency' },

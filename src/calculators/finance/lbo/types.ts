@@ -1,10 +1,16 @@
 export interface LboForecastYear {
+  depreciation?: number
+  taxRate?: number
   ebitda: number
   capex: number
   nwcChange: number
 }
 
 export interface LboInput {
+  transactionFees?: number
+  minimumCash?: number
+  cashSweepPercent?: number
+  debtTranches?: Array<{name: string; amount: number; interestRate: number; mandatoryAmortizationPercent: number}>
   purchaseEv: number
   sponsorEquity: number
   initialDebt: number
@@ -21,9 +27,18 @@ export interface LboDebtRow {
   interest: number
   paydown: number
   endingDebt: number
+  endingCash: number
+  cashTaxes: number
+  fundingShortfall: number
+  trancheBalances: number[]
 }
 
 export interface LboResult {
+  status: 'success' | 'funding_shortfall'
+  warnings: string[]
+  exitCash: number
+  sourcesTotal: number
+  usesTotal: number
   debtSchedule: LboDebtRow[]
   exitEv: number
   exitEquity: number

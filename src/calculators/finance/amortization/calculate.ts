@@ -14,10 +14,12 @@ export function calculateAmortization(input: AmortizationInput): AmortizationRes
     principal: input.principal,
     ratePerPeriod,
     periods,
+    paymentFrequency: input.paymentFrequency,
     startDate,
   })
 
   let result: AmortizationResult = {
+    status: baseline.status, warnings: baseline.warnings, remainingBalance: baseline.remainingBalance,
     payment: baseline.payment,
     totalPayments: baseline.totalPayments,
     totalInterest: baseline.totalInterest,
@@ -31,6 +33,7 @@ export function calculateAmortization(input: AmortizationInput): AmortizationRes
       principal: input.principal,
       ratePerPeriod,
       periods,
+    paymentFrequency: input.paymentFrequency,
       startDate,
       extraPayment: input.extraPayment,
       extraFrequency: input.extraFrequency ?? 'every',
@@ -38,6 +41,7 @@ export function calculateAmortization(input: AmortizationInput): AmortizationRes
     const comparison = compareSchedules(baseline, accelerated)
     result = {
       ...result,
+      status: accelerated.status, warnings: accelerated.warnings, remainingBalance: accelerated.remainingBalance,
       schedule: accelerated.schedule,
       totalPayments: accelerated.totalPayments,
       totalInterest: accelerated.totalInterest,

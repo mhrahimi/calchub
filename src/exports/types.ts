@@ -1,3 +1,4 @@
+import type { ResultMetadata } from './resultMetadata'
 import type { CalculationExplanation, ChartData, HistoryRecord, TableData } from '@/calculators/types'
 
 export interface ResultSummaryItem {
@@ -7,6 +8,8 @@ export interface ResultSummaryItem {
 }
 
 export interface ExportPayload {
+  metadata?: ResultMetadata
+  rawResults?: unknown
   title: string
   calculatorId: string
   date: string

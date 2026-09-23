@@ -1,5 +1,5 @@
 import { fvEnd, fvBegin, pmtFromFv, pvFromFv, periodsPerYear } from '@/utils/annuity'
-import { findRate } from '@/utils/rootSolve'
+import { findRateResult, requireSolution, CalculationError } from '@/utils/rootSolve'
 import { downsamplePoints } from '@/utils/chartSample'
 import type { InvestmentInput, InvestmentResult } from './types'
 import type { CalculationExplanation, ChartData, TableData } from '@/calculators/types'
@@ -44,8 +44,8 @@ export function calculateInvestment(input: InvestmentInput): InvestmentResult {
     }
     case 'rate': {
       const target = input.targetValue ?? 0
-      const rate = findRate((rateTry) => fvFn(start, rateTry, n, pmtAmt) - target)
-      r = rate ?? 0
+      const rate = findRateResult((rateTry) => fvFn(start, rateTry, n, pmtAmt) - target)
+      r = requireSolution(rate)
       solvedValue = r * ppy * 100
       endingBalance = target
       solvedLabel = 'Required return rate'
@@ -61,6 +61,7 @@ export function calculateInvestment(input: InvestmentInput): InvestmentResult {
         bal *= 1 + r
         if (!begin) bal += pmtAmt
       }
+      if (bal < target) throw new CalculationError('unreachable', 'Goal is unreachable within the 1,000-year supported horizon')
       n = periods
       solvedValue = periods / ppy
       endingBalance = bal

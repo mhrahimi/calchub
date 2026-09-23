@@ -38,8 +38,8 @@ export default function CreWaterfallPage() {
         <div className="rounded-2xl border border-border bg-white p-4">
           <MetricRow label="LP MOIC" value={`${r.lpMoic.toFixed(2)}x`} />
           <MetricRow label="GP MOIC" value={`${r.gpMoic.toFixed(2)}x`} />
-          <MetricRow label="LP IRR" value={r.lpIrr !== null ? `${(r.lpIrr * 100).toFixed(2)}%` : 'N/A'} />
-          <MetricRow label="GP IRR" value={r.gpIrr !== null ? `${(r.gpIrr * 100).toFixed(2)}%` : 'N/A'} />
+          <MetricRow label="LP one-year return" value={r.lpIrr !== null ? `${(r.lpIrr * 100).toFixed(2)}%` : 'N/A'} />
+          <MetricRow label="GP one-year return" value={r.gpIrr !== null ? `${(r.gpIrr * 100).toFixed(2)}%` : 'N/A'} />
         </div>
       </div>
     ),

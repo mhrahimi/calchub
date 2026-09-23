@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 import {
   Home,
   Star,
+  Calculator,
   History,
   Bookmark,
   Settings,
@@ -15,6 +16,7 @@ import { useState } from 'react'
 const mainNav = [
   { to: '/', label: 'Home', icon: Home },
   { to: '/favorites', label: 'Favorites', icon: Star },
+  { to: '/calculator', label: 'Calculator', icon: Calculator },
   { to: '/history', label: 'History', icon: History },
   { to: '/saved', label: 'Saved', icon: Bookmark },
 ]

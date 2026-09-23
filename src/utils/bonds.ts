@@ -1,4 +1,4 @@
-import { brentSolve } from './rootSolve'
+import { findRateResult } from './rootSolve'
 
 export interface BondCashFlow {
   period: number
@@ -49,13 +49,7 @@ export function solveYtm(
 ): number | null {
   const objective = (y: number) =>
     bondPriceFromYield(faceValue, couponRate, periods, y, frequency) - price
-  let lo = 0.0001
-  let hi = 0.5
-  if (objective(lo) * objective(hi) > 0) {
-    hi = 2
-    if (objective(lo) * objective(hi) > 0) return null
-  }
-  return brentSolve(objective, lo, hi)
+  return findRateResult(objective).value
 }
 
 export function macaulayDuration(

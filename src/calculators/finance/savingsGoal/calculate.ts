@@ -1,3 +1,4 @@
+import { CalculationError } from '@/utils/rootSolve'
 import { fvEnd, pmtFromFv, periodsFromFv, periodsPerYear } from '@/utils/annuity'
 import { downsamplePoints } from '@/utils/chartSample'
 import type { SavingsGoalInput, SavingsGoalResult } from './types'
@@ -6,6 +7,7 @@ import type { CalculationExplanation, ChartData, TableData } from '@/calculators
 export function calculateSavingsGoal(input: SavingsGoalInput): SavingsGoalResult {
   const ppy = periodsPerYear(input.contributionFrequency)
   const years = input.periodUnit === 'years' ? input.period : input.period / 12
+  if (!Number.isFinite(years) || years < 0 || years > 1000 || (input.solveFor !== 'time' && years === 0)) throw new CalculationError('invalid_domain', 'Horizon must be positive and at most 1,000 years.')
   const nGiven = Math.round(years * ppy)
   const r = input.returnRate / 100 / ppy
   const pmtGiven = input.periodicContribution ?? 0
@@ -19,17 +21,16 @@ export function calculateSavingsGoal(input: SavingsGoalInput): SavingsGoalResult
   if (input.solveFor === 'contribution') {
     requiredContribution = pmtFromFv(input.currentSavings, r, n, input.goalAmount)
     pmt = requiredContribution
-    projectedBalance = input.goalAmount
+    projectedBalance = fvEnd(input.currentSavings, r, n, pmt)
     timeToGoal = years
   } else if (input.solveFor === 'time') {
     requiredContribution = pmtGiven
     pmt = pmtGiven
-    const periods = periodsFromFv(input.currentSavings, r, pmt, input.goalAmount)
+    const periods = input.currentSavings >= input.goalAmount ? 0 : periodsFromFv(input.currentSavings, r, pmt, input.goalAmount)
     if (periods === null || !Number.isFinite(periods) || periods < 0) {
-      n = 0
-      timeToGoal = 0
-      projectedBalance = input.currentSavings
+      throw new CalculationError('unreachable', 'Goal cannot be reached with these savings, contributions and return.')
     } else {
+      if (periods > 1000 * ppy) throw new CalculationError('unreachable', 'Goal exceeds the supported 1,000-year horizon.')
       n = Math.ceil(periods)
       timeToGoal = periods / ppy
       projectedBalance = fvEnd(input.currentSavings, r, n, pmt)

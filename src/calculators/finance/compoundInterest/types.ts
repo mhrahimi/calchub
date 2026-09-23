@@ -1,4 +1,5 @@
 export interface CompoundInterestInput {
+  startDate?: string
   principal: number
   interestRate: number
   duration: number
@@ -17,5 +18,5 @@ export interface CompoundInterestResult {
   realValue: number
   totalContributions: number
   interestEarned: number
-  schedule: Array<{ period: number; balance: number; contributions: number; interest: number }>
+  schedule: Array<{ period: number; date?: string; balance: number; contributions: number; interest: number }>
 }
