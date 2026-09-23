@@ -13,6 +13,7 @@ import {
   type CalculatorState,
 } from './engine'
 import { FxIcon } from './FxIcon'
+import { formatCalculatorDisplay } from './formatDisplay'
 import { keyBindings } from './keyBindings'
 import { createKeyChordController } from './keyChordController'
 import {
@@ -259,7 +260,8 @@ export default function BasicCalculatorPage() {
     onAction({ type: 'loadResult', value: entry.result })
   }
 
-  const expression = displayExpression(state)
+  const expression = formatCalculatorDisplay(displayExpression(state))
+  const entryDisplay = formatCalculatorDisplay(state.entry)
   const sciKeys = scientificKeys(state.angleMode)
 
   return (
@@ -377,7 +379,7 @@ export default function BasicCalculatorPage() {
               aria-atomic="true"
               aria-label="Result"
             >
-              {state.entry}
+              {entryDisplay}
             </p>
           </div>
 
@@ -487,10 +489,10 @@ export default function BasicCalculatorPage() {
                     aria-label={`Reuse result ${item.result} from ${item.expression}`}
                   >
                     <span className="block text-xs text-text-muted tabular-nums break-all leading-snug">
-                      {item.expression}
+                      {formatCalculatorDisplay(item.expression)}
                     </span>
                     <span className="block text-base font-medium text-text-primary tabular-nums mt-0.5">
-                      {item.result}
+                      {formatCalculatorDisplay(item.result)}
                     </span>
                   </button>
                 </li>
