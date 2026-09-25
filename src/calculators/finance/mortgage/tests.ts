@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { calculateMortgage, buildMortgageCharts } from './calculate'
+import { validateMortgage } from './validation'
 import { usMonthlyRate, canadianMonthlyRate } from '@/utils/annuity'
 import type { MortgageInput } from './types'
 
@@ -104,6 +105,95 @@ describe('mortgage', () => {
     expect(r.lifetimeBreakdown.find((b) => b.label === 'Interest')?.percent).toBeGreaterThan(0)
     const pctSum = r.lifetimeBreakdown.reduce((s, b) => s + b.percent, 0)
     expect(pctSum).toBeCloseTo(100, 0)
+  })
+
+  it('starts the schedule on the selected month', () => {
+    const r = calculateMortgage({ ...base, startYear: 2027, startMonth: 3 })
+    expect((r.schedule[0] as { date?: string }).date).toBe('2027-03-01')
+  })
+
+  it('applies multiple one-time extra payments on their months', () => {
+    const withExtras = calculateMortgage({
+      ...base,
+      startYear: 2026,
+      startMonth: 1,
+      includeExtraPayments: true,
+      extraFrequency: 'once',
+      oneTimeExtraPayments: [
+        { amount: 1000, year: 2026, month: 3 },
+        { amount: 2000, year: 2027, month: 1 },
+      ],
+    })
+    const without = calculateMortgage({ ...base, startYear: 2026, startMonth: 1 })
+    const applied = withExtras.schedule.filter((row) => (row.extraPrincipal ?? 0) > 0)
+    expect(applied.map((row) => (row as { date?: string }).date)).toEqual(['2026-03-01', '2027-01-01'])
+    expect(applied.map((row) => row.extraPrincipal)).toEqual([1000, 2000])
+    expect(withExtras.interestSaved).toBeGreaterThan(0)
+    expect(withExtras.totalInterest).toBeLessThan(without.totalInterest)
+  })
+
+  it('applies monthly, yearly, and one-time extras together', () => {
+    const start = { startYear: 2026, startMonth: 1 }
+    const monthlyOnly = calculateMortgage({
+      ...base,
+      ...start,
+      includeExtraPayments: true,
+      monthlyExtraPayment: 100,
+    })
+    const combined = calculateMortgage({
+      ...base,
+      ...start,
+      includeExtraPayments: true,
+      monthlyExtraPayment: 100,
+      yearlyExtraPayment: 1000,
+      oneTimeExtraPayments: [
+        { amount: 500, year: 2026, month: 6 },
+        { amount: 750, year: 2027, month: 3 },
+      ],
+    })
+    const dated = combined.schedule.filter((row) => (row.extraPrincipal ?? 0) > 0)
+    const byDate = (date: string) =>
+      dated
+        .filter((row) => (row as { date?: string }).date === date)
+        .reduce((sum, row) => sum + (row.extraPrincipal ?? 0), 0)
+    expect(byDate('2026-06-01')).toBe(600)
+    expect(byDate('2027-03-01')).toBe(850)
+    expect(byDate('2026-12-01')).toBe(1100)
+    expect(combined.totalInterest).toBeLessThan(monthlyOnly.totalInterest)
+    expect(combined.interestSaved).toBeGreaterThan(monthlyOnly.interestSaved ?? 0)
+  })
+
+  it('rejects one-time extras outside the loan term', () => {
+    const result = validateMortgage({
+      ...base,
+      startYear: 2026,
+      startMonth: 1,
+      termYears: 1,
+      termMonths: 0,
+      includeExtraPayments: true,
+      extraFrequency: 'once',
+      oneTimeExtraPayments: [{ amount: 100, year: 2028, month: 1 }],
+    })
+    expect(result.valid).toBe(false)
+    if (!result.valid) {
+      expect(result.errors['oneTimeExtraPayments.0.month']).toMatch(/loan term/)
+    }
+  })
+
+  it('lists extra payments that finish the loan in shorter whole years', () => {
+    const r = calculateMortgage({ ...base, startYear: 2026, startMonth: 1 })
+    expect(r.payoffOptions.map((option) => option.years)).toEqual([30, 15, 8, 4, 2, 1])
+    const full = r.payoffOptions[0]
+    expect(full.monthlyExtra).toBe(0)
+    expect(full.yearlyExtra).toBe(0)
+    expect(full.interestSaved).toBe(0)
+    const shorter = r.payoffOptions.find((option) => option.years === 15)
+    expect(shorter).toBeTruthy()
+    expect(shorter!.monthlyExtra).toBeGreaterThan(0)
+    expect(shorter!.yearlyExtra).toBeGreaterThan(shorter!.monthlyExtra)
+    expect(shorter!.interestSaved).toBeGreaterThan(0)
+    expect(shorter!.totalExtraPaid).toBeGreaterThan(0)
+    expect(shorter!.payoffDate).toMatch(/2040|2041/)
   })
 
   it('builds payment, lifetime, and principal/interest charts', () => {

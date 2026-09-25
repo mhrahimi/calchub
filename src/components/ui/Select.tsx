@@ -3,6 +3,7 @@ import { cn } from '@/utils/cn'
 
 interface SelectProps {
   label?: string
+  id?: string
   value: string
   onChange: (value: string) => void
   options: { value: string; label: string }[]
@@ -10,18 +11,18 @@ interface SelectProps {
   className?: string
 }
 
-export function Select({ label, value, onChange, options, error, className }: SelectProps) {
-  const id = label?.toLowerCase().replace(/\s+/g, '-')
+export function Select({ label, id, value, onChange, options, error, className }: SelectProps) {
+  const fieldId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
   return (
     <div className={cn('space-y-1.5 min-w-0', className)}>
       {label && (
-        <label htmlFor={id} className="block text-sm font-medium text-text-primary">
+        <label htmlFor={fieldId} className="block text-sm font-medium text-text-primary">
           {label}
         </label>
       )}
       <div className="relative min-w-0">
         <select
-          id={id}
+          id={fieldId}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className={cn(

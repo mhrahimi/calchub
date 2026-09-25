@@ -1,5 +1,12 @@
 import { z } from 'zod'
+import { mortgageStartParts } from './calculate'
 import type { MortgageInput } from './types'
+
+const oneTimeExtraSchema = z.object({
+  amount: z.number().min(0, 'Extra payment cannot be negative'),
+  year: z.number().int().min(1900).max(2200),
+  month: z.number().int().min(1).max(12),
+})
 
 export const mortgageSchema = z.object({
   country: z.enum(['US', 'CA']),
@@ -19,14 +26,24 @@ export const mortgageSchema = z.object({
   includeExtraPayments: z.boolean().default(false),
   extraPayment: z.number().min(0).optional(),
   extraFrequency: z.enum(['every', 'yearly', 'once']).optional(),
+  monthlyExtraPayment: z.number().min(0).optional(),
+  yearlyExtraPayment: z.number().min(0).optional(),
+  startYear: z.number().int().min(1900).max(2200).optional(),
+  startMonth: z.number().int().min(1).max(12).optional(),
+  oneTimeExtraPayments: z.array(oneTimeExtraSchema).optional(),
 })
+
+function monthIndex(year: number, month: number) {
+  return year * 12 + (month - 1)
+}
 
 export function validateMortgage(input: MortgageInput) {
   const result = mortgageSchema.safeParse(input)
   if (!result.success) {
     const errors: Record<string, string> = {}
     result.error.errors.forEach((e) => {
-      if (e.path[0]) errors[String(e.path[0])] = e.message
+      const key = e.path.map(String).join('.')
+      if (key) errors[key] = e.message
     })
     return { valid: false as const, errors }
   }
@@ -39,6 +56,23 @@ export function validateMortgage(input: MortgageInput) {
   const totalMonths = input.termYears * 12 + input.termMonths
   if (totalMonths < 1) {
     return { valid: false as const, errors: { termYears: 'Term must be at least 1 month' } }
+  }
+  if (input.includeExtraPayments) {
+    const { startYear, startMonth } = mortgageStartParts(input)
+    const first = monthIndex(startYear, startMonth)
+    const last = first + totalMonths - 1
+    const rangeErrors: Record<string, string> = {}
+    ;(input.oneTimeExtraPayments ?? []).forEach((payment, index) => {
+      if (payment.amount <= 0) return
+      const at = monthIndex(payment.year, payment.month)
+      if (at < first || at > last) {
+        rangeErrors[`oneTimeExtraPayments.${index}.month`] =
+          'Extra payment must fall within the loan term'
+      }
+    })
+    if (Object.keys(rangeErrors).length > 0) {
+      return { valid: false as const, errors: rangeErrors }
+    }
   }
   return { valid: true as const, data: result.data }
 }

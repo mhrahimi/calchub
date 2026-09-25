@@ -1,6 +1,7 @@
 import { usMonthlyRate, canadianMonthlyRate } from '@/utils/annuity'
 import { buildAmortizationSchedule, compareSchedules } from '@/utils/amortization'
-import type { CostSlice, MortgageInput, MortgageResult } from './types'
+import { calendarDate, dateText, eventDate } from '@/utils/cashFlowDates'
+import type { CostSlice, MortgageInput, MortgageResult, PayoffOption } from './types'
 import type { CalculationExplanation, ChartData, TableData } from '@/calculators/types'
 
 function withPercents(items: { label: string; amount: number }[]): CostSlice[] {
@@ -10,6 +11,184 @@ function withPercents(items: { label: string; amount: number }[]): CostSlice[] {
     ...i,
     percent: (i.amount / total) * 100,
   }))
+}
+
+function isoMonth(year: number, month: number) {
+  return `${year}-${String(month).padStart(2, '0')}-01`
+}
+
+export function mortgageStartParts(input: Pick<MortgageInput, 'startYear' | 'startMonth'>) {
+  const now = new Date()
+  const startYear = input.startYear ?? now.getFullYear()
+  const startMonth = input.startMonth ?? now.getMonth() + 1
+  return { startYear, startMonth }
+}
+
+function positiveAmount(value?: number) {
+  return value && value > 0 ? value : 0
+}
+
+function yearlyExtraDates(startDate: Date, periods: number) {
+  const origin = eventDate(startDate, -1, 'monthly')
+  const maturity = eventDate(startDate, periods - 1, 'monthly')
+  const dates: string[] = []
+  for (let i = 1; ; i++) {
+    const date = eventDate(origin, i, 'annual')
+    if (date > maturity) break
+    dates.push(dateText(date))
+  }
+  return dates
+}
+
+function mortgageExtras(input: MortgageInput, periods: number, startDate: Date) {
+  if (!input.includeExtraPayments) {
+    return { monthly: 0, dated: [] as { date: string; amount: number }[] }
+  }
+  const frequency = input.extraFrequency ?? 'every'
+  const legacy = positiveAmount(input.extraPayment)
+  const monthly =
+    input.monthlyExtraPayment != null
+      ? positiveAmount(input.monthlyExtraPayment)
+      : frequency === 'every'
+        ? legacy
+        : 0
+  const yearly =
+    input.yearlyExtraPayment != null
+      ? positiveAmount(input.yearlyExtraPayment)
+      : frequency === 'yearly'
+        ? legacy
+        : 0
+  const dated = [
+    ...(yearly > 0 ? yearlyExtraDates(startDate, periods).map((date) => ({ date, amount: yearly })) : []),
+    ...(input.oneTimeExtraPayments ?? [])
+      .filter((payment) => payment.amount > 0)
+      .map((payment) => ({
+        date: isoMonth(payment.year, payment.month),
+        amount: payment.amount,
+      })),
+  ].filter((payment) => payment.amount > 0)
+
+  if (
+    dated.length === 0 &&
+    input.oneTimeExtraPayments == null &&
+    frequency === 'once' &&
+    legacy > 0 &&
+    input.monthlyExtraPayment == null &&
+    input.yearlyExtraPayment == null
+  ) {
+    dated.push({ date: dateText(startDate), amount: legacy })
+  }
+
+  return { monthly, dated }
+}
+
+const PAYOFF_MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
+
+export function payoffYearTargets(remainingMonths: number): number[] {
+  const high = Math.floor(remainingMonths / 12)
+  if (high < 1) return []
+  if (high === 1) return [1]
+  const count = Math.min(6, high)
+  const targets = new Set<number>([1, high])
+  for (let i = 0; i < count; i++) {
+    const year = high * Math.pow(1 / high, i / (count - 1))
+    targets.add(Math.round(year))
+  }
+  return [...targets].filter((year) => year >= 1 && year <= high).sort((a, b) => b - a)
+}
+
+function paymentForPeriods(principal: number, rate: number, periods: number) {
+  if (rate === 0) return principal / periods
+  return (principal * rate) / (1 - Math.pow(1 + rate, -periods))
+}
+
+function payoffLabel(startDate: Date, payoffPeriod: number) {
+  const date = eventDate(startDate, Math.max(0, payoffPeriod - 1), 'monthly')
+  return `${PAYOFF_MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`
+}
+
+function buildPayoffOptions(
+  principal: number,
+  rate: number,
+  periods: number,
+  scheduledPayment: number,
+  baselineInterest: number,
+  startDate: Date,
+): PayoffOption[] {
+  if (principal <= 0 || periods < 12) return []
+  return payoffYearTargets(periods).map((years) => {
+    const targetMonths = years * 12
+    if (targetMonths >= periods) {
+      return {
+        years,
+        monthlyExtra: 0,
+        yearlyExtra: 0,
+        interestSaved: 0,
+        totalExtraPaid: 0,
+        payoffDate: payoffLabel(startDate, periods),
+      }
+    }
+
+    let monthlyExtra = Math.max(0, Math.round(paymentForPeriods(principal, rate, targetMonths) - scheduledPayment))
+    let monthlyRun = buildAmortizationSchedule({
+      principal,
+      ratePerPeriod: rate,
+      periods,
+      startDate,
+      extraPayment: monthlyExtra,
+      extraFrequency: 'every',
+    })
+    while (monthlyRun.payoffPeriod > targetMonths && monthlyExtra < principal) {
+      monthlyExtra += 1
+      monthlyRun = buildAmortizationSchedule({
+        principal,
+        ratePerPeriod: rate,
+        periods,
+        startDate,
+        extraPayment: monthlyExtra,
+        extraFrequency: 'every',
+      })
+    }
+
+    let low = 0
+    let high = Math.ceil(principal)
+    while (low < high) {
+      const mid = Math.floor((low + high) / 2)
+      const yearlyDates = yearlyExtraDates(startDate, periods)
+      const run = buildAmortizationSchedule({
+        principal,
+        ratePerPeriod: rate,
+        periods,
+        startDate,
+        extraPayments: mid > 0 ? yearlyDates.map((date) => ({ date, amount: mid })) : [],
+      })
+      if (run.payoffPeriod <= targetMonths) high = mid
+      else low = mid + 1
+    }
+    const yearlyExtra = low
+    const yearlyRun = buildAmortizationSchedule({
+      principal,
+      ratePerPeriod: rate,
+      periods,
+      startDate,
+      extraPayments: yearlyExtra > 0 ? yearlyExtraDates(startDate, periods).map((date) => ({ date, amount: yearlyExtra })) : [],
+    })
+    const interestSaved = Math.max(0, Math.round(baselineInterest - monthlyRun.totalInterest))
+    const totalExtraPaid = Math.round(
+      monthlyRun.schedule.reduce((sum, row) => sum + row.extraPrincipal, 0),
+    )
+    return {
+      years,
+      monthlyExtra,
+      yearlyExtra,
+      interestSaved,
+      totalExtraPaid,
+      payoffDate: payoffLabel(startDate, monthlyRun.payoffPeriod),
+    }
+  })
 }
 
 function effectiveHousingExtras(input: MortgageInput) {
@@ -42,29 +221,31 @@ export function calculateMortgage(input: MortgageInput): MortgageResult {
       ? canadianMonthlyRate(input.interestRate / 100)
       : usMonthlyRate(input.interestRate / 100)
 
+  const { startYear, startMonth } = mortgageStartParts(input)
+  const startDate = calendarDate(isoMonth(startYear, startMonth))
+
   const baseline = buildAmortizationSchedule({
     principal: loanAmount,
     ratePerPeriod: monthlyRate,
     periods,
+    startDate,
   })
 
   let scheduleResult = baseline
   let interestSaved: number | undefined
   let periodsSaved: number | undefined
 
-  const extraPayment =
-    input.includeExtraPayments && input.extraPayment && input.extraPayment > 0
-      ? input.extraPayment
-      : 0
-  const extraFrequency = input.extraFrequency ?? 'every'
+  const extrasPaid = mortgageExtras(input, periods, startDate)
 
-  if (extraPayment > 0) {
+  if (extrasPaid.monthly > 0 || extrasPaid.dated.length > 0) {
     const accelerated = buildAmortizationSchedule({
       principal: loanAmount,
       ratePerPeriod: monthlyRate,
       periods,
-      extraPayment,
-      extraFrequency,
+      startDate,
+      extraPayment: extrasPaid.monthly,
+      extraFrequency: 'every',
+      extraPayments: extrasPaid.dated,
     })
     const cmp = compareSchedules(baseline, accelerated)
     interestSaved = cmp.interestSaved
@@ -146,6 +327,14 @@ export function calculateMortgage(input: MortgageInput): MortgageResult {
     schedule: scheduleResult.schedule,
     interestSaved,
     periodsSaved,
+    payoffOptions: buildPayoffOptions(
+      loanAmount,
+      monthlyRate,
+      periods,
+      baseline.payment,
+      baseline.totalInterest,
+      startDate,
+    ),
   }
 }
 
