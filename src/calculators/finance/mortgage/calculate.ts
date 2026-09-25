@@ -169,13 +169,6 @@ function buildPayoffOptions(
       else low = mid + 1
     }
     const yearlyExtra = low
-    const yearlyRun = buildAmortizationSchedule({
-      principal,
-      ratePerPeriod: rate,
-      periods,
-      startDate,
-      extraPayments: yearlyExtra > 0 ? yearlyExtraDates(startDate, periods).map((date) => ({ date, amount: yearlyExtra })) : [],
-    })
     const interestSaved = Math.max(0, Math.round(baselineInterest - monthlyRun.totalInterest))
     const totalExtraPaid = Math.round(
       monthlyRun.schedule.reduce((sum, row) => sum + row.extraPrincipal, 0),
