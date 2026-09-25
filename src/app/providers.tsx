@@ -6,6 +6,7 @@ import type { AppSettings } from '@/calculators/types'
 interface AppContextValue {
   favorites: string[]
   refreshFavorites: () => void
+  reloadFromStorage: () => void
   toggleFavorite: (id: string) => boolean
   settings: AppSettings
   updateSettings: (partial: Partial<AppSettings>) => void
@@ -18,6 +19,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState(getSettings)
 
   const refreshFavorites = useCallback(() => setFavorites(getFavorites()), [])
+
+  const reloadFromStorage = useCallback(() => {
+    setFavorites(getFavorites())
+    setSettings(getSettings())
+  }, [])
 
   const toggleFavorite = useCallback((id: string) => {
     const result = toggleFav(id)
@@ -32,7 +38,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider
-      value={{ favorites, refreshFavorites, toggleFavorite, settings, updateSettings }}
+      value={{ favorites, refreshFavorites, reloadFromStorage, toggleFavorite, settings, updateSettings }}
     >
       {children}
     </AppContext.Provider>

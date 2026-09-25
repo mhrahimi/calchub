@@ -1,17 +1,25 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useApp } from '@/app/providers'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
+import { exportBackup, importBackup, parseBackupText } from '@/persistence/backup'
 import { clearAll } from '@/persistence/storage'
 import { clearHistory } from '@/persistence/history'
 import { clearSaved } from '@/persistence/saved'
 import { resetSettings } from '@/persistence/settings'
 import type { AppSettings } from '@/calculators/types'
 
+function countLabel(count: number, singular: string, plural: string): string {
+  return `${count} ${count === 1 ? singular : plural}`
+}
+
 export default function SettingsPage() {
-  const { settings, updateSettings, refreshFavorites } = useApp()
+  const { settings, updateSettings, reloadFromStorage } = useApp()
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [cleared, setCleared] = useState(false)
   const [historyCleared, setHistoryCleared] = useState(false)
+  const [backupMessage, setBackupMessage] = useState<string | null>(null)
+  const [backupError, setBackupError] = useState<string | null>(null)
 
   const handleChange = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     updateSettings({ [key]: value })
@@ -30,9 +38,59 @@ export default function SettingsPage() {
     await clearHistory()
     await clearSaved()
     resetSettings()
-    refreshFavorites()
+    reloadFromStorage()
     setCleared(true)
     setTimeout(() => setCleared(false), 3000)
+  }
+
+  const handleExport = async () => {
+    setBackupError(null)
+    try {
+      const backup = await exportBackup()
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `calchub-backup-${backup.exportedAt.slice(0, 10)}.json`
+      link.click()
+      URL.revokeObjectURL(url)
+      setBackupMessage('Backup downloaded.')
+    } catch {
+      setBackupMessage(null)
+      setBackupError('Could not export your data.')
+    }
+  }
+
+  const handleImportFile = async (file: File) => {
+    setBackupError(null)
+    setBackupMessage(null)
+    let parsed
+    try {
+      parsed = parseBackupText(await file.text())
+    } catch {
+      setBackupError('This file is not a CalcHub backup.')
+      return
+    }
+    if (
+      !confirm(
+        'Replace all local data with this backup? Current settings, favorites, history, and saved calculations will be overwritten.',
+      )
+    ) {
+      return
+    }
+    try {
+      await importBackup(parsed.backup)
+      reloadFromStorage()
+      const skipped =
+        parsed.skippedCount > 0
+          ? ` Skipped ${countLabel(parsed.skippedCount, 'invalid record', 'invalid records')}.`
+          : ''
+      setBackupMessage(
+        `Restored ${countLabel(parsed.backup.history.length, 'history entry', 'history entries')} and ${countLabel(parsed.backup.saved.length, 'saved calculation', 'saved calculations')}.${skipped}`,
+      )
+    } catch {
+      setBackupError('Could not import this backup.')
+    }
   }
 
   return (
@@ -118,6 +176,23 @@ export default function SettingsPage() {
           Your calculations are stored locally in this browser unless you explicitly export or share them.
         </p>
         <div className="flex flex-wrap gap-3">
+          <Button variant="secondary" onClick={handleExport}>
+            Export data
+          </Button>
+          <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
+            Import data
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              event.target.value = ''
+              if (file) void handleImportFile(file)
+            }}
+          />
           <Button variant="secondary" onClick={handleClearHistory}>
             Clear history
           </Button>
@@ -125,6 +200,8 @@ export default function SettingsPage() {
             Clear all local data
           </Button>
         </div>
+        {backupMessage && <p className="text-sm text-primary">{backupMessage}</p>}
+        {backupError && <p className="text-sm text-red-700">{backupError}</p>}
         {historyCleared && (
           <p className="text-sm text-primary">Calculation history has been cleared.</p>
         )}

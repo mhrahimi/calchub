@@ -23,6 +23,10 @@ export function toggleFavorite(calculatorId: string): boolean {
   return true
 }
 
+export function setFavorites(ids: string[]): void {
+  setItem(FAVORITES_KEY, ids)
+}
+
 export function getFavoriteCalculators(): string[] {
   return getFavorites()
 }
