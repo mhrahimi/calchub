@@ -31,6 +31,8 @@ interface UseCalculatorPageOptions<TInput extends object, TResult> {
   csvFilename?: string
   /** Skip auto-restore (e.g. DcfLboPage handles restore manually) */
   skipRestore?: boolean
+  /** Display an initial estimate without creating a history entry. */
+  calculateOnLoad?: boolean
   /** External form state when page manages multiple forms */
   externalForm?: TInput
   externalSetForm?: Dispatch<SetStateAction<TInput>>
@@ -48,6 +50,7 @@ export function useCalculatorPage<TInput extends object, TResult>({
   getShareText,
   csvFilename,
   skipRestore = false,
+  calculateOnLoad = false,
   externalForm,
   externalSetForm,
 }: UseCalculatorPageOptions<TInput, TResult>) {
@@ -138,10 +141,16 @@ export function useCalculatorPage<TInput extends object, TResult>({
   useEffect(() => {
     if (skipRestore || restoredRef.current) return
     const pending = consumePendingRestore(calculatorId)
-    if (!pending) return
+    if (!pending) {
+      if (calculateOnLoad) {
+        restoredRef.current = true
+        handleCalculate(defaultInput, { skipHistory: true })
+      }
+      return
+    }
     restoredRef.current = true
     applyRestore(pending.record, pending.mode)
-  }, [calculatorId, skipRestore, applyRestore])
+  }, [calculatorId, skipRestore, applyRestore, calculateOnLoad, defaultInput, handleCalculate])
 
   const savedMetadata = result && (result as {metadata?:ResultMetadata}).metadata
   const provenance = savedMetadata?.provenance

@@ -157,7 +157,7 @@ function digitCount(display: string): number {
   return display.replace(/[^0-9]/g, '').length
 }
 
-function formatResult(value: Decimal): string {
+export function formatResult(value: Decimal): string {
   if (!value.isFinite()) return 'Error'
   const rounded = value.toSignificantDigits(MAX_DIGITS)
   const plain = rounded.toFixed()
@@ -215,7 +215,7 @@ function factorial(n: Decimal): Decimal | null {
   return result
 }
 
-function applyFn(name: FnName, args: Decimal[], angleMode: AngleMode): Decimal | null {
+export function applyFn(name: FnName, args: Decimal[], angleMode: AngleMode): Decimal | null {
   try {
     if (name === 'logx') {
       if (args.length !== 2) return null
@@ -282,8 +282,13 @@ function applyFn(name: FnName, args: Decimal[], angleMode: AngleMode): Decimal |
       default:
         return null
     }
-    // Clean near-zeros from trig
-    if (Math.abs(result) < 1e-12) result = 0
+    // Clean exact quadrantal angles without discarding legitimate small values
+    // (including small roots, exponentials, and near-zero angles).
+    const quarterTurns = n / (angleMode === 'deg' ? 90 : Math.PI / 2)
+    if (Number.isInteger(quarterTurns)) {
+      if (name === 'cos' && Math.abs(quarterTurns % 2) === 1) result = 0
+      if ((name === 'sin' || name === 'tan') && quarterTurns % 2 === 0) result = 0
+    }
     return Number.isFinite(result) ? new Decimal(result) : null
   } catch {
     return null
@@ -353,6 +358,7 @@ function tokenize(source: string): Token[] | null {
         if (!match) return null
         const num = match[0]
         j = i + num.length
+        if (s[j] === '.') return null
         if (num === '-' || num === '-.' || !Number.isFinite(Number(num))) return null
         tokens.push({ kind: 'number', value: num })
         i = j
@@ -539,7 +545,8 @@ function evaluateTokens(tokens: Token[], angleMode: AngleMode): string | null {
       if (!needsValue) return null
       needsValue = false
     } else if (token.kind === 'fn') {
-      if (!needsValue || tokens[i + 1]?.kind !== 'paren' || tokens[i + 1]?.value !== '(') return null
+      const next = tokens[i + 1]
+      if (!needsValue || next?.kind !== 'paren' || next.value !== '(') return null
     } else if (token.kind === 'paren' && token.value === '(') {
       if (!needsValue) return null
       const previous = tokens[i - 1]
@@ -1068,7 +1075,7 @@ export function reduceCalculator(state: CalculatorState, action: CalculatorActio
       if (!state.overwrite) return { ...state, entry: deleteDigit(state.entry) }
       const source = state.expression.trimEnd()
       if (!source) return { ...state, entry: deleteDigit(state.entry), overwrite: false }
-      const fnSuffix = Object.values(FN_DISPLAY).find((label) => source.endsWith(`${label}(`))
+      const fnSuffix = Object.values(FN_DISPLAY).sort((a, b) => b.length - a.length).find((label) => source.endsWith(`${label}(`))
       const trimmed = (fnSuffix ? source.slice(0, -fnSuffix.length - 1) : source.slice(0, -1)).trimEnd()
       const match = trimmed.match(/(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i)
       const expression = match ? trimmed.slice(0, match.index) : trimmed

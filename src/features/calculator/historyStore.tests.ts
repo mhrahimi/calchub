@@ -48,6 +48,24 @@ describe('historyStore persistence', () => {
     expect(loadHistory()).toEqual(entries)
   })
 
+  it('persists angle settings and remains compatible with existing history', () => {
+    const entries = pushHistory([{ id: 'old', expression: '1+1', result: '2' }], {
+      expression: 'sin(pi/6)', result: '0.5', angleMode: 'rad',
+    })
+    saveHistory(entries)
+    expect(loadHistory()).toEqual(entries)
+    expect(loadHistory()[0].angleMode).toBe('rad')
+    expect(loadHistory()[1].angleMode).toBeUndefined()
+  })
+
+  it('rejects invalid angle metadata and oversized stored expressions', () => {
+    setItem('basic-calculator-history', [
+      { id: 'bad-angle', expression: '1', result: '1', angleMode: 'broken' },
+      { id: 'huge', expression: '1'.repeat(2001), result: '1' },
+    ])
+    expect(loadHistory()).toEqual([])
+  })
+
   it('clears stored history', () => {
     saveHistory([{ id: '1', expression: '1', result: '1' }])
     clearHistoryStore()

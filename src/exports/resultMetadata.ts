@@ -23,7 +23,7 @@ const correctedModels = new Set(['date', 'salary', 'income-tax', 'retirement', '
 export function resultMetadata(id:string,result:unknown,explanation?:CalculationExplanation,legacy=false):ResultMetadata {
   const r=(result??{}) as Record<string,unknown>
   const model=id==='dcf-lbo'?('moic' in r?'lbo':'dcf'):id
-  const version = `${model}/${correctedModels.has(model) ? '2.2.0' : '2.0.0'}`
+  const version = `${model}/${model === 'mortgage' ? '2.3.0' : correctedModels.has(model) ? '2.2.0' : '2.0.0'}`
   if (r.metadata) {
     const saved = r.metadata as ResultMetadata
     if (correctedModels.has(model) && saved.modelVersion !== version) {

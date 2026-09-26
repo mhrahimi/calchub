@@ -90,14 +90,9 @@ const PAYOFF_MONTHS = [
 export function payoffYearTargets(remainingMonths: number): number[] {
   const high = Math.floor(remainingMonths / 12)
   if (high < 1) return []
-  if (high === 1) return [1]
-  const count = Math.min(6, high)
-  const targets = new Set<number>([1, high])
-  for (let i = 0; i < count; i++) {
-    const year = high * Math.pow(1 / high, i / (count - 1))
-    targets.add(Math.round(year))
-  }
-  return [...targets].filter((year) => year >= 1 && year <= high).sort((a, b) => b - a)
+  // Offer realistic five-year reductions before very aggressive payoff targets.
+  const targets = high >= 10 ? [high, ...[30, 25, 20, 15, 10, 5].filter(year => year < high)] : Array.from({ length: high }, (_, i) => high - i)
+  return targets.slice(0, 6)
 }
 
 function paymentForPeriods(principal: number, rate: number, periods: number) {
@@ -257,6 +252,7 @@ export function calculateMortgage(input: MortgageInput): MortgageResult {
   const monthlyPieces = [
     { label: 'Principal', amount: firstPaymentPrincipal },
     { label: 'Interest', amount: firstPaymentInterest },
+    { label: 'Extra principal', amount: scheduleResult.schedule.filter(row => row.period === 1).reduce((sum, row) => sum + row.extraPrincipal, 0) },
     { label: 'Property tax', amount: monthlyTax },
     { label: 'Home insurance', amount: extras.homeInsurance },
     { label: 'HOA / strata', amount: extras.hoa },
@@ -360,7 +356,9 @@ export function explainMortgage(input: MortgageInput, result: MortgageResult): C
     ],
     assumptions: [
       'Taxes, insurance, and fees are estimates held constant each month.',
-      'First-month principal/interest split uses the amortization schedule.',
+      'The first-month breakdown includes all extra principal actually paid in that month. The regular housing estimate excludes extra payments.',
+      'The quoted rate is held constant for the full amortization period; future renewals or rate changes are not modeled.',
+      'Mortgage insurance is entered manually and held constant; cancellation, upfront premiums, eligibility rules, and prepayment penalties are not modeled.',
       'Interest and payments are rounded to cents at payment dates; the final fixed-rate installment settles the remaining balance.',
       'Note rate excludes loan fees. Housing costs cover only the modeled loan horizon and exclude acquisition cash and later ownership costs.',
     ],
@@ -377,6 +375,8 @@ export function buildMortgageCharts(result: MortgageResult): ChartData[] {
     yearly.set(year, entry)
   }
   const years = [...yearly.keys()].sort((a, b) => a - b)
+  const monthlyClosing = new Map<number, number>()
+  for (const row of result.schedule) monthlyClosing.set(row.period, row.balance)
 
   return [
     {
@@ -402,7 +402,7 @@ export function buildMortgageCharts(result: MortgageResult): ChartData[] {
       ],
     },
     {
-      type: 'area',
+      type: 'bar',
       title: 'Principal vs interest by year',
       stacked: true,
       valueFormat: 'currency',
@@ -428,9 +428,10 @@ export function buildMortgageCharts(result: MortgageResult): ChartData[] {
       series: [
         {
           name: 'Balance',
-          data: result.schedule
-            .filter((_, i) => i % 12 === 0 || i === result.schedule.length - 1)
-            .map((r) => ({ x: r.period, y: r.balance })),
+          data: [
+            { x: 0, y: result.loanAmount },
+            ...[...monthlyClosing].filter(([period]) => period % 12 === 0 || period === result.payoffPeriod).map(([period, balance]) => ({ x: period, y: balance })),
+          ],
           color: '#163B8C',
         },
       ],

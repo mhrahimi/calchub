@@ -89,6 +89,7 @@ export interface MortgageResult {
   housingBreakdown: { label: string; amount: number }[]
   schedule: Array<{
     period: number
+    date?: string
     payment: number
     extraPrincipal?: number
     principal: number

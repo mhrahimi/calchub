@@ -16,6 +16,8 @@ import { ChartPanel } from '@/components/calculator/ChartPanel'
 import { type ShareMenuActions } from '@/components/calculator/ShareMenu'
 
 interface CalculatorLayoutProps {
+  resultPresentation?: 'details' | 'inline'
+  calculateLabel?: string
   resultFields?: ReportField[]
   resultWarnings?: string[]
   currentPayload?: ExportPayload|null
@@ -52,6 +54,7 @@ interface CalculatorLayoutProps {
 }
 
 export function CalculatorLayout({
+  resultPresentation = 'details', calculateLabel = 'Calculate',
   resultFields, resultWarnings, currentPayload, baseline, onBaseline, comparisonOpen, onCompare,
   title,
   description,
@@ -80,7 +83,7 @@ export function CalculatorLayout({
 
   return (
     <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-6 lg:py-8 min-w-0">
-      <header className="mb-8 pb-6 border-b border-border">
+      <header className="calculator-header mb-8 pb-6 border-b border-border">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl lg:text-3xl font-bold text-text-primary">{title}</h1>
@@ -98,28 +101,30 @@ export function CalculatorLayout({
         </div>
       </header>
 
-      <div className="grid lg:grid-cols-[minmax(280px,0.7fr)_minmax(0,1.4fr)] gap-8 lg:gap-12 min-w-0">
-        <section className="min-w-0 space-y-6">
+      <div className="calculator-grid grid lg:grid-cols-[minmax(280px,0.7fr)_minmax(0,1.4fr)] gap-8 lg:gap-12 min-w-0">
+        <section className="calculator-inputs min-w-0 space-y-6" aria-label="Calculator inputs">
           <div className="bg-background-secondary/60 rounded-xl p-4 sm:p-5 space-y-5">{inputs}</div>
-          <Button onClick={onCalculate} className="w-full lg:w-auto">
-            Calculate
+          <Button onClick={onCalculate} className="calculator-submit w-full lg:w-auto">
+            {calculateLabel}
           </Button>
         </section>
 
         <section className="min-w-0 space-y-6" aria-label="Calculation results">
           <p role="status" className="sr-only">{resultAnnouncement}</p>
-          {inputsChanged && <p role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">Inputs changed — recalculate. The results below belong to the previous input snapshot. Save, compare, copy, and export become available after recalculation.</p>}
+          {inputsChanged && <p role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">Inputs changed — recalculate. The results below belong to the previous input snapshot. Save, compare, copy, and export become available after recalculation.{resultPresentation === 'inline' && <button type="button" className="block mt-2 min-h-11 font-semibold underline underline-offset-4" onClick={onCalculate}>Update estimate</button>}</p>}
           {provenance && results && <p className="text-xs text-text-secondary">Calculated {provenance.calculatedAt ? new Date(provenance.calculatedAt).toLocaleString(provenance.locale ?? 'en-US') : 'at an unrecorded time'} · {provenance.currency ?? 'Currency not recorded'}</p>}
           {calculationError && <p role="alert" className="text-red-700">{calculationError}</p>}
           {results ? (
             <>
-              <ResultSummary fields={resultFields??[]} disabled={inputsChanged} loading={pdfLoading} comparing={comparisonOpen} onSave={onSave} onCompare={onCompare??(()=>{})} onCopy={shareActions?.onCopySummary} onPdf={onExportPdf} onCsv={onExportCsv} onShare={shareActions?.canShareNative?shareActions.onNativeShare:undefined} notice={copyNotice?'Copied to clipboard.':savedNotice} />
+              <ResultSummary fields={resultPresentation === 'inline' ? [] : resultFields??[]} disabled={inputsChanged} loading={pdfLoading} comparing={comparisonOpen} onSave={onSave} onCompare={onCompare??(()=>{})} onCopy={shareActions?.onCopySummary} onPdf={onExportPdf} onCsv={onExportCsv} onShare={shareActions?.canShareNative?shareActions.onNativeShare:undefined} notice={copyNotice?'Copied to clipboard.':savedNotice} />
               {resultWarnings?.map((warning,index)=><p key={index} className="text-sm text-amber-900">{warning}</p>)}
               {comparisonOpen&&currentPayload&&onBaseline&&<ComparisonPanel current={currentPayload} baseline={baseline??null} onBaseline={onBaseline} refreshKey={savedNotice} disabled={inputsChanged}/>}
-              <details className="result-details border-b border-border pb-4">
+              {resultPresentation === 'inline' ? (
+                <SnapshotFormatContext.Provider value={provenance}>{results}</SnapshotFormatContext.Provider>
+              ) : <details className="result-details border-b border-border pb-4">
                 <summary className="cursor-pointer py-2 font-medium text-sm text-primary">All results and breakdown</summary>
                 <SnapshotFormatContext.Provider value={provenance}><ResultDetailsContext.Provider value={!!resultFields?.length}>{results}</ResultDetailsContext.Provider></SnapshotFormatContext.Provider>
-              </details>
+              </details>}
 
               <SnapshotFormatContext.Provider value={provenance}>
               {charts && charts.length > 0 && (

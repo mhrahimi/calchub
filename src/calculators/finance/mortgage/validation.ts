@@ -13,9 +13,9 @@ export const mortgageSchema = z.object({
   homePrice: z.number().min(1, 'Home price must be positive'),
   downPayment: z.number().min(0),
   downPaymentIsPercent: z.boolean(),
-  interestRate: z.number().min(0),
-  termYears: z.number().min(0),
-  termMonths: z.number().min(0),
+  interestRate: z.number().finite('Enter a finite interest rate').min(0).max(100, 'Enter a rate of 100% or less'),
+  termYears: z.number().int('Enter whole years; use months for a partial year').min(0).max(50, 'Use an amortization of 50 years or less'),
+  termMonths: z.number().int('Enter a whole number of months').min(0).max(600, 'Use an amortization of 600 months or less'),
   includeTaxesAndCosts: z.boolean().default(false),
   propertyTax: z.number().min(0),
   propertyTaxPeriod: z.enum(['monthly', 'annual']),
@@ -51,11 +51,14 @@ export function validateMortgage(input: MortgageInput) {
     ? (input.homePrice * input.downPayment) / 100
     : input.downPayment
   if (down >= input.homePrice) {
-    return { valid: false as const, errors: { downPayment: 'Down payment cannot exceed home price' } }
+    return { valid: false as const, errors: { downPayment: 'Down payment must be less than the home price' } }
   }
   const totalMonths = input.termYears * 12 + input.termMonths
   if (totalMonths < 1) {
     return { valid: false as const, errors: { termYears: 'Term must be at least 1 month' } }
+  }
+  if (totalMonths > 600) {
+    return { valid: false as const, errors: { termYears: 'Total amortization must be 50 years or less' } }
   }
   if (input.includeExtraPayments) {
     const { startYear, startMonth } = mortgageStartParts(input)

@@ -26,9 +26,9 @@ export function ResultSummary({fields,disabled,loading,comparing,onSave,onCompar
   const ordered=primary.some(f=>f.key==='estimate') ? [...fields.filter(f=>intervalKeys.includes(f.key)),...fields.filter(f=>!intervalKeys.includes(f.key))] : fields
   const supporting=ordered.filter(f=>!f.primary&&!primary.some(p=>p.raw===f.raw&&p.unit===f.unit)).slice(0,3)
   return <section aria-label="Result summary" className="result-summary border-b border-border pb-5 space-y-5">
-    <div className="grid sm:grid-cols-[minmax(0,1fr)_auto] items-start gap-x-5 gap-y-4">
-      <div className="flex-1 min-w-48 space-y-3">{primary.map(field=><div key={field.key}><h2 className="text-sm text-text-secondary">{field.label}</h2><p className="text-3xl sm:text-4xl leading-tight tracking-tight font-semibold tabular-nums text-primary mt-2 break-words">{field.display}</p></div>)}</div>
-      <div className="grid grid-cols-4 sm:grid-cols-2 gap-1 items-center" aria-label="Result actions">
+    <div className={fields.length ? "grid sm:grid-cols-[minmax(0,1fr)_auto] items-start gap-x-5 gap-y-4" : "flex justify-end"}>
+      <div className={primary.length ? "flex-1 min-w-48 space-y-3" : "hidden"}>{primary.map(field=><div key={field.key}><h2 className="text-sm text-text-secondary">{field.label}</h2><p className="text-3xl sm:text-4xl leading-tight tracking-tight font-semibold tabular-nums text-primary mt-2 break-words">{field.display}</p></div>)}</div>
+      <div className={`grid grid-cols-4 ${fields.length ? "sm:grid-cols-2" : ""} gap-1 items-center`} aria-label="Result actions">
         {onSave&&<Button variant="ghost" size="sm" disabled={disabled} onClick={()=>run(onSave)}><Bookmark className="hidden sm:block w-4 h-4 mr-1.5"/>Save</Button>}
         <Button variant="ghost" size="sm" disabled={disabled} aria-expanded={comparing} onClick={onCompare}><Columns2 className="hidden sm:block w-4 h-4 mr-1.5"/>Compare</Button>
         {onCopy&&<Button variant="ghost" size="sm" disabled={disabled} onClick={()=>run(onCopy)}><Copy className="hidden sm:block w-4 h-4 mr-1.5"/>Copy</Button>}

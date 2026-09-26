@@ -27,7 +27,7 @@ vi.mock('./useCalculatorPage', async (importOriginal) => {
       options.buildCharts?.(result)
       options.buildTable?.(result)
       options.explain(input,result)
-      return {form:input,set:()=>{},setForm:()=>{},errors:{},handleCalculate:()=>{},layoutProps:{results},applyRestore:()=>{}}
+      return {result,input,form:input,set:()=>{},setForm:()=>{},errors:{},handleCalculate:()=>{},layoutProps:{results},applyRestore:()=>{}}
     },
   }
 })

@@ -19,6 +19,7 @@ export type KeyChordController = {
   /** Flush expired double-tap singles. Call on an interval or before handling new input. */
   poll: (now: number) => ChordResult
   reset: () => void
+  flush: () => ChordResult
 }
 
 function zeros(count: number): CalculatorAction[] {
@@ -74,17 +75,18 @@ export function createKeyChordController(
     if (holdActive) {
       if (repeat) return emit(prefix)
 
-      // Any second key while holding cancels the lone-zero-on-release behavior
-      holdChordUsed = true
-
       if (config.holdDigitZeros && /^[1-9]$/.test(key)) {
+        holdChordUsed = true
         return emit([...prefix, ...zeros(Number(key))])
       }
 
       const combo = config.holdCombos[key]
       if (combo) {
+        holdChordUsed = true
         return emit([...prefix, combo])
       }
+      if (!holdChordUsed) prefix.push({ type: 'digit', digit: '0' })
+      holdActive = false
     }
 
     // Double-tap candidates
@@ -135,5 +137,12 @@ export function createKeyChordController(
     pendingDouble = null
   }
 
-  return { onKeyDown, onKeyUp, poll, reset }
+  const flush = (): ChordResult => {
+    const actions = flushPending(0, true)
+    if (holdActive && !holdChordUsed) actions.push({ type: 'digit', digit: '0' })
+    reset()
+    return actions.length ? emit(actions) : empty()
+  }
+
+  return { onKeyDown, onKeyUp, poll, reset, flush }
 }

@@ -36,16 +36,20 @@ export const keyBindings = {
 
   /** Shown in the (i) popover — keep aligned with the bindings above. */
   help: [
+    { keys: 'Enter / =', meaning: 'Calculate and save' },
+    { keys: '↑ / ↓', meaning: 'Recall history / restore draft' },
+    { keys: '⌘/Ctrl+Z', meaning: 'Undo' },
+    { keys: '⌘/Ctrl+Shift+Z', meaning: 'Redo (also Ctrl+Y)' },
+    { keys: 'Backspace / Delete', meaning: 'Delete before / after cursor' },
+    { keys: 'Escape', meaning: 'Dismiss help; keep expression' },
+    { keys: 'Tab, then arrows', meaning: 'Navigate keypad' },
+    { keys: '⌘/Ctrl+C', meaning: 'Copy selection or focused result' },
+    { keys: '⌘/Ctrl+V', meaning: 'Paste editable expression' },
+    { keys: 'pi, sqrt, sin…', meaning: 'Type constants and functions' },
     { keys: 'Hold 0 + 1–9', meaning: 'Insert that many zeros' },
     { keys: 'Hold 0 + /', meaning: '(' },
     { keys: 'Hold 0 + *', meaning: ')' },
     { keys: '** (double *)', meaning: 'Power ^' },
-    { keys: 'p', meaning: 'π' },
-    { keys: '⌘/Ctrl+C', meaning: 'Copy result' },
-    { keys: '⌘/Ctrl+V', meaning: 'Paste number or expression' },
-    { keys: 'Delete', meaning: 'Clear entry / all clear' },
-    { keys: 'Escape', meaning: 'All clear' },
-    { keys: 'Backspace', meaning: 'Delete last digit' },
   ] as HelpRow[],
 }
 

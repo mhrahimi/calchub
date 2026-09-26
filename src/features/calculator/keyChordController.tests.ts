@@ -72,6 +72,22 @@ describe('keyChordController', () => {
     expect(actionsOf(c.onKeyDown('/', 10))).toEqual([{ type: 'paren', which: ')' }])
   })
 
+  it('flushes pending typing before focus moves', () => {
+    const c = createKeyChordController()
+    c.onKeyDown('0', 0)
+    expect(c.flush().actions).toEqual([{ type: 'digit', digit: '0' }])
+    expect(c.onKeyUp('0', 20).actions).toEqual([])
+    c.onKeyDown('*', 30)
+    expect(c.flush().actions).toEqual([{ type: 'operator', operator: '×' }])
+    expect(c.poll(500).actions).toEqual([])
+  })
+
+  it('preserves zero before an unbound chord partner', () => {
+    const c = createKeyChordController()
+    c.onKeyDown('0', 0)
+    expect(c.onKeyDown('+', 20).actions).toEqual([{ type: 'digit', digit: '0' }, { type: 'operator', operator: '+' }])
+  })
+
   it('ignores key repeat while holding the chord partner', () => {
     const c = createKeyChordController()
     c.onKeyDown('0', 0)

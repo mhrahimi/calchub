@@ -3,12 +3,12 @@ import { getCopyText, normalizePastedText, parsePastedText } from './clipboard'
 import { initialCalculatorState } from './engine'
 
 describe('normalizePastedText', () => {
-  it('strips grouping commas and spaces', () => {
-    expect(normalizePastedText(' 1,234,567.89 ')).toBe('1234567.89')
+  it('preserves grouping commas for the shared parser', () => {
+    expect(normalizePastedText(' 1,234,567.89 ')).toBe('1,234,567.89')
   })
 
-  it('maps operator glyphs', () => {
-    expect(normalizePastedText('2 × 3 ÷ 4 − 1')).toBe('2*3/4-1')
+  it('preserves operator glyphs in the editable expression', () => {
+    expect(normalizePastedText('2 × 3 ÷ 4 − 1')).toBe('2 × 3 ÷ 4 − 1')
   })
 })
 
@@ -25,6 +25,12 @@ describe('parsePastedText', () => {
       value: '14',
       expression: '2+3*4',
     })
+  })
+
+  it('preserves function commas and uses the same percentage rules', () => {
+    expect(parsePastedText('logx(2,8)')).toEqual({ kind: 'result', value: '3', expression: 'logx(2,8)' })
+    expect(parsePastedText('200+10%')).toEqual({ kind: 'result', value: '220', expression: '200+10%' })
+    expect(parsePastedText('1,23')).toBeNull()
   })
 
   it('rejects empty or invalid input', () => {

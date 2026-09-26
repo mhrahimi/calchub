@@ -182,7 +182,7 @@ describe('mortgage', () => {
 
   it('lists extra payments that finish the loan in shorter whole years', () => {
     const r = calculateMortgage({ ...base, startYear: 2026, startMonth: 1 })
-    expect(r.payoffOptions.map((option) => option.years)).toEqual([30, 15, 8, 4, 2, 1])
+    expect(r.payoffOptions.map((option) => option.years)).toEqual([30, 25, 20, 15, 10, 5])
     const full = r.payoffOptions[0]
     expect(full.monthlyExtra).toBe(0)
     expect(full.yearlyExtra).toBe(0)
