@@ -22,7 +22,7 @@ export function captureProvenance(id: string, inputs: object, metadata: ResultMe
   const r = results as Record<string, unknown>
   const units = Object.fromEntries(Object.entries(input).filter(([key,value]) => /(?:Unit|Frequency|Timing|System)$/.test(key) && typeof value === 'string').map(([key,value])=>[key,String(value)]))
   // Jurisdiction-specific calculations are denominated in that jurisdiction's money.
-  const currency = ['income-tax','salary','mortgage'].includes(id) && input.country ? (input.country === 'CA' ? 'CAD' : 'USD') : id === 'inflation' && input.mode === 'historical' ? 'USD' : settings.currency
+  const currency = ['income-tax','salary'].includes(id) && input.country ? (input.country === 'CA' ? 'CAD' : 'USD') : id === 'inflation' && input.mode === 'historical' ? 'USD' : settings.currency
   return { currency, locale: settings.numberFormat, measurementSystem: settings.measurementSystem, calculatedAt, modelVersion: metadata.modelVersion,
     taxConfigVersion: typeof r.taxConfigVersion === 'string' ? r.taxConfigVersion : undefined,
     dataRevision: id === 'inflation' && input.mode === 'historical' ? CPI_VERSION : undefined,
@@ -33,9 +33,12 @@ export function legacyProvenance(modelVersion: string, calculatedAt = ''): Calcu
   return { currency:null, locale:null, measurementSystem:null, calculatedAt, modelVersion, units:{}, precision:'Not recorded', assumptions:[] }
 }
 
-export function snapshotCurrency(value: number, p?: CalculationProvenance): string {
+export type CurrencyDisplay = 'code' | 'symbol'
+
+export function snapshotCurrency(value: number, p?: CalculationProvenance, display: CurrencyDisplay = 'code'): string {
   const locale = p?.locale ?? 'en-US'
   if (!Number.isFinite(value)) return 'Not defined'
+  if (display === 'symbol' && p?.currency) return new Intl.NumberFormat(locale, { style: 'currency', currency: p.currency, currencyDisplay: 'narrowSymbol', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)
   const number = displayNumber(value, locale, 2, true)
   return `${p?.currency ?? 'Currency not recorded'} ${number}`
 }
@@ -48,4 +51,11 @@ export function snapshotExplanation(explanation: CalculationExplanation, p: Calc
 export function inputsDiffer(a: unknown, b: unknown): boolean {
   const canonical = (v: unknown): unknown => Array.isArray(v) ? v.map(canonical) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).sort(([a],[b])=>a.localeCompare(b)).map(([k,x])=>[k,canonical(x)])) : v
   return stringifyCalculationData(canonical(a)) !== stringifyCalculationData(canonical(b))
+}
+
+/** Compact on-screen text; exported snapshots retain their explicit currency codes. */
+export function snapshotText(text: string, p?: CalculationProvenance, display: CurrencyDisplay = 'code'): string {
+  if (display === 'code' || !p?.currency) return text
+  const symbol = new Intl.NumberFormat(p.locale ?? 'en-US', { style: 'currency', currency: p.currency, currencyDisplay: 'narrowSymbol' }).formatToParts(0).find(part => part.type === 'currency')?.value ?? p.currency
+  return text.replaceAll(`${p.currency} `, symbol).replaceAll(` (${p.currency})`, '')
 }

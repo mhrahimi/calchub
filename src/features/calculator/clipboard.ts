@@ -1,5 +1,6 @@
 import type { AngleMode, CalculatorState } from './engine'
 import { evaluateExpression } from './expression'
+import { stripInputGrouping } from './inputFormatting'
 
 export function getCopyText(state: CalculatorState): string | null {
   return state.error || state.entry === 'Error' ? null : state.entry.trim() || null
@@ -8,7 +9,7 @@ export function getCopyText(state: CalculatorState): string | null {
 /** Preserve the formula and its argument separators. The expression parser handles
  * operator glyphs and unambiguous thousands grouping for every input method. */
 export function normalizePastedText(raw: string): string {
-  return raw.trim()
+  return stripInputGrouping(raw.trim())
 }
 
 export type PastePayload =

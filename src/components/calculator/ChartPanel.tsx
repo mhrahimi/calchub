@@ -2,7 +2,8 @@ import { useContext, useSyncExternalStore } from 'react'
 import { ComposedChart, Line, Area, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, ReferenceDot } from 'recharts'
 import type { ChartData } from '@/calculators/types'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { SnapshotFormatContext } from './SnapshotFormat'
+import { CurrencyDisplayContext, SnapshotFormatContext, useSnapshotCurrency } from './SnapshotFormat'
+import { snapshotText } from '@/exports/provenance'
 import { chartValue, mergeChartSeries, seriesColor } from '@/utils/chartPresentation'
 import { displayNumber } from '@/utils/numberFormat'
 
@@ -13,10 +14,13 @@ interface ChartPanelProps { data:ChartData }
 function ChartPanelInner({data}:ChartPanelProps) {
   const p=useContext(SnapshotFormatContext)
   const locale=p?.locale??'en-US'
+  const currencyDisplay=useContext(CurrencyDisplayContext)
+  const money=useSnapshotCurrency()
+  const text=(value:string)=>snapshotText(value,p,currencyDisplay)
   const desktop=useSyncExternalStore(subscribeSm,()=>window.matchMedia(SM_QUERY).matches,()=>false)
   const rows=mergeChartSeries(data)
   const numericX=data.xType!=='category'&&rows.every(row=>typeof row.x==='number')
-  const value=(v:number)=>chartValue(v,data,p)
+  const value=(v:number)=>data.valueFormat==='currency'?money(v):chartValue(v,data,p)
   const tick=(v:number)=>new Intl.NumberFormat(locale,{notation:'compact',maximumFractionDigits:1}).format(v).replace(/^-/, '−')+(data.valueFormat==='percent'?'%':'')
   const xTick=(v:number|string)=>data.xType==='time'?new Intl.DateTimeFormat(locale,{month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(Number(v))):typeof v==='number'?displayNumber(v,locale,2):String(v)
   const currentSeries=data.series.filter(s=>!s.baseline)
@@ -26,7 +30,7 @@ function ChartPanelInner({data}:ChartPanelProps) {
   const height=desktop?272:232
   const pieItems=data.series[0]?.data??[]
   return <figure className="min-w-0 py-5 border-b border-border/70">
-    <figcaption className="flex flex-wrap justify-between gap-2 mb-3"><h3 className="font-semibold text-sm">{data.title}</h3>{data.yLabel&&<span className="text-xs text-text-secondary">{data.yLabel}</span>}</figcaption>
+    <figcaption className="flex flex-wrap justify-between gap-2 mb-3"><h3 className="font-semibold text-sm">{data.title}</h3>{data.yLabel&&<span className="text-xs text-text-secondary">{text(data.yLabel)}</span>}</figcaption>
     <div className="min-w-0 w-full" style={{height}} aria-hidden="true">
       <ResponsiveContainer width="100%" height={height}>
         {data.type==='pie'?<PieChart><Pie data={pieItems.map(d=>({name:String(d.x),value:d.y}))} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={desktop?55:42} outerRadius={desktop?94:77} paddingAngle={1} isAnimationActive={false}>{pieItems.map(d=><Cell key={String(d.x)} fill={seriesColor(String(d.x))}/>)}</Pie><Tooltip formatter={(v:number)=>value(v)} /></PieChart>:
@@ -47,8 +51,8 @@ function ChartPanelInner({data}:ChartPanelProps) {
     <ul aria-label="Chart legend" className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-text-secondary mt-1">
       {(data.type==='pie'?pieItems.map(d=>({name:String(d.x),color:seriesColor(String(d.x)),dashed:false})):data.series).map(s=><li key={s.name} className="flex gap-2 items-center"><span className="inline-block w-5 border-t-2" style={{borderColor:s.color??seriesColor(s.name),borderTopStyle:s.dashed?'dashed':'solid'}}/>{s.name}</li>)}
     </ul>
-    {!!data.annotations?.length&&<ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-text-secondary" aria-label="Chart annotations">{data.annotations.map((a,index)=><li key={index}>{a.label}</li>)}</ul>}
-    <details className="mt-3 text-xs"><summary className="cursor-pointer text-primary py-2">View chart data</summary><div className="overflow-auto max-h-64"><table className="w-full tabular-nums"><caption className="sr-only">{data.title}</caption><thead><tr><th className="text-left p-2">{data.xLabel??'Category'}</th>{data.series.map(s=><th key={s.name} className="text-right p-2">{s.name}{data.yLabel?` (${data.yLabel})`:''}</th>)}</tr></thead><tbody>{rows.map((row,index)=><tr key={index} className="border-t border-border/60"><th scope="row" className="text-left p-2 font-normal">{xTick(row.x as string|number)}</th>{data.series.map(s=><td key={s.name} className="text-right p-2 whitespace-nowrap">{typeof row[s.name]==='number'?(data.hideValueAxis?'●':value(row[s.name] as number)):'—'}</td>)}</tr>)}</tbody></table></div></details>
+    {!!data.annotations?.length&&<ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-text-secondary" aria-label="Chart annotations">{data.annotations.map((a,index)=><li key={index}>{text(a.label)}</li>)}</ul>}
+    <details className="mt-3 text-xs"><summary className="cursor-pointer text-primary py-2">View chart data</summary><div className="overflow-auto max-h-64"><table className="w-full tabular-nums"><caption className="sr-only">{data.title}</caption><thead><tr><th className="text-left p-2">{data.xLabel??'Category'}</th>{data.series.map(s=><th key={s.name} className="text-right p-2">{s.name}{data.yLabel?` (${text(data.yLabel)})`:''}</th>)}</tr></thead><tbody>{rows.map((row,index)=><tr key={index} className="border-t border-border/60"><th scope="row" className="text-left p-2 font-normal">{xTick(row.x as string|number)}</th>{data.series.map(s=><td key={s.name} className="text-right p-2 whitespace-nowrap">{typeof row[s.name]==='number'?(data.hideValueAxis?'●':value(row[s.name] as number)):'—'}</td>)}</tr>)}</tbody></table></div></details>
   </figure>
 }
 export function ChartPanel({data}:ChartPanelProps) {return <ErrorBoundary fallback={<p role="status" className="text-sm text-text-secondary">Chart unavailable. Use the result table below.</p>}><ChartPanelInner data={data}/></ErrorBoundary>}

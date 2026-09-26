@@ -97,7 +97,7 @@ export function payoffYearTargets(remainingMonths: number): number[] {
 
 function paymentForPeriods(principal: number, rate: number, periods: number) {
   if (rate === 0) return principal / periods
-  return (principal * rate) / (1 - Math.pow(1 + rate, -periods))
+  return principal * rate / -Math.expm1(-periods * Math.log1p(rate))
 }
 
 function payoffLabel(startDate: Date, payoffPeriod: number) {
@@ -300,7 +300,7 @@ export function calculateMortgage(input: MortgageInput): MortgageResult {
     status: scheduleResult.status,
     warnings: scheduleResult.warnings,
     remainingBalance: scheduleResult.remainingBalance,
-    finalPayment: scheduleResult.schedule.at(-1)?.payment ?? 0,
+    finalPayment: Math.round(scheduleResult.schedule.filter(row => row.period === payoffMonths).reduce((sum, row) => sum + row.payment, 0) * 100) / 100,
     payoffDate: scheduleResult.remainingBalance === 0 ? scheduleResult.schedule.at(-1)?.date ?? null : null,
     loanAmount,
     downPaymentAmount,
@@ -430,7 +430,7 @@ export function buildMortgageCharts(result: MortgageResult): ChartData[] {
           name: 'Balance',
           data: [
             { x: 0, y: result.loanAmount },
-            ...[...monthlyClosing].filter(([period]) => period % 12 === 0 || period === result.payoffPeriod).map(([period, balance]) => ({ x: period, y: balance })),
+            ...[...monthlyClosing].map(([period, balance]) => ({ x: period, y: balance })),
           ],
           color: '#163B8C',
         },

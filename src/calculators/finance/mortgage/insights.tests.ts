@@ -38,6 +38,8 @@ describe('mortgage planning insights', () => {
     const result = calculateMortgage(input)
     const chart = buildMortgageCharts(result).find(chart => chart.title === 'Remaining balance')!
     const points = chart.series[0].data
+    expect(points).toHaveLength(result.payoffPeriod + 1)
+    expect(points.map(point => point.x)).toEqual(Array.from({ length: result.payoffPeriod + 1 }, (_, i) => i))
     expect(points[0]).toEqual({ x: 0, y: result.loanAmount })
     expect(new Set(points.map(point => point.x)).size).toBe(points.length)
     expect(points.find(point => point.x === 12)?.y).toBe(result.schedule.filter(row => row.period === 12).at(-1)?.balance)

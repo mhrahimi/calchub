@@ -41,7 +41,7 @@ export const keyBindings = {
     { keys: '⌘/Ctrl+Z', meaning: 'Undo' },
     { keys: '⌘/Ctrl+Shift+Z', meaning: 'Redo (also Ctrl+Y)' },
     { keys: 'Backspace / Delete', meaning: 'Delete before / after cursor' },
-    { keys: 'Escape', meaning: 'Dismiss help; keep expression' },
+    { keys: 'Escape', meaning: 'Clear calculation / close help' },
     { keys: 'Tab, then arrows', meaning: 'Navigate keypad' },
     { keys: '⌘/Ctrl+C', meaning: 'Copy selection or focused result' },
     { keys: '⌘/Ctrl+V', meaning: 'Paste editable expression' },

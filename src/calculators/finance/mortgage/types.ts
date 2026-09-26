@@ -65,6 +65,7 @@ export interface MortgageResult {
   status: string
   warnings: string[]
   remainingBalance: number
+  /** All loan payments in the final month, including extra principal. */
   finalPayment: number
   payoffDate: string | null
   loanAmount: number

@@ -33,6 +33,8 @@ interface UseCalculatorPageOptions<TInput extends object, TResult> {
   skipRestore?: boolean
   /** Display an initial estimate without creating a history entry. */
   calculateOnLoad?: boolean
+  /** Refresh a valid estimate after editing without taking focus or filling history. */
+  autoCalculate?: boolean
   /** External form state when page manages multiple forms */
   externalForm?: TInput
   externalSetForm?: Dispatch<SetStateAction<TInput>>
@@ -51,6 +53,7 @@ export function useCalculatorPage<TInput extends object, TResult>({
   csvFilename,
   skipRestore = false,
   calculateOnLoad = false,
+  autoCalculate = false,
   externalForm,
   externalSetForm,
 }: UseCalculatorPageOptions<TInput, TResult>) {
@@ -68,11 +71,25 @@ export function useCalculatorPage<TInput extends object, TResult>({
   const [comparisonOpen,setComparisonOpen] = useState(false)
   const [baseline,setBaseline] = useState<ComparisonSnapshot|null>(null)
   const restoredRef = useRef(false)
+  const historyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingHistory = useRef<(() => void) | null>(null)
+  // A new edit replaces the pending history entry; leaving the page keeps the last valid estimate.
+  useEffect(() => {
+    if (historyTimer.current) clearTimeout(historyTimer.current)
+    pendingHistory.current = null
+  }, [form])
+  useEffect(() => () => {
+    if (historyTimer.current) clearTimeout(historyTimer.current)
+    pendingHistory.current?.()
+    pendingHistory.current = null
+  }, [])
 
   const isFavorite = favorites.includes(calculatorId)
 
   const handleCalculate = useCallback(
-    (formInput: TInput, options?: { skipHistory?: boolean }) => {
+    (formInput: TInput, options?: { skipHistory?: boolean; focusErrors?: boolean; deferHistory?: boolean }) => {
+      if (historyTimer.current) clearTimeout(historyTimer.current)
+      pendingHistory.current = null
       setSavedNotice('')
       setCopyNotice(false)
       const validation = validate(formInput)
@@ -80,7 +97,7 @@ export function useCalculatorPage<TInput extends object, TResult>({
         setResult(null)
         setInput(null)
         setErrors(validation.errors)
-        requestAnimationFrame(() => document.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus())
+        if (options?.focusErrors !== false) requestAnimationFrame(() => document.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus())
         return
       }
       setErrors({})
@@ -99,11 +116,11 @@ export function useCalculatorPage<TInput extends object, TResult>({
         return
       }
       setResult(computed)
-      setForm(structuredClone(normalized))
+      setForm(current => inputsDiffer(current, normalized) ? structuredClone(normalized) : current)
       setInput(normalized)
       addRecentlyUsed(calculatorId)
       if (!options?.skipHistory) {
-        saveHistoryRecord({
+        const persist = () => { void saveHistoryRecord({
           calculatorId,
           inputs: normalized,
           results: computed,
@@ -114,7 +131,14 @@ export function useCalculatorPage<TInput extends object, TResult>({
             'taxConfigVersion' in computed
               ? String((computed as { taxConfigVersion?: string }).taxConfigVersion)
               : undefined,
-        }).catch(() => {})
+        }).catch(() => {}) }
+        if (options?.deferHistory) {
+          pendingHistory.current = persist
+          historyTimer.current = setTimeout(() => {
+            pendingHistory.current?.()
+            pendingHistory.current = null
+          }, 1200)
+        } else persist()
       }
     },
     [validate, calculate, calculatorId, settings],
@@ -157,6 +181,12 @@ export function useCalculatorPage<TInput extends object, TResult>({
   const money = (value:number) => snapshotCurrency(value,provenance)
   const explanation = result && input ? savedMetadata?.explanation ?? snapshotExplanation(explain(input,result),provenance ?? legacyProvenance('legacy')) : null
   const dirty = !!input && inputsDiffer(form,input)
+  useEffect(() => {
+    if (!autoCalculate || (input && !inputsDiffer(form, input))) return
+    const timer = window.setTimeout(() => handleCalculate(form, { deferHistory: true, focusErrors: false }), 250)
+    return () => window.clearTimeout(timer)
+  }, [autoCalculate, form, input, handleCalculate])
+
   const fields = result && input ? resultFields(calculatorId,input,result,provenance ?? legacyProvenance('legacy'),savedMetadata?.primaryResult??null) : []
   const summaryText = `${calc.title}
 ${fields.filter(f=>f.primary).map(f=>`${f.label}: ${f.display}`).join('\n')}
@@ -245,6 +275,7 @@ ${provenance?.calculatedAt ? `Calculated ${provenance.calculatedAt}` : ''}`
   }
 
   const layoutProps = {
+    autoCalculate,
     resultFields: fields,
     currentPayload,
     baseline,
@@ -263,7 +294,7 @@ ${provenance?.calculatedAt ? `Calculated ${provenance.calculatedAt}` : ''}`
     savedNotice,
     onSaveCancel: () => setSaveOpen(false),
     onSaveConfirm: handleSave,
-    resultAnnouncement: result ? `${summaryText}${dirty ? '. Inputs changed; recalculate.' : ''}` : '',
+    resultAnnouncement: result ? `${summaryText}${dirty ? (autoCalculate ? '. Updating estimate.' : '. Inputs changed; recalculate.') : ''}` : '',
     results: result && input ? createElement('div', {},
       ...(['income-tax','salary','retirement','cre-waterfall','lbo'].includes(calculatorId) ? (explanation?.assumptions??[]).map((w,i)=>createElement('p',{key:`assumption-${i}`,className:'text-sm'},w)) : []),
       renderResults(result,input,money)) : null,

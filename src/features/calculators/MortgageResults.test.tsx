@@ -2,7 +2,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { MortgageResults } from './MortgageResults'
-import { SnapshotFormatContext } from '@/components/calculator/SnapshotFormat'
+import { CurrencyDisplayContext, SnapshotFormatContext } from '@/components/calculator/SnapshotFormat'
 import { calculateMortgage, buildMortgageCharts, explainMortgage } from '@/calculators/finance/mortgage/calculate'
 import { resultMetadata } from '@/exports/resultMetadata'
 import { captureProvenance } from '@/exports/provenance'
@@ -18,14 +18,14 @@ function render(input: MortgageInput, legacy = false) {
   const result = calculateMortgage(input)
   if (legacy) result.monthlyBreakdown = result.monthlyBreakdown.filter(slice => slice.label !== 'Extra principal')
   const metadata = resultMetadata('mortgage', result, explainMortgage(input, result))
-  const provenance = captureProvenance('mortgage', input, metadata, DEFAULT_SETTINGS, result)
-  return renderToStaticMarkup(createElement(SnapshotFormatContext.Provider, { value: provenance }, createElement(MortgageResults, { result, input, charts: buildMortgageCharts(result), onApplyPayoff: () => {} })))
+  const provenance = captureProvenance('mortgage', input, metadata, { ...DEFAULT_SETTINGS, currency: input.country === 'CA' ? 'CAD' : 'USD' }, result)
+  return renderToStaticMarkup(createElement(CurrencyDisplayContext.Provider, { value: 'symbol' }, createElement(SnapshotFormatContext.Provider, { value: provenance }, createElement(MortgageResults, { result, input, charts: buildMortgageCharts(result), onApplyPayoff: () => {} }))))
 }
 
 describe('mortgage result presentation', () => {
   it('clearly labels a principal-and-interest-only estimate', () => {
     const html = render(base)
-    expect(html).toContain('USD 2,528.27')
+    expect(html).toContain('$2,528.27')
     expect(html).toContain('Taxes, insurance and other ownership costs are not included.')
     expect(html).toContain('aria-label="Mortgage result views"')
     expect(html).not.toMatch(/NaN|undefined|Currency not recorded/)
@@ -33,14 +33,14 @@ describe('mortgage result presentation', () => {
   it('labels housing costs and preserves the calculated country currency', () => {
     const html = render({ ...base, country: 'CA', includeTaxesAndCosts: true })
     expect(html).toContain('Monthly housing estimate')
-    expect(html).toContain('CAD 650.00')
+    expect(html).toContain('$650.00')
     expect(html).toContain('Canadian quotes use semi-annual compounding.')
-    expect(html).not.toContain('USD')
+    expect(html).not.toMatch(/CAD|USD/)
   })
   it('explains extra cash requirements, including on reopened legacy results', () => {
     const html = render({ ...base, includeExtraPayments: true, monthlyExtraPayment: 200 }, true)
     expect(html).toContain('With your planned monthly extra:')
-    expect(html).toContain('USD 2,728.27')
+    expect(html).toContain('$2,728.27')
     expect(html).toContain('Extra principal')
     expect(html).toContain('Annual and one-time extras are separate')
   })

@@ -64,7 +64,7 @@ export function MortgageResults({ result: r, input, charts, disabled, onApplyPay
 
   return <div className="mortgage-results">
     <section className="mortgage-hero" aria-labelledby="mortgage-estimate-title">
-      <div className="mortgage-eyebrow"><span>YOUR PAYMENT ESTIMATE</span><span>{input.country === 'CA' ? 'CAD' : 'USD'} · monthly</span></div>
+      <div className="mortgage-eyebrow"><span>YOUR PAYMENT ESTIMATE</span><span>monthly</span></div>
       <h2 id="mortgage-estimate-title" tabIndex={-1}>{input.includeTaxesAndCosts ? 'Monthly housing estimate' : 'Monthly principal & interest'}</h2>
       <p className="mortgage-hero-amount">{money(r.totalMonthlyHousing)}<span>/mo</span></p>
       <p className="mortgage-hero-caption">{input.includeTaxesAndCosts ? `${money(r.principalAndInterest)} loan payment + ${money(housingExtras)} taxes, insurance & fees.` : 'Taxes, insurance and other ownership costs are not included.'}</p>
@@ -78,7 +78,7 @@ export function MortgageResults({ result: r, input, charts, disabled, onApplyPay
 
     <dl className="mortgage-key-metrics">
       <div><dt><CalendarDays aria-hidden="true" />Estimated payoff</dt><dd>{monthLabel(r.payoffDate)}</dd><span>{durationLabel(r.payoffPeriod)} of payments</span></div>
-      <div><dt><TrendingDown aria-hidden="true" />Interest over the loan</dt><dd>{money(r.totalInterest)}</dd><span>{r.loanAmount > 0 ? `${money(r.totalInterest / r.loanAmount)} interest per $1 borrowed` : 'Based on this scenario'}</span></div>
+      <div><dt><TrendingDown aria-hidden="true" />Interest over the loan</dt><dd>{money(r.totalInterest)}</dd><span>{r.loanAmount > 0 ? `${(r.totalInterest / r.loanAmount * 100).toFixed(1)}% of the amount borrowed` : 'Based on this scenario'}</span></div>
     </dl>
 
     <nav className="mortgage-view-nav" aria-label="Mortgage result views">{([
@@ -133,7 +133,7 @@ export function MortgageResults({ result: r, input, charts, disabled, onApplyPay
         <div className="mortgage-section-heading"><h3>Follow every payment</h3><span>{r.payoffPeriod} months</span></div>
         <SegmentedControl options={[{ value: 'annual', label: 'By loan year' }, { value: 'monthly', label: 'By month' }]} value={annual ? 'annual' : 'monthly'} onChange={value => setAnnual(value === 'annual')} />
         <p className="mortgage-note">Total paid = principal + extra principal + interest. Taxes and ownership costs are separate. Loan years start with your first payment.</p>
-        <DataTable key={annual ? 'annual' : 'monthly'} table={schedule} maxRows={annual ? 50 : 12} />
+        <DataTable key={annual ? 'annual' : 'monthly'} table={schedule} scrollable />
         <div className="mortgage-schedule-footer"><span>Final month’s loan payments</span><strong>{money(Number(monthlySchedule.rows.at(-1)?.payment ?? 0))}</strong><span>Remaining balance</span><strong>{money(r.remainingBalance ?? 0)}</strong></div>
         <p className="mortgage-note">Export CSV for the complete cash-flow event schedule, including individual extra payments.</p>
       </section>}

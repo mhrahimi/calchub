@@ -11,6 +11,7 @@ import { initialSession, reduceSession, type SessionAction } from './session'
 import { normalizePastedText } from './clipboard'
 import { evaluateExpression, MAX_EXPRESSION_LENGTH } from './expression'
 import { formatCalculatorDisplay } from './formatDisplay'
+import { formatExpressionInput, moveInputCaret, stripInputGrouping } from './inputFormatting'
 import { keyBindings } from './keyBindings'
 import { createKeyChordController } from './keyChordController'
 import { KeypadGrid, type KeypadCell } from './KeypadGrid'
@@ -107,6 +108,8 @@ export default function BasicCalculatorPage() {
   const [session, setSession] = useState(initialSession)
   const sessionRef = useRef(session)
   const editorRef = useRef<HTMLInputElement>(null)
+  const selectionDirectionRef = useRef<'forward' | 'backward' | 'none'>('none')
+  const formattedInput = useMemo(() => formatExpressionInput(session.source), [session.source])
   const [history, setHistory] = useState<CalculatorHistoryEntry[]>(loadHistory)
   const historyRef = useRef(history)
   historyRef.current = history
@@ -144,7 +147,8 @@ export default function BasicCalculatorPage() {
   const flushPending = useCallback(() => applyActions(chordRef.current.flush().actions), [applyActions])
   const focusExpression = () => {
     editorRef.current?.focus({ preventScroll: true })
-    editorRef.current?.setSelectionRange(sessionRef.current.start, sessionRef.current.end)
+    const { toDisplay } = formatExpressionInput(sessionRef.current.source)
+    editorRef.current?.setSelectionRange(toDisplay[sessionRef.current.start], toDisplay[sessionRef.current.end], selectionDirectionRef.current)
   }
   const onAction = (action: CalculatorAction) => {
     flushPending()
@@ -167,8 +171,10 @@ export default function BasicCalculatorPage() {
   }, [applyActions, flushPending])
 
   useLayoutEffect(() => {
-    if (document.activeElement === editorRef.current) editorRef.current?.setSelectionRange(session.start, session.end)
-  }, [session.source, session.start, session.end])
+    if (document.activeElement === editorRef.current) {
+      editorRef.current?.setSelectionRange(formattedInput.toDisplay[session.start], formattedInput.toDisplay[session.end], selectionDirectionRef.current)
+    }
+  }, [formattedInput, session.start, session.end])
 
   useEffect(() => {
     if (!helpOpen) return
@@ -186,7 +192,6 @@ export default function BasicCalculatorPage() {
       flushPending()
       return
     }
-    if (event.key === 'Escape') { flushPending(); event.preventDefault(); return }
     if ((event.key === 'ArrowUp' || event.key === 'ArrowDown') && !event.shiftKey) {
       event.preventDefault()
       flushPending()
@@ -196,7 +201,39 @@ export default function BasicCalculatorPage() {
     if (event.key === 'Enter' || event.key === '=') {
       event.preventDefault(); flushPending(); dispatchSession({ type: 'key', action: { type: 'equals' } }); return
     }
-    if (['ArrowLeft', 'ArrowRight', 'Home', 'End', 'Backspace', 'Delete'].includes(event.key)) {
+    if (event.key === 'Backspace' || event.key === 'Delete') {
+      event.preventDefault()
+      flushPending()
+      dispatchSession({ type: 'resume' })
+      dispatchSession(event.key === 'Backspace' ? { type: 'key', action: { type: 'backspace' } } : { type: 'deleteForward' })
+      return
+    }
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      flushPending()
+      dispatchSession({ type: 'resume' })
+      const input = editorRef.current
+      if (!input) return
+      event.preventDefault()
+      const formatted = formatExpressionInput(sessionRef.current.source)
+      const currentDisplay = input.value === formatted.text
+      const start = currentDisplay ? input.selectionStart ?? 0 : formatted.toDisplay[sessionRef.current.start]
+      const end = currentDisplay ? input.selectionEnd ?? 0 : formatted.toDisplay[sessionRef.current.end]
+      const backward = input.selectionDirection === 'backward'
+      const direction = event.key === 'ArrowLeft' ? -1 : 1
+      const anchor = backward ? end : start
+      const active = backward ? start : end
+      const next = !event.shiftKey && start !== end
+        ? direction < 0 ? start : end
+        : moveInputCaret(formatted.text, active, direction)
+      const nextStart = event.shiftKey ? Math.min(anchor, next) : next
+      const nextEnd = event.shiftKey ? Math.max(anchor, next) : next
+      selectionDirectionRef.current = event.shiftKey && next < anchor ? 'backward' : 'forward'
+      const { toSource } = formatted
+      dispatchSession({ type: 'select', start: toSource[nextStart], end: toSource[nextEnd] })
+      input.setSelectionRange(nextStart, nextEnd, selectionDirectionRef.current)
+      return
+    }
+    if (event.key === 'Home' || event.key === 'End') {
       flushPending(); dispatchSession({ type: 'resume' }); return
     }
     if (event.key.length !== 1) { flushPending(); return }
@@ -238,6 +275,18 @@ export default function BasicCalculatorPage() {
         }
         const field = isFormField(event.target) || (event.target instanceof HTMLElement && event.target.isContentEditable)
         if (field && event.target !== editorRef.current) return
+        if (event.key === 'Escape' && !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey) {
+          event.preventDefault()
+          event.stopPropagation()
+          if (!event.repeat) {
+            flushSync(() => {
+              flushPending()
+              dispatchSession({ type: 'key', action: { type: 'allClear' } })
+            })
+            focusExpression()
+          }
+          return
+        }
         if ((event.metaKey || event.ctrlKey) && !event.altKey) {
           const key = event.key.toLowerCase()
           if (key === 'z' || (key === 'y' && event.ctrlKey && !event.shiftKey)) {
@@ -263,9 +312,31 @@ export default function BasicCalculatorPage() {
         focusExpression()
       }}
       onCopy={(event) => {
+        if (event.target === editorRef.current) {
+          const input = editorRef.current
+          const selected = input.value.slice(input.selectionStart ?? 0, input.selectionEnd ?? 0)
+          if (selected) {
+            event.preventDefault()
+            event.clipboardData.setData('text/plain', stripInputGrouping(selected))
+          }
+          return
+        }
         if (isFormField(event.target) || window.getSelection()?.toString()) return
         if (preview.status !== 'complete') return
         event.preventDefault(); event.clipboardData.setData('text/plain', preview.value)
+      }}
+      onCut={(event) => {
+        if (event.target !== editorRef.current) return
+        const input = editorRef.current
+        const selected = input.value.slice(input.selectionStart ?? 0, input.selectionEnd ?? 0)
+        if (!selected) return
+        event.preventDefault()
+        event.clipboardData.setData('text/plain', stripInputGrouping(selected))
+        flushSync(() => {
+          flushPending()
+          dispatchSession({ type: 'resume' })
+          dispatchSession({ type: 'insert', text: '' })
+        })
       }}
     >
       <h1 className="text-2xl font-bold text-text-primary mb-6">Calculator</h1>
@@ -287,7 +358,7 @@ export default function BasicCalculatorPage() {
                   <div className="flex items-center justify-between mb-2"><p className="text-xs font-semibold text-text-primary">Keyboard shortcuts</p>
                     <button type="button" autoFocus aria-label="Close keyboard shortcuts" className={controlClass} onClick={() => { setHelpOpen(false); helpButtonRef.current?.focus() }}><X className="w-3.5 h-3.5" aria-hidden /></button></div>
                   <ul className="space-y-1.5">{keyBindings.help.map((row) => <li key={row.keys} className="flex items-baseline justify-between gap-3 text-xs"><span className="font-medium text-text-secondary shrink-0">{row.keys}</span><span className="text-text-muted text-right">{row.meaning}</span></li>)}</ul>
-                  <p className="text-xs text-text-muted mt-3">Use a decimal point. Commas separate function arguments, as in logx(2, 8). For percentages, 200 + 10% = 220.</p>
+                  <p className="text-xs text-text-muted mt-3">Numbers are grouped as 123٬456. A regular comma separates function arguments, as in logx(2, 8). Use a decimal point. For percentages, 200 + 10% = 220.</p>
                 </div>}
               </div>
             </div>
@@ -304,11 +375,15 @@ export default function BasicCalculatorPage() {
                 <button type="button" disabled={!session.future.length} onMouseDown={(event) => event.preventDefault()} onClick={() => { flushPending(); dispatchSession({ type: 'redo' }) }} className={controlClass} title="Redo (⌘/Ctrl+Shift+Z)"><Redo2 className="h-3.5 w-3.5" aria-hidden />Redo</button>
               </div>
             </div>
-            <input ref={editorRef} id="calculator-expression" type="text" aria-label="Expression" aria-invalid={invalid} aria-describedby="expression-help" value={session.source}
-              maxLength={MAX_EXPRESSION_LENGTH} autoComplete="off" autoCapitalize="off" spellCheck={false} placeholder="Type a calculation…"
+            <input ref={editorRef} id="calculator-expression" type="text" aria-label="Expression" aria-invalid={invalid} aria-describedby="expression-help" value={formattedInput.text}
+              maxLength={MAX_EXPRESSION_LENGTH * 2} autoComplete="off" autoCapitalize="off" spellCheck={false} placeholder="Type a calculation…"
               onChange={(event) => dispatchSession({ type: 'edit', source: event.target.value, start: event.target.selectionStart ?? 0, end: event.target.selectionEnd ?? 0 })}
               onSelect={(event) => {
-                if (event.currentTarget.value === sessionRef.current.source) dispatchSession({ type: 'select', start: event.currentTarget.selectionStart ?? 0, end: event.currentTarget.selectionEnd ?? 0 })
+                const formatted = formatExpressionInput(sessionRef.current.source)
+                if (event.currentTarget.value === formatted.text) {
+                  selectionDirectionRef.current = event.currentTarget.selectionDirection ?? 'none'
+                  dispatchSession({ type: 'select', start: formatted.toSource[event.currentTarget.selectionStart ?? 0], end: formatted.toSource[event.currentTarget.selectionEnd ?? 0] })
+                }
               }}
               onPointerDown={() => { flushPending(); dispatchSession({ type: 'resume' }) }}
               onBlur={flushPending} onKeyDown={inputKey}

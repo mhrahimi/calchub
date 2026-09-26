@@ -1,6 +1,7 @@
 import { type AngleMode, type CalculatorAction } from './engine'
 import { evaluateExpression, MAX_EXPRESSION_LENGTH } from './expression'
 import type { CalculatorHistoryEntry } from './historyStore'
+import { readExpressionInput, stripInputGrouping } from './inputFormatting'
 
 export type Snapshot = {
   source: string
@@ -23,6 +24,7 @@ export type SessionAction =
   | { type: 'edit'; source: string; start: number; end: number }
   | { type: 'select'; start: number; end: number }
   | { type: 'resume' }
+  | { type: 'deleteForward' }
   | { type: 'undo' }
   | { type: 'redo' }
   | { type: 'forgetHistory' }
@@ -52,6 +54,7 @@ function replace(state: CalculatorSession, text: string, start = state.start, en
 }
 
 function insert(state: CalculatorSession, text: string): CalculatorSession {
+  text = stripInputGrouping(text)
   if (!state.committed && text === ')' && state.start === state.end && state.source[state.start] === ')') {
     return { ...state, start: state.start + 1, end: state.end + 1 }
   }
@@ -92,7 +95,8 @@ function operandRange(state: CalculatorSession): { start: number; end: number } 
 }
 
 function fromHistory(state: CalculatorSession, entry: CalculatorHistoryEntry): Snapshot {
-  return { ...snapshot(state), source: entry.expression, start: entry.expression.length, end: entry.expression.length,
+  const source = stripInputGrouping(entry.expression)
+  return { ...snapshot(state), source, start: source.length, end: source.length,
     angleMode: entry.angleMode ?? state.angleMode, committed: false, showErrors: false, inputError: null }
 }
 
@@ -106,12 +110,14 @@ export function reduceSession(state: CalculatorSession, action: SessionAction): 
     return next ? { ...next, past: [...state.past, snapshot(state)].slice(-200), future: state.future.slice(1), recall: null } : state
   }
   if (action.type === 'resume') return { ...state, committed: false }
+  if (action.type === 'deleteForward') return replace(state, '', state.start, state.start === state.end ? Math.min(state.source.length, state.end + 1) : state.end)
   if (action.type === 'forgetHistory') return state.recall ? { ...state, ...state.recall.draft, recall: null } : state
   if (action.type === 'select') return { ...state, start: action.start, end: action.end }
   if (action.type === 'insert') return insert(state, action.text)
   if (action.type === 'edit') {
-    if (action.source.length > MAX_EXPRESSION_LENGTH) return { ...state, inputError: 'Keep the expression under 2,000 characters.' }
-    return remember(state, { ...snapshot(state), source: action.source, start: action.start, end: action.end, committed: false, showErrors: false, inputError: null })
+    const edit = readExpressionInput(action.source, action.start, action.end)
+    if (edit.source.length > MAX_EXPRESSION_LENGTH) return { ...state, inputError: 'Keep the expression under 2,000 characters.' }
+    return remember(state, { ...snapshot(state), ...edit, committed: false, showErrors: false, inputError: null })
   }
   if (action.type === 'loadExpression') return remember(state, fromHistory(state, action.entry))
   if (action.type === 'recall') {

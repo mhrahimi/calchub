@@ -23,6 +23,8 @@ export function Select({ label, id, value, onChange, options, error, className }
       <div className="relative min-w-0">
         <select
           id={fieldId}
+          aria-invalid={!!error}
+          aria-describedby={error ? `${fieldId}-error` : undefined}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className={cn(
@@ -42,7 +44,7 @@ export function Select({ label, id, value, onChange, options, error, className }
           aria-hidden="true"
         />
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p id={`${fieldId}-error`} role="alert" className="text-sm text-red-600">{error}</p>}
     </div>
   )
 }

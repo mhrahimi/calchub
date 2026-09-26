@@ -4,9 +4,10 @@ import type { ComparisonSnapshot } from '@/features/comparison/model'
 import { ComparisonPanel } from './ComparisonPanel'
 import { ResultSummary } from './ResultSummary'
 import { ResultDetailsContext } from './ResultDetailsContext'
-import { SnapshotFormatContext } from './SnapshotFormat'
+import { CurrencyDisplayContext, SnapshotFormatContext } from './SnapshotFormat'
+import { snapshotText } from '@/exports/provenance'
 import type { CalculationProvenance } from '@/exports/provenance'
-import { useState, useEffect, useRef, type ReactNode } from 'react'
+import { useState, useEffect, useRef, useContext, type ReactNode } from 'react'
 import { Star, ChevronDown } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { Button } from '@/components/ui/Button'
@@ -16,6 +17,7 @@ import { ChartPanel } from '@/components/calculator/ChartPanel'
 import { type ShareMenuActions } from '@/components/calculator/ShareMenu'
 
 interface CalculatorLayoutProps {
+  autoCalculate?: boolean
   resultPresentation?: 'details' | 'inline'
   calculateLabel?: string
   resultFields?: ReportField[]
@@ -54,7 +56,7 @@ interface CalculatorLayoutProps {
 }
 
 export function CalculatorLayout({
-  resultPresentation = 'details', calculateLabel = 'Calculate',
+  autoCalculate = false, resultPresentation = 'details', calculateLabel = 'Calculate',
   resultFields, resultWarnings, currentPayload, baseline, onBaseline, comparisonOpen, onCompare,
   title,
   description,
@@ -74,6 +76,8 @@ export function CalculatorLayout({
   onCalculate,
   calculationError, inputsChanged, provenance, resultAnnouncement, saveOpen, savedNotice, onSaveCancel, onSaveConfirm,
 }: CalculatorLayoutProps) {
+  const currencyDisplay = useContext(CurrencyDisplayContext)
+  const displayText = (value: string) => snapshotText(value, provenance, currencyDisplay)
   const [methodOpen, setMethodOpen] = useState(false)
   const [name, setName] = useState(title)
   const [saveError, setSaveError] = useState('')
@@ -104,21 +108,21 @@ export function CalculatorLayout({
       <div className="calculator-grid grid lg:grid-cols-[minmax(280px,0.7fr)_minmax(0,1.4fr)] gap-8 lg:gap-12 min-w-0">
         <section className="calculator-inputs min-w-0 space-y-6" aria-label="Calculator inputs">
           <div className="bg-background-secondary/60 rounded-xl p-4 sm:p-5 space-y-5">{inputs}</div>
-          <Button onClick={onCalculate} className="calculator-submit w-full lg:w-auto">
+          {!autoCalculate && <Button onClick={onCalculate} className="calculator-submit w-full lg:w-auto">
             {calculateLabel}
-          </Button>
+          </Button>}
         </section>
 
-        <section className="min-w-0 space-y-6" aria-label="Calculation results">
+        <section className="min-w-0 space-y-6" aria-label="Calculation results" aria-busy={autoCalculate && inputsChanged}>
           <p role="status" className="sr-only">{resultAnnouncement}</p>
-          {inputsChanged && <p role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">Inputs changed — recalculate. The results below belong to the previous input snapshot. Save, compare, copy, and export become available after recalculation.{resultPresentation === 'inline' && <button type="button" className="block mt-2 min-h-11 font-semibold underline underline-offset-4" onClick={onCalculate}>Update estimate</button>}</p>}
-          {provenance && results && <p className="text-xs text-text-secondary">Calculated {provenance.calculatedAt ? new Date(provenance.calculatedAt).toLocaleString(provenance.locale ?? 'en-US') : 'at an unrecorded time'} · {provenance.currency ?? 'Currency not recorded'}</p>}
+          {inputsChanged && !autoCalculate && <p role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">Inputs changed — recalculate. The results below belong to the previous input snapshot. Save, compare, copy, and export become available after recalculation.{resultPresentation === 'inline' && <button type="button" className="block mt-2 min-h-11 font-semibold underline underline-offset-4" onClick={onCalculate}>Update estimate</button>}</p>}
+          {!autoCalculate && provenance && results && <p className="text-xs text-text-secondary">Calculated {provenance.calculatedAt ? new Date(provenance.calculatedAt).toLocaleString(provenance.locale ?? 'en-US') : 'at an unrecorded time'} · {provenance.currency ?? 'Currency not recorded'}</p>}
           {calculationError && <p role="alert" className="text-red-700">{calculationError}</p>}
           {results ? (
             <>
               <ResultSummary fields={resultPresentation === 'inline' ? [] : resultFields??[]} disabled={inputsChanged} loading={pdfLoading} comparing={comparisonOpen} onSave={onSave} onCompare={onCompare??(()=>{})} onCopy={shareActions?.onCopySummary} onPdf={onExportPdf} onCsv={onExportCsv} onShare={shareActions?.canShareNative?shareActions.onNativeShare:undefined} notice={copyNotice?'Copied to clipboard.':savedNotice} />
               {resultWarnings?.map((warning,index)=><p key={index} className="text-sm text-amber-900">{warning}</p>)}
-              {comparisonOpen&&currentPayload&&onBaseline&&<ComparisonPanel current={currentPayload} baseline={baseline??null} onBaseline={onBaseline} refreshKey={savedNotice} disabled={inputsChanged}/>}
+              {comparisonOpen&&currentPayload&&onBaseline&&<ComparisonPanel current={currentPayload} baseline={baseline??null} onBaseline={onBaseline} refreshKey={savedNotice} disabled={inputsChanged} autoCalculate={autoCalculate}/>}
               {resultPresentation === 'inline' ? (
                 <SnapshotFormatContext.Provider value={provenance}>{results}</SnapshotFormatContext.Provider>
               ) : <details className="result-details border-b border-border pb-4">
@@ -166,12 +170,12 @@ export function CalculatorLayout({
                           <p className="text-sm font-medium text-text-primary">{step.label}</p>
                           {step.expression && (
                             <pre className="text-sm text-text-secondary font-mono mt-1 whitespace-pre-wrap break-all [overflow-wrap:anywhere]">
-                              {step.expression}
+                              {displayText(step.expression)}
                             </pre>
                           )}
                           {step.result && (
                             <p className="text-sm text-primary tabular-nums mt-1 break-all [overflow-wrap:anywhere]">
-                              {step.result}
+                              {displayText(step.result)}
                             </p>
                           )}
                         </div>
@@ -188,7 +192,7 @@ export function CalculatorLayout({
             </>
           ) : (
             <div className="rounded-2xl border border-dashed border-border bg-surface-lighter/50 p-12 text-center">
-              <p className="text-text-muted">Enter your values and click Calculate to see results.</p>
+              <p className="text-text-muted">{autoCalculate ? 'Check the highlighted inputs to see your estimate.' : 'Enter your values and click Calculate to see results.'}</p>
             </div>
           )}
         </section>
