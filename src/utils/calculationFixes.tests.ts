@@ -144,7 +144,7 @@ describe('calculation integrity regressions',()=>{
   it('selects explicit primary metrics and exports complete inputs and metadata',async()=>{
     const payload=buildLiveExportPayload({calculatorId:'dcf',inputs:dcf,results:calculateDcf(dcf),explain:()=>({title:'DCF',steps:[],assumptions:['Test convention']})})
     expect(payload.resultsSummary.find(x=>x.primary)?.label).toBe('Enterprise value')
-    expect(payloadToCsv(payload)).toContain('modelVersion')
+    expect(payloadToCsv(payload)).toContain('Model version')
     expect(payload.inputs.forecast).toContain('depreciation')
     const legacy=await buildExportPayloadFromRecord({calculatorId:'dcf',inputs:dcf,results:calculateDcf(dcf),createdAt:'2026-01-01'})
     expect(legacy.metadata?.status).toBe('legacy')

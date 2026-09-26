@@ -62,6 +62,11 @@ export interface PayoffOption {
 }
 
 export interface MortgageResult {
+  status: string
+  warnings: string[]
+  remainingBalance: number
+  finalPayment: number
+  payoffDate: string | null
   loanAmount: number
   downPaymentAmount: number
   principalAndInterest: number

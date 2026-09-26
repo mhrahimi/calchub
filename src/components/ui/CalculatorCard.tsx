@@ -1,4 +1,5 @@
-import { Star } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Star, ArrowUpRight } from 'lucide-react'
 import { getIcon } from '@/utils/icons'
 import { cn } from '@/utils/cn'
 import type { CalculatorMeta } from '@/calculators/types'
@@ -9,49 +10,11 @@ interface CalculatorCardProps {
   onFavoriteToggle?: (id: string) => void
   onClick?: () => void
 }
-
-export function CalculatorCard({
-  calculator,
-  isFavorite,
-  onFavoriteToggle,
-  onClick,
-}: CalculatorCardProps) {
-  const Icon = getIcon(calculator.icon)
-
-  return (
-    <div
-      onClick={onClick}
-      className={cn(
-        'group rounded-[16px] border border-border bg-background-secondary/50 p-1',
-        'transition-all duration-300 hover:border-primary hover:-translate-y-0.5 hover:shadow-[var(--shadow-hover)] cursor-pointer',
-      )}
-    >
-      <div className="rounded-[14px] bg-white border border-white/80 p-5 h-full flex flex-col">
-        <div className="flex items-start justify-between mb-4">
-          <div className="w-10 h-10 rounded-xl bg-surface-light flex items-center justify-center text-primary">
-            <Icon className="w-5 h-5" />
-          </div>
-          {onFavoriteToggle && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onFavoriteToggle(calculator.id)
-              }}
-              className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-full hover:bg-surface-lighter transition-colors"
-              aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-            >
-              <Star
-                className={cn('w-4 h-4', isFavorite ? 'fill-primary text-primary' : 'text-text-muted')}
-              />
-            </button>
-          )}
-        </div>
-        <h3 className="font-semibold text-text-primary mb-1">{calculator.title}</h3>
-        <p className="text-sm text-text-secondary flex-1 line-clamp-2">{calculator.description}</p>
-        <p className="text-xs text-text-muted mt-3 uppercase tracking-wide">
-          {calculator.categorySlug.replace('-', ' ')}
-        </p>
-      </div>
-    </div>
-  )
+export function CalculatorCard({calculator,isFavorite,onFavoriteToggle,onClick}:CalculatorCardProps) {
+  const Icon=getIcon(calculator.icon)
+  return <div className="group relative flex items-start gap-3 py-4 px-3 rounded-xl hover:bg-surface-lighter transition-colors border-b border-border/60">
+    <Icon aria-hidden="true" className="w-5 h-5 text-primary shrink-0 mt-1"/>
+    <div className="min-w-0 flex-1"><h3 className="text-sm font-semibold text-text-primary"><Link to={calculator.route} onClick={onClick} className="after:absolute after:inset-0 after:rounded-xl">{calculator.title}</Link></h3><p className="text-sm text-text-secondary mt-1 line-clamp-2">{calculator.description}</p></div>
+    {onFavoriteToggle?<button onClick={()=>onFavoriteToggle(calculator.id)} className="relative z-10 h-11 w-11 -my-2 -mr-2 shrink-0 inline-flex items-center justify-center rounded-lg hover:bg-white transition-colors" aria-label={`${isFavorite?'Remove from favorites':'Add to favorites'}: ${calculator.title}`} aria-pressed={!!isFavorite}><Star className={cn('w-4 h-4',isFavorite?'fill-primary text-primary':'text-text-muted')}/></button>:<ArrowUpRight className="w-4 h-4 text-text-muted shrink-0 mt-1"/>}
+  </div>
 }

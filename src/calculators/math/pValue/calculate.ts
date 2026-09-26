@@ -8,6 +8,7 @@ import {
   twoSidedPValue,
 } from '@/utils/distributions'
 import type { PValueInput, PValueResult, TailType } from './types'
+import { validatePValue } from './validation'
 import type { CalculationExplanation, ChartData, ChartSeries, TableData } from '@/calculators/types'
 
 const CAVEAT = 'A p-value is not the probability that the null hypothesis is true.'
@@ -20,13 +21,11 @@ function sampleCurve(
   pdf: (x: number) => number,
   lo: number,
   hi: number,
-  step = 0.1,
 ): Array<{ x: number; y: number }> {
-  const points: Array<{ x: number; y: number }> = []
-  for (let x = lo; x <= hi + 1e-9; x += step) {
-    points.push({ x: Math.round(x * 10) / 10, y: pdf(x) })
-  }
-  return points
+  return Array.from({ length: 241 }, (_, i) => {
+    const x = lo + (hi - lo) * i / 240
+    return { x, y: pdf(x) }
+  })
 }
 
 function buildReferenceCurve(
@@ -38,18 +37,19 @@ function buildReferenceCurve(
   shaded: Array<{ x: number; y: number }>
   shadedLower: Array<{ x: number; y: number }>
 } {
-  const bound = Math.max(4, Math.abs(stat) + 1)
+  if (!Number.isFinite(stat)) throw new Error('The test statistic exceeds the supported numerical range. Check the means and standard deviation.')
+  const bound = Math.min(12, Math.max(4, Math.abs(stat) + 1))
   const points = sampleCurve(pdf, -bound, bound)
   let shaded: Array<{ x: number; y: number }> = []
   let shadedLower: Array<{ x: number; y: number }> = []
   if (tail === 'two') {
     const crit = Math.abs(stat)
-    shadedLower = sampleCurve(pdf, -bound, -crit)
-    shaded = sampleCurve(pdf, crit, bound)
+    shadedLower = points.filter((p) => p.x <= -crit)
+    shaded = points.filter((p) => p.x >= crit)
   } else if (tail === 'oneLower') {
-    shadedLower = sampleCurve(pdf, -bound, stat)
+    shadedLower = points.filter((p) => p.x <= stat)
   } else {
-    shaded = sampleCurve(pdf, stat, bound)
+    shaded = points.filter((p) => p.x >= stat)
   }
   return { points, shaded, shadedLower }
 }
@@ -65,6 +65,18 @@ function wilsonInterval(phat: number, n: number, z: number) {
 }
 
 export function calculatePValue(input: PValueInput): PValueResult {
+  const validation = validatePValue(input)
+  if (!validation.valid) throw new Error(Object.values(validation.errors)[0])
+  const result = calculateValidatedPValue(input)
+  if (Object.values(result).some((value) => typeof value === 'number' && !Number.isFinite(value))
+    || result.distributionPoints.some((point) => !Number.isFinite(point.y))) {
+    throw new Error('These inputs exceed the supported numerical range. Check the amounts and standard deviation.')
+  }
+  if (Math.abs(result.testStatistic ?? 0) > 12) result.warnings = ['The test statistic lies outside the displayed chart range (−12 to 12). The p-value uses the full statistic.']
+  return result
+}
+
+function calculateValidatedPValue(input: PValueInput): PValueResult {
   const n = input.sampleSize!
   const tail = input.tail ?? 'two'
 
@@ -212,19 +224,19 @@ export function buildPValueCharts(result: PValueResult): ChartData[] {
 
 export function buildPValueTable(result: PValueResult): TableData {
   const rows: Record<string, string | number>[] = []
-  if (result.pValue !== undefined) rows.push({ metric: 'p-value', value: result.pValue.toFixed(6) })
-  if (result.testStatistic !== undefined) rows.push({ metric: 'Test statistic', value: result.testStatistic.toFixed(4) })
-  if (result.standardError !== undefined) rows.push({ metric: 'Standard error', value: result.standardError.toFixed(6) })
+  if (result.pValue !== undefined) rows.push({ metric: 'p-value', value: result.pValue })
+  if (result.testStatistic !== undefined) rows.push({ metric: 'Test statistic', value: result.testStatistic })
+  if (result.standardError !== undefined) rows.push({ metric: 'Standard error', value: result.standardError })
   if (result.degreesOfFreedom !== undefined) rows.push({ metric: 'Degrees of freedom', value: result.degreesOfFreedom })
-  if (result.ciLower !== undefined) rows.push({ metric: 'CI lower', value: result.ciLower.toFixed(4) })
-  if (result.ciUpper !== undefined) rows.push({ metric: 'CI upper', value: result.ciUpper.toFixed(4) })
+  if (result.ciLower !== undefined) rows.push({ metric: 'CI lower', value: result.ciLower })
+  if (result.ciUpper !== undefined) rows.push({ metric: 'CI upper', value: result.ciUpper })
   if (result.confidenceLevel !== undefined) rows.push({ metric: 'Confidence level', value: `${result.confidenceLevel}%` })
   rows.push({ metric: 'Note', value: result.caveat })
   return {
     title: 'Results',
     columns: [
       { key: 'metric', label: 'Metric', align: 'left' },
-      { key: 'value', label: 'Value', align: 'left' },
+      { key: 'value', label: 'Value', align: 'right', precision: 8 },
     ],
     rows,
   }

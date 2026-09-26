@@ -14,6 +14,7 @@ export interface PValueInput {
 }
 
 export interface PValueResult {
+  warnings?: string[]
   mode: PValueMode
   pValue?: number
   testStatistic?: number

@@ -1,4 +1,9 @@
+import { presentCharts } from '@/utils/chartPresentation'
+import { inputFields, resultFields } from './reportFields'
+export { humanizeKey } from './reportFields'
+import { legacyProvenance, snapshotExplanation } from './provenance'
 import { resultMetadata } from './resultMetadata'
+import { stringifyCalculationData } from '@/utils/calculationJson'
 import { getCalculatorById } from '@/calculators/registry'
 import type { CalculationExplanation, ChartData, TableData } from '@/calculators/types'
 import type { ExportPayload, ExportRecord, ResultSummaryItem } from './types'
@@ -12,51 +17,14 @@ function flattenInputs(inputs: unknown): Record<string, unknown> {
   for (const [key, val] of Object.entries(inputs as Record<string, unknown>)) {
     if (val === null || val === undefined) continue
     if (typeof val === 'object' && !Array.isArray(val)) {
-      out[key] = JSON.stringify(val)
+      out[key] = stringifyCalculationData(val)
     } else if (Array.isArray(val)) {
-      out[key] = JSON.stringify(val)
+      out[key] = stringifyCalculationData(val)
     } else {
       out[key] = val
     }
   }
   return out
-}
-
-export function humanizeKey(key: string): string {
-  const spaced = key
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .replace(/[_-]+/g, ' ')
-    .trim()
-    .toLowerCase()
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1)
-}
-
-function flattenResults(results: unknown, primaryKey: string | null): ResultSummaryItem[] {
-  if (!results || typeof results !== 'object') {
-    return [{ label: 'Result', value: String(results ?? ''), primary: true }]
-  }
-  const rows: ResultSummaryItem[] = []
-  for (const [key, val] of Object.entries(results as Record<string, unknown>)) {
-    if (key === 'metadata' || val === null || val === undefined) continue
-    if (Array.isArray(val)) {
-      if (key === primaryKey || (val.length <= 5 && val.every((v) => typeof v !== 'object'))) {
-        rows.push({ label: humanizeKey(key), value: val.join(', ') })
-      }
-      continue
-    }
-    if (typeof val === 'object') continue
-    if (typeof val === 'number') {
-      rows.push({
-        label: humanizeKey(key),
-        value: Number.isInteger(val) ? val.toLocaleString() : val.toLocaleString(undefined, { maximumFractionDigits: 4 }),
-      })
-    } else {
-      rows.push({ label: humanizeKey(key), value: String(val) })
-    }
-  }
-  const trimmed = rows
-  for (const row of trimmed) row.primary = primaryKey !== null && row.label === humanizeKey(primaryKey)
-  return trimmed
 }
 
 export async function buildExportPayloadFromRecord(
@@ -81,17 +49,20 @@ export async function buildExportPayloadFromRecord(
   const charts = options?.charts ?? (engine?.buildCharts ? engine.buildCharts(record.results) : undefined)
 
   const metadata = resultMetadata(record.calculatorId, record.results, explanation, true)
+  const provenance = metadata.provenance ?? legacyProvenance(metadata.modelVersion,record.createdAt)
+  const fields = resultFields(record.calculatorId,record.inputs,record.results,provenance,metadata.primaryResult)
   return {
-    metadata, rawResults: record.results,
+    metadata, rawResults: record.results, provenance, fields, inputFields:inputFields(record.inputs,provenance), exportedAt:new Date().toISOString(),
+    extraTables: additionalTables(record.calculatorId,record.results),
     title: options?.title ?? calc?.title ?? record.calculatorId,
     calculatorId: record.calculatorId,
-    date: record.createdAt,
-    label: options?.label ?? record.label,
+    date: provenance.calculatedAt || record.createdAt,
+    label: options?.label ?? (record as {name?:string}).name ?? record.label,
     inputs: flattenInputs(record.inputs),
-    resultsSummary: options?.resultsSummary ?? flattenResults(record.results, metadata.primaryResult),
-    explanation,
+    resultsSummary: options?.resultsSummary ?? fields.map(f=>({label:f.label,value:f.display,primary:f.primary})),
+    explanation: metadata.explanation ?? snapshotExplanation(explanation ?? {title:"Method not recorded",steps:[]},provenance),
     table,
-    charts,
+    charts: charts && presentCharts(record.calculatorId,record.inputs,record.results,charts,provenance),
     shareText: options?.shareText,
     disclaimer: DISCLAIMER,
   }
@@ -109,17 +80,29 @@ export function buildLiveExportPayload<TInput, TResult>(params: {
 }): ExportPayload {
   const calc = getCalculatorById(params.calculatorId)
   const metadata = resultMetadata(params.calculatorId, params.results, params.explain(params.inputs, params.results))
+  const provenance = metadata.provenance ?? legacyProvenance(metadata.modelVersion)
+  const fields = resultFields(params.calculatorId,params.inputs,params.results,provenance,metadata.primaryResult)
   return {
-    metadata, rawResults: params.results,
+    metadata, rawResults: params.results, provenance, fields, inputFields:inputFields(params.inputs,provenance), exportedAt:new Date().toISOString(),
+    extraTables: additionalTables(params.calculatorId,params.results),
     title: calc?.title ?? params.calculatorId,
     calculatorId: params.calculatorId,
-    date: new Date().toISOString(),
+    date: provenance.calculatedAt,
     inputs: flattenInputs(params.inputs),
-    resultsSummary: params.resultsSummary ?? flattenResults(params.results, metadata.primaryResult),
-    explanation: params.explain(params.inputs, params.results),
+    resultsSummary: params.resultsSummary ?? fields.map(f=>({label:f.label,value:f.display,primary:f.primary})),
+    explanation: metadata.explanation ?? snapshotExplanation(params.explain(params.inputs, params.results),provenance),
     table: params.buildTable?.(params.results),
-    charts: params.buildCharts?.(params.results),
+    charts: params.buildCharts ? presentCharts(params.calculatorId,params.inputs,params.results,params.buildCharts(params.results),provenance) : undefined,
     shareText: params.shareText,
     disclaimer: DISCLAIMER,
   }
+}
+
+function additionalTables(id:string,result:unknown):TableData[] {
+  const r=result as Record<string,unknown>
+  const tables:TableData[]=[]
+  if ((id==='dcf'||id==='dcf-lbo')&&Array.isArray(r.sensitivity)&&r.sensitivity.length) tables.push({title:'Enterprise value sensitivity',columns:[{key:'wacc',label:'WACC (%)',format:'number'},{key:'growth',label:r.terminalMethod==='exitMultiple'?'Exit multiple (x)':'Growth (%)',format:'number'},{key:'ev',label:'Enterprise value',format:'currency'}],rows:r.sensitivity})
+  if ((id==='lbo'||id==='dcf-lbo')&&Array.isArray(r.sourcesUses)) tables.push({title:'Sources and uses',columns:[{key:'item',label:'Item'},{key:'amount',label:'Amount',format:'currency'}],rows:r.sourcesUses})
+  if(id==='gcf-lcm'&&Array.isArray(r.primeFactors))tables.push({title:'Prime factorizations',columns:[{key:'value',label:'Integer'},{key:'factors',label:'Factors'}],rows:r.primeFactors})
+  return tables
 }

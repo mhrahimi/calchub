@@ -34,6 +34,8 @@ export interface TaxJurisdictionConfig {
   surtaxes?: SurtaxRule[]
   metadata?: {
     source?: string
+    sourceDate?: string
+    verifiedAt?: string
     notes?: string[]
   }
 }

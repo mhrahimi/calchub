@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { useApp } from '@/app/providers'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
-import { exportBackup, importBackup, parseBackupText } from '@/persistence/backup'
+import { exportBackup, importBackup, parseBackupText, serializeBackup } from '@/persistence/backup'
 import { clearAll } from '@/persistence/storage'
 import { clearHistory } from '@/persistence/history'
 import { clearSaved } from '@/persistence/saved'
@@ -47,7 +47,7 @@ export default function SettingsPage() {
     setBackupError(null)
     try {
       const backup = await exportBackup()
-      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
+      const blob = new Blob([serializeBackup(backup)], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -164,7 +164,7 @@ export default function SettingsPage() {
           value={settings.pdfTableMode}
           onChange={(v) => handleChange('pdfTableMode', v as AppSettings['pdfTableMode'])}
           options={[
-            { value: 'summary', label: 'Summary only (first 20 rows)' },
+            { value: 'summary', label: 'Decision brief (annual schedule summaries)' },
             { value: 'full', label: 'Full schedule / table' },
           ]}
         />

@@ -10,8 +10,8 @@ export interface StandardDeviationResult {
   max: number
   range: number
   populationVariance: number
-  sampleVariance: number
+  sampleVariance: number | null
   populationSd: number
-  sampleSd: number
+  sampleSd: number | null
   values: number[]
 }

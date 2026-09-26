@@ -20,17 +20,25 @@ const MFJ: TaxBracket[] = [
   { lower: 768700, upper: Infinity, rate: 0.37 },
 ]
 
-/** MFS mirrors Single thresholds per IRS 2026 inflation adjustments */
-const MFS = SINGLE
+/** IRS Rev. Proc. 2025-32, section 4.01, Table 4. */
+const MFS: TaxBracket[] = [
+  { lower: 0, upper: 12400, rate: 0.1 },
+  { lower: 12400, upper: 50400, rate: 0.12 },
+  { lower: 50400, upper: 105700, rate: 0.22 },
+  { lower: 105700, upper: 201775, rate: 0.24 },
+  { lower: 201775, upper: 256225, rate: 0.32 },
+  { lower: 256225, upper: 384350, rate: 0.35 },
+  { lower: 384350, upper: Infinity, rate: 0.37 },
+]
 
 /** HOH brackets (IRS 2026 inflation adjustments) */
 const HOH: TaxBracket[] = [
   { lower: 0, upper: 17700, rate: 0.1 },
   { lower: 17700, upper: 67450, rate: 0.12 },
   { lower: 67450, upper: 105700, rate: 0.22 },
-  { lower: 105700, upper: 201775, rate: 0.24 },
-  { lower: 201775, upper: 256225, rate: 0.32 },
-  { lower: 256225, upper: 640600, rate: 0.35 },
+  { lower: 105700, upper: 201750, rate: 0.24 },
+  { lower: 201750, upper: 256200, rate: 0.32 },
+  { lower: 256200, upper: 640600, rate: 0.35 },
   { lower: 640600, upper: Infinity, rate: 0.37 },
 ]
 
@@ -56,6 +64,8 @@ export const usFederal2026: TaxJurisdictionConfig = {
   },
   standardDeductionByStatus: STANDARD,
   metadata: {
-    source: 'IRS 2026 inflation adjustments / Rev. Proc. tables',
+    source: 'https://www.irs.gov/pub/irs-drop/rp-25-32.pdf',
+    sourceDate: '2025-10-09',
+    verifiedAt: '2026-09-25',
   },
 }

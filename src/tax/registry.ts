@@ -22,7 +22,7 @@ import { quebec2026 } from './canada/2026/quebec'
 import { manitoba2026 } from './canada/2026/manitoba'
 import { saskatchewan2026 } from './canada/2026/saskatchewan'
 
-export const TAX_CONFIG_VERSION = '2026'
+export const TAX_CONFIG_VERSION = '2026.09.25.1'
 
 const US_STATES: TaxJurisdictionConfig[] = [
   california2026,

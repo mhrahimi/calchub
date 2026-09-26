@@ -56,8 +56,10 @@ export function buildAmortizationSchedule(o:AmortizationOptions) {
     const interest=round2(accrued); accrued=0
     const due=round2(balance+interest)
     let paid=e.kind==='balloon'?due:Math.min(e.amount,due)
-    // Clear cents-only rounding residue on the contractual final regular payment.
-    if(e.kind==='payment'&&e.period===periods&&balloon===0&&o.payment===undefined&&due-paid<=periods*0.005+0.01) paid=due
+    // For an automatically calculated fixed-rate loan, settle the contractual balance
+    // on the last installment. Rounding residue compounds and can exceed n/2 cents.
+    // Explicit payments and rate changes retain their genuine balance-due status.
+    if(e.kind==='payment'&&e.period===periods&&balloon===0&&o.payment===undefined&&!(o.rateChanges?.length)) paid=due
     paid=round2(paid)
     const reduction=round2(paid-interest)
     if(reduction<0) negative=true

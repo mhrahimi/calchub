@@ -28,7 +28,7 @@ export function explainRandomNumber(_input: RandomNumberInput, result: RandomNum
     title: 'Random number generation',
     steps: [
       { label: 'RNG source', result: 'crypto.getRandomValues (CSPRNG)' },
-      { label: 'Integer mapping', result: result.integer ? 'Unbiased rejection sampling' : 'Uniform real in [min, max)' },
+      { label: 'Sampling', result: result.integer ? 'Uniform integers including both endpoints; unbiased rejection sampling' : 'Uniform draws in [min, max), then rounded; rounding can produce either endpoint' },
     ],
     assumptions: ['Not suitable for cryptographic key generation without additional review.'],
   }

@@ -23,7 +23,7 @@ export function calculateIncomeTax(input: IncomeTaxInput): IncomeTaxResult {
     sources: [federal.metadata?.source, regional.metadata?.source].filter((s): s is string => !!s),
     included: ['Configured federal and regional brackets / flat rates', 'Configured surtaxes and standard deductions; entered pretax deductions'], excluded }
   const notes: string[] = [
-    'Rough headline estimate. Configuration source date is not recorded; some 2026 values remain provisional.',
+    'Rough headline estimate. Source dates are incomplete for the configured jurisdictions; some 2026 values remain provisional.',
     `Coverage: ${coverage.jurisdiction}; included: ${coverage.included.join('; ')}.`,
     `Excluded: ${excluded.join('; ')}.`,
     `Sources: ${coverage.sources.join('; ')}.`,

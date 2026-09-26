@@ -10,7 +10,6 @@ import {
 } from '@/calculators/finance/blackScholes/calculate'
 import { validateBlackScholes } from '@/calculators/finance/blackScholes/validation'
 import type { BlackScholesInput } from '@/calculators/finance/blackScholes/types'
-import { formatResultCurrency } from './useCalculatorPage'
 
 const defaultInput: BlackScholesInput = {
   spot: 100,
@@ -32,17 +31,17 @@ export default function BlackScholesPage() {
     buildCharts: buildBlackScholesCharts,
     buildTable: buildBlackScholesTable,
     csvFilename: 'black-scholes.csv',
-    getShareText: (r) => `Call: ${formatResultCurrency(r.callPrice)}, Put: ${formatResultCurrency(r.putPrice)}`,
-    renderResults: (r) => (
+    getShareText: (r, _input, formatResultCurrency) => `Call: ${formatResultCurrency(r.callPrice)}, Put: ${formatResultCurrency(r.putPrice)}`,
+    renderResults: (r, _input, formatResultCurrency) => (
       <div className="space-y-4">
         <ResultBlock label="Call price" value={formatResultCurrency(r.callPrice)} primary />
         <ResultBlock label="Put price" value={formatResultCurrency(r.putPrice)} />
         {r.greeks && (
           <div className="rounded-2xl border border-border bg-white p-4">
-            <MetricRow label="Delta (call)" value={r.greeks.deltaCall.toFixed(4)} />
-            <MetricRow label="Gamma" value={r.greeks.gamma.toFixed(6)} />
-            <MetricRow label="Vega" value={r.greeks.vega.toFixed(4)} />
-            <MetricRow label="Theta (call)" value={r.greeks.thetaCall.toFixed(4)} />
+            <MetricRow label="Delta (call)" value={r.greeks.deltaCall} />
+            <MetricRow label="Gamma" value={r.greeks.gamma} />
+            <MetricRow label="Vega" value={r.greeks.vega} />
+            <MetricRow label="Theta (call)" value={r.greeks.thetaCall} />
           </div>
         )}
       </div>

@@ -1,6 +1,11 @@
+import { comparisonIssue, withComparison, type ComparisonSnapshot } from '@/features/comparison/model'
+import { presentCharts, withBaseline } from '@/utils/chartPresentation'
+import { resultFields } from '@/exports/reportFields'
+import { captureProvenance, legacyProvenance, snapshotCurrency, snapshotExplanation, inputsDiffer } from '@/exports/provenance'
+import type { ResultMetadata } from '@/exports/resultMetadata'
 import { resultMetadata } from '@/exports/resultMetadata'
 import { payloadToCsv } from '@/exports/recordCsv'
-import { createElement, useState, useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from 'react'
+import { createElement, useState, useCallback, useEffect, useRef, useMemo, type Dispatch, type SetStateAction } from 'react'
 import { getCalculatorById } from '@/calculators/registry'
 import { useApp } from '@/app/providers'
 import { addRecentlyUsed } from '@/persistence/recentlyUsed'
@@ -21,8 +26,8 @@ interface UseCalculatorPageOptions<TInput extends object, TResult> {
   explain: (input: TInput, result: TResult) => CalculationExplanation
   buildCharts?: (result: TResult) => ChartData[]
   buildTable?: (result: TResult) => TableData
-  renderResults: (result: TResult, input: TInput) => React.ReactNode
-  getShareText?: (result: TResult, input: TInput) => string
+  renderResults: (result: TResult, input: TInput, formatResultCurrency: (value:number)=>string) => React.ReactNode
+  getShareText?: (result: TResult, input: TInput, formatResultCurrency: (value:number)=>string) => string
   csvFilename?: string
   /** Skip auto-restore (e.g. DcfLboPage handles restore manually) */
   skipRestore?: boolean
@@ -56,24 +61,34 @@ export function useCalculatorPage<TInput extends object, TResult>({
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [pdfLoading, setPdfLoading] = useState(false)
   const [copyNotice, setCopyNotice] = useState(false)
+  const [savedNotice, setSavedNotice] = useState('')
+  const [comparisonOpen,setComparisonOpen] = useState(false)
+  const [baseline,setBaseline] = useState<ComparisonSnapshot|null>(null)
   const restoredRef = useRef(false)
 
   const isFavorite = favorites.includes(calculatorId)
 
   const handleCalculate = useCallback(
     (formInput: TInput, options?: { skipHistory?: boolean }) => {
+      setSavedNotice('')
+      setCopyNotice(false)
       const validation = validate(formInput)
       if (!validation.valid) {
         setResult(null)
         setInput(null)
         setErrors(validation.errors)
+        requestAnimationFrame(() => document.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus())
         return
       }
       setErrors({})
+      const normalized = structuredClone(validation.data) as TInput
       let computed: TResult
       try {
-        const raw = calculate(formInput)
-        computed = { ...raw, metadata: resultMetadata(calculatorId, raw, explain(formInput, raw)) }
+        const raw = calculate(normalized)
+        const metadata = resultMetadata(calculatorId, raw, explain(normalized, raw))
+        metadata.provenance = captureProvenance(calculatorId, normalized, metadata, settings, raw)
+        metadata.explanation = snapshotExplanation(explain(normalized,raw),metadata.provenance)
+        computed = { ...raw, metadata }
       } catch (error) {
         setResult(null)
         setInput(null)
@@ -81,12 +96,13 @@ export function useCalculatorPage<TInput extends object, TResult>({
         return
       }
       setResult(computed)
-      setInput(formInput)
+      setForm(structuredClone(normalized))
+      setInput(normalized)
       addRecentlyUsed(calculatorId)
       if (!options?.skipHistory) {
         saveHistoryRecord({
           calculatorId,
-          inputs: formInput,
+          inputs: normalized,
           results: computed,
           settingsVersion: settings.settingsVersion,
           taxConfigVersion:
@@ -98,16 +114,20 @@ export function useCalculatorPage<TInput extends object, TResult>({
         }).catch(() => {})
       }
     },
-    [validate, calculate, calculatorId, settings.settingsVersion],
+    [validate, calculate, calculatorId, settings],
   )
 
   const applyRestore = useCallback(
     (record: { inputs: unknown; results: unknown }, mode: 'reopen' | 'recalculate' | 'edit') => {
       const restoredInputs = record.inputs as TInput
-      setForm(restoredInputs)
+      setForm(structuredClone(restoredInputs))
       if (mode === 'reopen') {
-        setInput(restoredInputs)
-        setResult(record.results as TResult)
+        setInput(structuredClone(restoredInputs))
+        const restored = structuredClone(record.results) as TResult & {metadata?:ResultMetadata}
+        const metadata = resultMetadata(calculatorId,restored,undefined,!restored.metadata)
+        metadata.provenance ??= legacyProvenance(metadata.modelVersion, (record as {createdAt?:string}).createdAt)
+        if (!metadata.provenance.currency) metadata.warnings = [...new Set([...metadata.warnings, 'Currency and display settings were not recorded. Recalculate with explicit settings to create a new snapshot.'])]
+        setResult({...restored, metadata})
       } else {
         handleCalculate(restoredInputs, { skipHistory: true })
       }
@@ -123,20 +143,36 @@ export function useCalculatorPage<TInput extends object, TResult>({
     applyRestore(pending.record, pending.mode)
   }, [calculatorId, skipRestore, applyRestore])
 
+  const savedMetadata = result && (result as {metadata?:ResultMetadata}).metadata
+  const provenance = savedMetadata?.provenance
+  const money = (value:number) => snapshotCurrency(value,provenance)
+  const explanation = result && input ? savedMetadata?.explanation ?? snapshotExplanation(explain(input,result),provenance ?? legacyProvenance('legacy')) : null
+  const dirty = !!input && inputsDiffer(form,input)
+  const fields = result && input ? resultFields(calculatorId,input,result,provenance ?? legacyProvenance('legacy'),savedMetadata?.primaryResult??null) : []
+  const summaryText = `${calc.title}
+${fields.filter(f=>f.primary).map(f=>`${f.label}: ${f.display}`).join('\n')}
+${provenance?.calculatedAt ? `Calculated ${provenance.calculatedAt}` : ''}`
+
   const handleFavoriteToggle = () => toggleFavorite(calculatorId)
 
   const getExportPayload = useCallback(() => {
     if (!result || !input) return null
-    return buildLiveExportPayload({
+    const payload = buildLiveExportPayload({
       calculatorId,
       inputs: input,
       results: result,
-      shareText: getShareText?.(result, input),
-      explain,
+      shareText: getShareText?.(result, input, money),
+      explain: () => explanation!,
       buildTable,
       buildCharts,
     })
-  }, [result, input, calculatorId, getShareText, explain, buildTable, buildCharts])
+    return withComparison(payload,baseline)
+  }, [result, input, calculatorId, getShareText, explain, buildTable, buildCharts, baseline])
+
+  const currentPayload=useMemo(()=>result&&input?buildLiveExportPayload({calculatorId,inputs:input,results:result,explain,buildTable,buildCharts}):null,[result,input,calculatorId,explain,buildTable,buildCharts])
+  const charts=useMemo(()=>result&&input&&buildCharts?presentCharts(calculatorId,input,result,buildCharts(result),provenance):undefined,[result,input,calculatorId,buildCharts,provenance])
+  const comparedCharts=baseline&&currentPayload&&!comparisonIssue(currentPayload,baseline.payload)?withBaseline(charts??[],baseline.payload.charts??[],baseline.name):charts
+
 
   const handleExportCsv = useCallback(() => {
     if (!result || !buildTable) return
@@ -161,23 +197,21 @@ export function useCalculatorPage<TInput extends object, TResult>({
 
   const handleCopySummary = useCallback(async () => {
     if (!result) return
-    const text = getShareText?.(result, input!) ?? `${calc.title} result from CalcHub`
+    const text = summaryText
     await navigator.clipboard.writeText(text)
     setCopyNotice(true)
     window.setTimeout(() => setCopyNotice(false), 2000)
-  }, [result, input, getShareText, calc.title])
+  }, [result, summaryText, calc.title])
 
   const handleNativeShare = useCallback(async () => {
     if (!result) return
-    const text = getShareText?.(result, input!) ?? `${calc.title} result from CalcHub`
+    const text = summaryText
     await navigator.share({ title: calc.title, text })
-  }, [result, input, getShareText, calc.title])
+  }, [result, summaryText, calc.title])
 
-  const handleSave = useCallback(async () => {
-    if (!result || !input) return
-    const defaultName = calc.title
-    const name = window.prompt('Name this calculation', defaultName)?.trim()
-    if (!name) return
+  const [saveOpen, setSaveOpen] = useState(false)
+  const handleSave = useCallback(async (name: string) => {
+    if (!result || !input || !name.trim()) return
     await saveCalculation(
       {
         calculatorId,
@@ -191,30 +225,45 @@ export function useCalculatorPage<TInput extends object, TResult>({
             ? String((result as { taxConfigVersion?: string }).taxConfigVersion)
             : undefined,
       },
-      name,
+      name.trim(),
     )
-  }, [result, input, calc.title, calculatorId, settings.settingsVersion])
+    setSaveOpen(false)
+    setSavedNotice(`Saved as ${name.trim()}`)
+  }, [result, input, calculatorId, settings.settingsVersion])
 
   const set = <K extends keyof TInput>(key: K, value: TInput[K]) => {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
   const layoutProps = {
+    resultFields: fields,
+    currentPayload,
+    baseline,
+    onBaseline: setBaseline,
+    comparisonOpen,
+    onCompare: () => setComparisonOpen(open=>!open),
+    resultWarnings: savedMetadata?.warnings??[],
     title: calc.title,
     description: calc.description,
     isFavorite,
     onFavoriteToggle: handleFavoriteToggle,
     calculationError: errors.calculation,
+    inputsChanged: dirty,
+    provenance,
+    saveOpen,
+    savedNotice,
+    onSaveCancel: () => setSaveOpen(false),
+    onSaveConfirm: handleSave,
+    resultAnnouncement: result ? `${summaryText}${dirty ? '. Inputs changed; recalculate.' : ''}` : '',
     results: result && input ? createElement('div', {},
-      ...resultMetadata(calculatorId,result,explain(input,result), !(result as Record<string,unknown>).metadata).warnings.map((w,i)=>createElement('p',{key:i,className:'text-sm text-amber-800'},w)),
-      ...(['income-tax','cre-waterfall','lbo'].includes(calculatorId) ? (explain(input,result).assumptions??[]).map((w,i)=>createElement('p',{key:`assumption-${i}`,className:'text-sm'},w)) : []),
-      renderResults(result,input)) : null,
-    explanation: result && input ? explain(input, result) : null,
-    charts: result && buildCharts ? buildCharts(result) : undefined,
+      ...(['income-tax','salary','retirement','cre-waterfall','lbo'].includes(calculatorId) ? (explanation?.assumptions??[]).map((w,i)=>createElement('p',{key:`assumption-${i}`,className:'text-sm'},w)) : []),
+      renderResults(result,input,money)) : null,
+    explanation,
+    charts: comparedCharts,
     table: result && buildTable ? buildTable(result) : null,
     onExportCsv: buildTable ? handleExportCsv : undefined,
     onExportPdf: handleExportPdf,
-    onSave: handleSave,
+    onSave: () => setSaveOpen(true),
     pdfLoading,
     copyNotice,
     shareActions: {

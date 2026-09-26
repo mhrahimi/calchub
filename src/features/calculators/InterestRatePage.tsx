@@ -6,7 +6,6 @@ import { useCalculatorPage } from './useCalculatorPage'
 import { calculateInterestRate, explainInterestRate, buildInterestRateCharts, buildInterestRateTable } from '@/calculators/finance/interestRate/calculate'
 import { validateInterestRate } from '@/calculators/finance/interestRate/validation'
 import type { InterestRateInput } from '@/calculators/finance/interestRate/types'
-import { formatResultCurrency } from './useCalculatorPage'
 
 const defaultInput: InterestRateInput = {
   principal: 200000,
@@ -26,8 +25,8 @@ export default function InterestRatePage() {
     buildCharts: buildInterestRateCharts,
     buildTable: buildInterestRateTable,
     csvFilename: 'interest-rate-schedule.csv',
-    getShareText: (r) => `Implied annual rate: ${(r.annualRate * 100).toFixed(4)}%`,
-    renderResults: (r) => (
+    getShareText: (r, _input, _formatResultCurrency) => `Implied annual rate: ${(r.annualRate * 100).toFixed(4)}%`,
+    renderResults: (r, _input, formatResultCurrency) => (
       <div className="space-y-4">
         <ResultBlock label="Nominal annual rate" value={`${(r.annualRate * 100).toFixed(4)}%`} primary />
         <div className="rounded-2xl border border-border bg-white p-4">

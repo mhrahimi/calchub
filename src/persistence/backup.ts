@@ -15,6 +15,7 @@ import { getFavorites, setFavorites } from './favorites'
 import { MAX_RECENT, getRecentlyUsed, setRecentlyUsed } from './recentlyUsed'
 import { getSettings } from './settings'
 import { setItem } from './storage'
+import { parseCalculationData, stringifyCalculationData } from '@/utils/calculationJson'
 
 export const BACKUP_FORMAT = 'calchub-backup'
 export const BACKUP_VERSION = 1
@@ -186,11 +187,15 @@ export function parseBackup(raw: unknown): ParsedBackup {
 
 export function parseBackupText(text: string): ParsedBackup {
   try {
-    return parseBackup(JSON.parse(text) as unknown)
+    return parseBackup(parseCalculationData(text))
   } catch (error) {
     if (error instanceof BackupError) throw error
     throw new BackupError(INVALID_BACKUP)
   }
+}
+
+export function serializeBackup(backup: CalcHubBackup): string {
+  return stringifyCalculationData(backup, 2)
 }
 
 export async function exportBackup(now = new Date()): Promise<CalcHubBackup> {

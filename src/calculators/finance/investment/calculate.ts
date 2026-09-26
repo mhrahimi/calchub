@@ -88,13 +88,13 @@ export function calculateInvestment(input: InvestmentInput): InvestmentResult {
       contrib += pmtAmt
     }
     full.push({
-      period: Math.round((p / ppy) * 10) / 10,
+      period: p / ppy,
       balance: Math.round(bal * 100) / 100,
       contributions: Math.round(contrib * 100) / 100,
       earnings: Math.round((bal - contrib) * 100) / 100,
     })
   }
-  const schedule = downsamplePoints(full, 31)
+  const schedule = full
 
   return {
     endingBalance,
@@ -142,7 +142,7 @@ export function buildInvestmentCharts(result: InvestmentResult): ChartData[] {
       type: 'line',
       title: 'Portfolio growth',
       valueFormat: 'currency',
-      series: [{ name: 'Balance', data: result.schedule.map((s) => ({ x: s.period, y: s.balance })), color: '#163B8C' }],
+      series: [{ name: 'Balance', data: downsamplePoints(result.schedule, 241).map((s) => ({ x: s.period, y: s.balance })), color: '#163B8C' }],
     },
     {
       type: 'area',
@@ -150,8 +150,8 @@ export function buildInvestmentCharts(result: InvestmentResult): ChartData[] {
       stacked: true,
       valueFormat: 'currency',
       series: [
-        { name: 'Contributions', data: result.schedule.map((s) => ({ x: s.period, y: s.contributions })), color: '#4A7FD4' },
-        { name: 'Earnings', data: result.schedule.map((s) => ({ x: s.period, y: s.earnings })), color: '#163B8C' },
+        { name: 'Contributions', data: downsamplePoints(result.schedule, 241).map((s) => ({ x: s.period, y: s.contributions })), color: '#4A7FD4' },
+        { name: 'Earnings', data: downsamplePoints(result.schedule, 241).map((s) => ({ x: s.period, y: s.earnings })), color: '#163B8C' },
       ],
     },
   ]

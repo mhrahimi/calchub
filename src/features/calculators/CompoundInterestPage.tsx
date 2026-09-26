@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { ResultBlock, MetricRow } from '@/components/ui/ResultBlock'
-import { useCalculatorPage, formatResultCurrency } from './useCalculatorPage'
+import { useCalculatorPage } from './useCalculatorPage'
 import { calculateCompoundInterest, explainCompoundInterest, buildCompoundInterestCharts, buildCompoundInterestTable } from '@/calculators/finance/compoundInterest/calculate'
 import { validateCompoundInterest } from '@/calculators/finance/compoundInterest/validation'
 import type { CompoundInterestInput } from '@/calculators/finance/compoundInterest/types'
@@ -32,8 +32,8 @@ export default function CompoundInterestPage() {
     buildCharts: buildCompoundInterestCharts,
     buildTable: buildCompoundInterestTable,
     csvFilename: 'compound-interest.csv',
-    getShareText: (r) => `Compound interest final balance: ${formatResultCurrency(r.finalBalance)}`,
-    renderResults: (r, input) => (
+    getShareText: (r, _input, formatResultCurrency) => `Compound interest final balance: ${formatResultCurrency(r.finalBalance)}`,
+    renderResults: (r, input, formatResultCurrency) => (
       <div className="space-y-4">
         <ResultBlock label="Final balance" value={formatResultCurrency(r.finalBalance)} primary />
         {input.adjustForInflation && (

@@ -63,7 +63,7 @@ export default function RandomNumberPage() {
       onCalculate={() => handleCalculate(form)}
       inputs={
         <>
-          <Input label="Minimum" type="number" value={form.min} onChange={(e) => set('min', +e.target.value)} />
+          <Input label="Minimum" type="number" value={form.min} onChange={(e) => set('min', +e.target.value)} error={errors.min} />
           <Input label="Maximum" type="number" value={form.max} onChange={(e) => set('max', +e.target.value)} error={errors.max} />
           <Input label="Count" type="number" min={1} value={form.count} onChange={(e) => set('count', +e.target.value)} error={errors.count} />
           <label className="flex items-center gap-2 text-sm">
@@ -74,8 +74,9 @@ export default function RandomNumberPage() {
             <input type="checkbox" checked={form.unique} onChange={(e) => set('unique', e.target.checked)} />
             Unique values
           </label>
+          {errors.unique && <p role="alert" className="text-sm text-red-700">{errors.unique}</p>}
           {!form.integer && (
-            <Input label="Decimal places" type="number" min={0} max={10} value={form.decimalPlaces} onChange={(e) => set('decimalPlaces', +e.target.value)} />
+            <Input label="Decimal places" type="number" min={0} max={10} value={form.decimalPlaces} onChange={(e) => set('decimalPlaces', +e.target.value)} error={errors.decimalPlaces} />
           )}
         </>
       }

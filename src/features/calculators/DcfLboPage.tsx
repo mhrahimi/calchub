@@ -5,7 +5,7 @@ import { Select } from '@/components/ui/Select'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { ResultBlock, MetricRow } from '@/components/ui/ResultBlock'
 import { DataTable } from '@/components/calculator/DataTable'
-import { useCalculatorPage, formatResultCurrency } from './useCalculatorPage'
+import { useCalculatorPage } from './useCalculatorPage'
 import {
   calculateDcf,
   explainDcf,
@@ -78,8 +78,8 @@ export default function DcfLboPage({ fixedMode }: { fixedMode?: 'dcf' | 'lbo' })
     buildCharts: buildDcfCharts,
     buildTable: buildDcfTable,
     csvFilename: 'dcf-forecast.csv',
-    getShareText: (r) => `EV: ${formatResultCurrency(r.enterpriseValue)}, Equity: ${formatResultCurrency(r.equityValue)}`,
-    renderResults: (r) => (
+    getShareText: (r, _input, formatResultCurrency) => `EV: ${formatResultCurrency(r.enterpriseValue)}, Equity: ${formatResultCurrency(r.equityValue)}`,
+    renderResults: (r, _input, formatResultCurrency) => (
       <div className="space-y-4">
         <ResultBlock label="Enterprise value" value={formatResultCurrency(r.enterpriseValue)} primary />
         <ResultBlock label="Equity value" value={formatResultCurrency(r.equityValue)} />
@@ -104,8 +104,8 @@ export default function DcfLboPage({ fixedMode }: { fixedMode?: 'dcf' | 'lbo' })
     buildCharts: buildLboCharts,
     buildTable: buildLboTable,
     csvFilename: 'lbo-schedule.csv',
-    getShareText: (r) => `MOIC: ${r.moic.toFixed(2)}x, IRR: ${r.irr !== null ? (r.irr * 100).toFixed(1) : 'N/A'}%`,
-    renderResults: (r) => (
+    getShareText: (r, _input, _formatResultCurrency) => `MOIC: ${r.moic.toFixed(2)}x, IRR: ${r.irr !== null ? (r.irr * 100).toFixed(1) : 'N/A'}%`,
+    renderResults: (r, _input, formatResultCurrency) => (
       <div className="space-y-4">
         <ResultBlock label="MOIC" value={`${r.moic.toFixed(2)}x`} primary />
         <ResultBlock label="IRR" value={r.irr !== null ? `${(r.irr * 100).toFixed(2)}%` : 'N/A'} />

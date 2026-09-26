@@ -2,7 +2,7 @@ import { CalculatorLayout } from '@/components/calculator/CalculatorLayout'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { ResultBlock, MetricRow } from '@/components/ui/ResultBlock'
-import { useCalculatorPage, formatResultCurrency } from './useCalculatorPage'
+import { useCalculatorPage } from './useCalculatorPage'
 import {
   calculateAmortization,
   explainAmortization,
@@ -32,8 +32,8 @@ export default function AmortizationPage() {
     buildCharts: buildAmortizationCharts,
     buildTable: buildAmortizationTable,
     csvFilename: 'amortization-schedule.csv',
-    getShareText: (r) => `Amortization: Payment ${formatResultCurrency(r.payment)}, Total interest ${formatResultCurrency(r.totalInterest)}`,
-    renderResults: (r) => (
+    getShareText: (r, _input, formatResultCurrency) => `Amortization: Payment ${formatResultCurrency(r.payment)}, Total interest ${formatResultCurrency(r.totalInterest)}`,
+    renderResults: (r, _input, formatResultCurrency) => (
       <div className="space-y-4">
         <ResultBlock label="Periodic payment" value={formatResultCurrency(r.payment)} primary />
         <div className="rounded-2xl border border-border bg-white p-4">

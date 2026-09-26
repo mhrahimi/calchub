@@ -16,7 +16,7 @@ export function explainStandardDeviation(
     title: 'Standard deviation',
     steps: [
       { label: 'Population SD (σ)', expression: '√(Σ(x−μ)²/N)', result: result.populationSd.toFixed(6) },
-      { label: 'Sample SD (s)', expression: '√(Σ(x−x̄)²/(n−1))', result: result.sampleSd.toFixed(6) },
+      { label: 'Sample SD (s)', expression: '√(Σ(x − mean)²/(n − 1))', result: (result.sampleSd == null || !Number.isFinite(result.sampleSd) ? "Not defined for one observation" : result.sampleSd.toFixed(6)) },
     ],
     assumptions: ['Sample SD requires at least two values.', 'Computed with Welford’s method.'],
   }
@@ -36,19 +36,19 @@ export function buildStandardDeviationTable(result: StandardDeviationResult): Ta
     title: 'Summary statistics',
     columns: [
       { key: 'metric', label: 'Metric', align: 'left' },
-      { key: 'value', label: 'Value', align: 'right' },
+      { key: 'value', label: 'Value', align: 'right', precision: 8 },
     ],
     rows: [
       { metric: 'Count (n)', value: result.count },
-      { metric: 'Sum', value: result.sum.toFixed(4) },
-      { metric: 'Mean', value: result.mean.toFixed(4) },
-      { metric: 'Min', value: result.min.toFixed(4) },
-      { metric: 'Max', value: result.max.toFixed(4) },
-      { metric: 'Range', value: result.range.toFixed(4) },
-      { metric: 'Population variance', value: result.populationVariance.toFixed(6) },
-      { metric: 'Sample variance', value: result.sampleVariance.toFixed(6) },
-      { metric: 'Population SD (σ)', value: result.populationSd.toFixed(6) },
-      { metric: 'Sample SD (s)', value: result.sampleSd.toFixed(6) },
+      { metric: 'Sum', value: result.sum },
+      { metric: 'Mean', value: result.mean },
+      { metric: 'Min', value: result.min },
+      { metric: 'Max', value: result.max },
+      { metric: 'Range', value: result.range },
+      { metric: 'Population variance', value: result.populationVariance },
+      { metric: 'Sample variance', value: (result.sampleVariance == null || !Number.isFinite(result.sampleVariance) ? "Not defined for one observation" : result.sampleVariance) },
+      { metric: 'Population SD (σ)', value: result.populationSd },
+      { metric: 'Sample SD (s)', value: (result.sampleSd == null || !Number.isFinite(result.sampleSd) ? "Not defined for one observation" : result.sampleSd) },
     ],
   }
 }

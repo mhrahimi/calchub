@@ -5,7 +5,6 @@ import { useCalculatorPage } from './useCalculatorPage'
 import { calculateDti, explainDti, buildDtiCharts, buildDtiTable } from '@/calculators/finance/dti/calculate'
 import { validateDti } from '@/calculators/finance/dti/validation'
 import type { DtiInput } from '@/calculators/finance/dti/types'
-import { formatResultCurrency } from './useCalculatorPage'
 
 const defaultInput: DtiInput = {
   grossMonthlyIncome: 8000,
@@ -24,8 +23,8 @@ export default function DtiPage() {
     buildCharts: buildDtiCharts,
     buildTable: buildDtiTable,
     csvFilename: 'dti-summary.csv',
-    getShareText: (r) => `DTI: Front-end ${r.frontEndDti}%, Back-end ${r.backEndDti}%`,
-    renderResults: (r) => (
+    getShareText: (r, _input, _formatResultCurrency) => `DTI: Front-end ${r.frontEndDti}%, Back-end ${r.backEndDti}%`,
+    renderResults: (r, _input, formatResultCurrency) => (
       <div className="space-y-4">
         <ResultBlock label="Back-end DTI" value={`${r.backEndDti}%`} sublabel={r.withinGuideline ? 'Within guideline' : 'Above guideline'} primary />
         <div className="rounded-2xl border border-border bg-white p-4">

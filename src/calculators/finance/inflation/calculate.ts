@@ -1,12 +1,16 @@
+import { validateInflation } from './validation'
 import { convertPurchasingPower, getAvailableYears, getCpi } from '@/data/cpi/us-cpi-u'
 import type { CalculationExplanation, ChartData, TableData } from '@/calculators/types'
 import type { InflationInput, InflationResult } from './types'
 
 function round2(n: number): number {
+  if (!Number.isFinite(n * 100)) throw new Error('Inputs exceed the supported numerical range')
   return Math.round(n * 100) / 100
 }
 
 export function calculateInflation(input: InflationInput): InflationResult {
+  const validation = validateInflation(input)
+  if (!validation.valid) throw new Error(Object.values(validation.errors)[0])
   if (input.mode === 'historical') {
     const baseYear = input.baseYear!
     const targetYear = input.targetYear!
@@ -39,7 +43,7 @@ export function calculateInflation(input: InflationInput): InflationResult {
   const years = input.durationYears!
   const futurePrice = round2(input.amount * Math.pow(1 + rate, years))
   const realValue = round2(input.amount / Math.pow(1 + rate, years))
-  const percentChange = round2(((futurePrice - input.amount) / input.amount) * 100)
+  const percentChange = round2((Math.pow(1 + rate, years) - 1) * 100)
   const schedule: InflationResult['schedule'] = []
   for (let t = 0; t <= years; t++) {
     schedule.push({
@@ -55,7 +59,7 @@ export function calculateInflation(input: InflationInput): InflationResult {
     percentChange,
     futurePrice,
     realValue,
-    purchasingPowerReduction: round2(100 - (realValue / input.amount) * 100),
+    purchasingPowerReduction: round2((1 - 1 / Math.pow(1 + rate, years)) * 100),
     schedule,
   }
 }

@@ -1,3 +1,4 @@
+import { validateBonds } from './validation'
 import {
   buildCouponSchedule,
   solveYtm,
@@ -10,6 +11,8 @@ import type { BondsInput, BondsResult } from './types'
 import type { CalculationExplanation, ChartData, TableData } from '@/calculators/types'
 
 export function calculateBonds(input: BondsInput): BondsResult {
+  const validation = validateBonds(input)
+  if (!validation.valid) throw new Error(Object.values(validation.errors)[0])
   const couponRate = input.couponRate / 100
   const periods = input.periodsToMaturity
   const frequency = input.couponFrequency
@@ -65,8 +68,9 @@ export function explainBonds(_input: BondsInput, result: BondsResult): Calculati
     ],
     assumptions: [
       'Coupons paid on schedule',
-      'YTM solved numerically (Brent method)',
-      'Standard 30/360-style period counting per coupon frequency',
+      'Yield is solved numerically by bracketing and bisection; quoted nominal annual yield equals periodic yield times coupon frequency.',
+      'Regular, whole coupon periods; valuation immediately after a coupon. No settlement dates, accrued interest, or stub periods are modeled.',
+      'Duration is measured in years; convexity in years squared.',
     ],
   }
 }

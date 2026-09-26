@@ -1,3 +1,5 @@
+import type { ReportField } from './reportFields'
+import type { CalculationProvenance } from './provenance'
 import type { ResultMetadata } from './resultMetadata'
 import type { CalculationExplanation, ChartData, HistoryRecord, TableData } from '@/calculators/types'
 
@@ -8,6 +10,11 @@ export interface ResultSummaryItem {
 }
 
 export interface ExportPayload {
+  fields?: ReportField[]
+  inputFields?: ReportField[]
+  provenance?: CalculationProvenance
+  exportedAt?: string
+  extraTables?: TableData[]
   metadata?: ResultMetadata
   rawResults?: unknown
   title: string

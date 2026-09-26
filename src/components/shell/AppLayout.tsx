@@ -44,6 +44,7 @@ export function AppLayout() {
     <div className="flex h-[100dvh] overflow-hidden">
       <a
         href="#main-content"
+        onClick={e => { e.preventDefault(); document.getElementById("main-content")?.focus() }}
         className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:rounded-lg focus:bg-primary focus:text-white"
       >
         Skip to main content
@@ -53,6 +54,7 @@ export function AppLayout() {
         <MobileHeader />
         <main
           id="main-content"
+          tabIndex={-1}
           className={cn(
             'flex-1 min-w-0 overflow-y-auto overflow-x-hidden lg:pb-0',
             !keyboardOpen && 'pb-[calc(5rem+env(safe-area-inset-bottom,0px))]',

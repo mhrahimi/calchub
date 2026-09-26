@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { JurisdictionSelect } from '@/components/ui/JurisdictionSelect'
 import { ResultBlock, MetricRow } from '@/components/ui/ResultBlock'
-import { useCalculatorPage, formatResultCurrency } from './useCalculatorPage'
+import { useCalculatorPage } from './useCalculatorPage'
 import { useApp } from '@/app/providers'
 import {
   calculateIncomeTax,
@@ -37,9 +37,9 @@ export default function IncomeTaxPage() {
     buildCharts: buildIncomeTaxCharts,
     buildTable: buildIncomeTaxTable,
     csvFilename: 'income-tax-brackets.csv',
-    getShareText: (r) =>
+    getShareText: (r, _input, formatResultCurrency) =>
       `Income tax: ${formatResultCurrency(r.totalTax)} total, ${(r.effectiveRate * 100).toFixed(1)}% effective`,
-    renderResults: (r) => (
+    renderResults: (r, _input, formatResultCurrency) => (
       <div className="space-y-4">
         <ResultBlock
           label="Rough headline tax estimate"

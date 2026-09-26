@@ -56,12 +56,16 @@ export function euclideanSteps(a: bigint, b: bigint): EuclideanStep[] {
   return steps
 }
 
-export function primeFactors(n: bigint): Map<bigint, number> {
+export class FactorizationLimitError extends Error {}
+
+export function primeFactors(n: bigint, trialLimit = 10_000): Map<bigint, number> {
   let x = absBigInt(n)
   if (x <= 1n) return new Map()
   const factors = new Map<bigint, number>()
   let d = 2n
+  let trials = 0
   while (d * d <= x) {
+    if (++trials > trialLimit) throw new FactorizationLimitError('Prime factorization exceeded its calculation limit')
     while (x % d === 0n) {
       factors.set(d, (factors.get(d) ?? 0) + 1)
       x /= d

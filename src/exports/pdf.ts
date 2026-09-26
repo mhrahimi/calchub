@@ -1,222 +1,86 @@
 import type { ExportPayload, PdfExportOptions } from './types'
 import type { TableData } from '@/calculators/types'
 import { drawChart, PDF_CHART_BLOCK_HEIGHT } from './drawChart'
+import { summarizeSchedule } from './summarizeSchedule'
+import { snapshotCurrency } from './provenance'
+import { humanizeKey } from './reportFields'
+import { displayNumber, displayMetric } from '@/utils/numberFormat'
 
-const SUMMARY_ROW_LIMIT = 20
-const PRIMARY_CARD_H = 58
-
-function truncateTable(table: TableData, limit: number): TableData {
-  if (table.rows.length <= limit) return table
-  return {
-    ...table,
-    title: table.title ? `${table.title} (first ${limit} rows)` : `Summary (first ${limit} rows)`,
-    rows: table.rows.slice(0, limit),
+export async function exportToPdf(payload:ExportPayload, options:PdfExportOptions={tableMode:'summary'}):Promise<Blob> {
+  const [{jsPDF},{default:autoTable},{default:regularFont},{default:boldFont}]=await Promise.all([import('jspdf'),import('jspdf-autotable'),import('./fonts/LiberationSans-Regular.base64?raw'),import('./fonts/LiberationSans-Bold.base64?raw')])
+  const doc=new jsPDF({unit:'pt',format:'letter',putOnlyUsedFonts:true})
+  doc.addFileToVFS('LiberationSans-Regular.ttf',regularFont)
+  doc.addFileToVFS('LiberationSans-Bold.ttf',boldFont)
+  doc.addFont('LiberationSans-Regular.ttf','Report','normal')
+  doc.addFont('LiberationSans-Bold.ttf','Report','bold')
+  const margin=44, width=524, bottom=728
+  let y=60
+  const font=(size=10,bold=false)=>{doc.setFont('Report',bold?'bold':'normal');doc.setFontSize(size);doc.setTextColor(17,24,39)}
+  const ensure=(height:number)=>{if(y+height>bottom){doc.addPage();y=60}}
+  const text=(value:string,size=10,bold=false)=>{
+    font(size,bold)
+    const lines=doc.splitTextToSize(value.replace(/[\u2011\u2013\u2014]/g,'-'),width) as string[]
+    for(const line of lines){ensure(size*1.4);doc.text(line,margin,y);y+=size*1.4}
+    y+=5
   }
-}
-
-export async function exportToPdf(
-  payload: ExportPayload,
-  options: PdfExportOptions = { tableMode: 'summary', summaryRowLimit: SUMMARY_ROW_LIMIT },
-): Promise<Blob> {
-  const [{ jsPDF }, autoTableModule] = await Promise.all([
-    import('jspdf'),
-    import('jspdf-autotable'),
-  ])
-  const autoTable = autoTableModule.default
-
-  const doc = new jsPDF({ unit: 'pt', format: 'letter' })
-  const margin = 48
-  let y = margin
-  const pageWidth = doc.internal.pageSize.getWidth()
-  const contentWidth = pageWidth - margin * 2
-
-  const addPageIfNeeded = (needed: number) => {
-    const pageHeight = doc.internal.pageSize.getHeight()
-    if (y + needed > pageHeight - margin) {
-      doc.addPage()
-      y = margin
-    }
+  const heading=(value:string)=>{ensure(100);y+=7;text(value,12,true)}
+  const table=(headers:string[],body:string[][],wide=false,rightColumns:number[]=[])=>{
+    ensure(45)
+    autoTable(doc,{startY:y,head:[headers],body,margin:{top:60,bottom:64,left:margin,right:margin},styles:{font:'Report',fontSize:wide?7:9,cellPadding:4,overflow:'linebreak'},headStyles:{font:'Report',fontStyle:'bold',fillColor:[22,59,140]},columnStyles:Object.fromEntries(headers.map((_,index)=>[index,{...(headers.length===2?{cellWidth:width*(index===0?.44:.56)}:{}),halign:rightColumns.includes(index)?'right':'left'}])),rowPageBreak:'avoid',horizontalPageBreak:wide,horizontalPageBreakRepeat:wide?0:undefined,showHead:'everyPage'})
+    y=(doc as unknown as {lastAutoTable:{finalY:number}}).lastAutoTable.finalY+14
   }
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(18)
-  doc.setTextColor(22, 59, 140)
-  doc.text('CalcHub', margin, y)
-  y += 28
-
-  doc.setFontSize(14)
-  doc.setTextColor(0, 0, 0)
-  doc.text(payload.title, margin, y)
-  y += 18
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(10)
-  doc.setTextColor(91, 100, 117)
-  doc.text(new Date(payload.date).toLocaleString(), margin, y)
-  y += payload.label ? 14 : 22
-
-  if (payload.label) {
-    doc.text(`Label: ${payload.label}`, margin, y)
-    y += 22
-  }
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(11)
-  doc.setTextColor(0, 0, 0)
-  doc.text('Inputs', margin, y)
-  y += 14
-
-  const inputRows = [...Object.entries(payload.inputs).map(([k, v]) => [k, String(v)]), ...Object.entries(payload.metadata ?? {}).map(([k,v])=>[k,Array.isArray(v)?v.join('\n'):String(v)])]
-  autoTable(doc, {
-    startY: y,
-    head: [['Field', 'Value']],
-    body: inputRows.length ? inputRows : [['—', '—']],
-    margin: { left: margin, right: margin },
-    styles: { fontSize: 9, cellPadding: 4 },
-    headStyles: { fillColor: [22, 59, 140] },
-  })
-  y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 16
-
-  addPageIfNeeded(60)
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(11)
-  doc.setTextColor(0, 0, 0)
-  doc.text('Results', margin, y)
-  y += 14
-
-  const primary = payload.resultsSummary.filter((r) => r.primary)
-  const secondary = payload.resultsSummary.filter((r) => !r.primary)
-  for (const item of primary) {
-    addPageIfNeeded(PRIMARY_CARD_H + 12)
-    doc.setFillColor(238, 244, 255)
-    doc.setDrawColor(22, 59, 140)
-    doc.setLineWidth(0.6)
-    doc.roundedRect(margin, y, contentWidth, PRIMARY_CARD_H, 8, 8, 'FD')
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(9)
-    doc.setTextColor(91, 100, 117)
-    doc.text(item.label, margin + 14, y + 18)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(18)
-    doc.setTextColor(22, 59, 140)
-    doc.text(item.value, margin + 14, y + 42)
-    y += PRIMARY_CARD_H + 10
-  }
-
-  if (secondary.length) {
-    addPageIfNeeded(50)
-    autoTable(doc, {
-      startY: y,
-      head: [['Metric', 'Value']],
-      body: secondary.map((r) => [r.label, r.value]),
-      margin: { left: margin, right: margin },
-      styles: { fontSize: 9, cellPadding: 4 },
-      headStyles: { fillColor: [22, 59, 140] },
-    })
-    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 16
-  } else if (!primary.length) {
-    autoTable(doc, {
-      startY: y,
-      head: [['Metric', 'Value']],
-      body: [['—', '—']],
-      margin: { left: margin, right: margin },
-      styles: { fontSize: 9, cellPadding: 4 },
-      headStyles: { fillColor: [22, 59, 140] },
-    })
-    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 16
-  } else {
-    y += 6
-  }
-
-  if (payload.explanation) {
-    addPageIfNeeded(80)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(11)
-    doc.text(payload.explanation.title || 'How this was calculated', margin, y)
-    y += 16
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(9)
-    for (const step of payload.explanation.steps) {
-      addPageIfNeeded(40)
-      doc.setFont('helvetica', 'bold')
-      doc.text(step.label, margin, y)
-      y += 12
-      doc.setFont('helvetica', 'normal')
-      if (step.expression) {
-        const lines = doc.splitTextToSize(step.expression, contentWidth)
-        doc.text(lines, margin, y)
-        y += lines.length * 11
+  const displayTime=(iso:string|undefined)=>iso?new Date(iso).toLocaleString(payload.provenance?.locale??'en-US'):'Not recorded'
+  text(payload.label??payload.title,19,true)
+  if(payload.label)text(payload.title,11)
+  text(`Calculated: ${displayTime(payload.date)} · Exported: ${displayTime(payload.exportedAt??new Date().toISOString())}`,8)
+  text(`Currency: ${payload.provenance?.currency??'not recorded'} · Model: ${payload.metadata?.modelVersion??'not recorded'} · ${options.tableMode==='full'?'Full report':'Decision brief'}`,8)
+  if(!payload.provenance?.currency)text('Legacy record: original currency was not captured. Values have not been converted or assigned the current currency.',9)
+  heading('Results')
+  for(const item of payload.resultsSummary.filter(r=>r.primary)) {text(item.label,10);text(item.value,17,true)}
+  const secondary=payload.resultsSummary.filter(r=>!r.primary)
+  if(secondary.length)table(['Metric','Value'],secondary.map(r=>[r.label,r.value]),false,[1])
+  for(const warning of payload.metadata?.warnings??[])text(`Notice: ${warning}`,9)
+  const charts=options.tableMode==='full'?payload.charts:payload.charts?.slice(0,1)
+  for(const chart of charts??[]){ensure(PDF_CHART_BLOCK_HEIGHT+8);y+=drawChart(doc,chart,margin,y,width,payload.provenance);y+=10}
+  heading('Inputs and conventions')
+  table(['Input','Value'],payload.inputFields?.map(f=>[f.label,f.display])??Object.entries(payload.inputs).map(([k,v])=>[k,String(v)]),false,[1])
+  for(const t of [payload.table,...(payload.extraTables??[])].filter(Boolean) as TableData[]) {
+    const schedule=options.tableMode==='full'?t:summarizeSchedule(t,payload.calculatorId,payload.inputs)
+    heading(schedule.title??'Schedule')
+    if(options.tableMode==='summary'&&schedule!==t)text('Cash-flow columns are annual totals; balance and cumulative columns are year-end values. The final period is included. Choose Full report for each underlying row.',8)
+    table(schedule.columns.map(c=>c.label+(c.format==='currency'?` (${payload.provenance?.currency??'currency not recorded'})`:'')),schedule.rows.map(row=>schedule.columns.map(c=>{
+      const value=row[c.key]
+      if(value===undefined||value===null)return 'Not applicable'
+      if(typeof value==='number') {
+        if(!Number.isFinite(value))return value===Infinity?'No upper limit':'Not defined'
+        if(c.format==='currency')return snapshotCurrency(value,{...payload.provenance!,currency:null}).replace('Currency not recorded ','')
+        if(c.format==='percent')return `${displayNumber(value*100,payload.provenance?.locale??'en-US',c.precision??2,true)}%`
+        return displayNumber(value,payload.provenance?.locale??'en-US',c.precision??(Number.isInteger(value)?0:4))
       }
-      if (step.result) {
-        doc.setTextColor(22, 59, 140)
-        doc.text(step.result, margin, y)
-        doc.setTextColor(0, 0, 0)
-        y += 14
-      }
-      y += 6
-    }
-    if (payload.explanation.assumptions?.length) {
-      addPageIfNeeded(30)
-      doc.setFont('helvetica', 'italic')
-      doc.setFontSize(8)
-      doc.setTextColor(91, 100, 117)
-      for (const a of payload.explanation.assumptions) {
-        const lines = doc.splitTextToSize(a, contentWidth)
-        doc.text(lines, margin, y)
-        y += lines.length * 10 + 4
-      }
-      doc.setTextColor(0, 0, 0)
-      y += 8
-    }
+      return c.format==='text'||c.format==='date'?String(value):displayMetric(String(value),payload.provenance?.locale??'en-US')
+    })),schedule.columns.length>6,schedule.columns.flatMap((c,index)=>c.align==='right'||(!c.align&&schedule.rows.some(row=>typeof row[c.key]==='number'))?[index]:[]))
   }
-
-  if (payload.table && payload.table.rows.length > 0) {
-    addPageIfNeeded(60)
-    const table =
-      options.tableMode === 'full'
-        ? payload.table
-        : truncateTable(payload.table, options.summaryRowLimit ?? SUMMARY_ROW_LIMIT)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(11)
-    if (table.title) {
-      doc.text(table.title, margin, y)
-      y += 14
-    }
-    autoTable(doc, {
-      startY: y,
-      head: [table.columns.map((c) => c.label)],
-      body: table.rows.map((row) => table.columns.map((c) => String(row[c.key] ?? ''))),
-      margin: { left: margin, right: margin },
-      styles: { fontSize: 8, cellPadding: 3, overflow: 'linebreak' },
-      headStyles: { fillColor: [22, 59, 140] },
-    })
-    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 16
+  heading('Method and assumptions')
+  for(const step of payload.explanation?.steps??[]){text(step.label,10,true);if(step.expression)text(step.expression,9);if(step.result)text(step.result,9)}
+  for(const assumption of payload.explanation?.assumptions??[])text(assumption,9)
+  const p=payload.provenance
+  ensure(285 + Object.keys(p?.units??{}).length * 20)
+  heading('Provenance')
+  table(['Record detail','Value'],[['Model version',payload.metadata?.modelVersion??'Not recorded'],['Calculation status',payload.metadata?.status??'Not recorded'],['Currency',p?.currency??'Not recorded'],['Number locale',p?.locale??'Not recorded'],['Measurement system',p?.measurementSystem??'Not recorded'],['Tax configuration',p?.taxConfigVersion??'Not applicable / not recorded'],['Data revision',p?.dataRevision??'Not applicable / not recorded'],['Precision',p?.precision??'Not recorded'],...Object.entries(p?.units??{}).map(([key,value])=>[humanizeKey(key),value])])
+  for(const source of payload.metadata?.sources??[])text(source,8)
+  text(payload.disclaimer,8)
+  const total=doc.getNumberOfPages()
+  for(let page=1;page<=total;page++){
+    doc.setPage(page);font(8);doc.setTextColor(91,100,117)
+    doc.text('CalcHub · '+payload.title,margin,28)
+    doc.text(`${page} / ${total}`,568,764,{align:'right'})
+    doc.text(payload.provenance?.currency??'Currency not recorded',margin,764)
   }
-
-  if (payload.charts?.length) {
-    for (const chart of payload.charts) {
-      addPageIfNeeded(PDF_CHART_BLOCK_HEIGHT + 8)
-      y += drawChart(doc, chart, margin, y, contentWidth)
-      y += 8
-    }
-  }
-
-  addPageIfNeeded(40)
-  doc.setFont('helvetica', 'italic')
-  doc.setFontSize(8)
-  doc.setTextColor(91, 100, 117)
-  const disclaimerLines = doc.splitTextToSize(payload.disclaimer, contentWidth)
-  doc.text(disclaimerLines, margin, doc.internal.pageSize.getHeight() - margin - disclaimerLines.length * 10)
-
   return doc.output('blob')
 }
 
-export async function downloadPdf(payload: ExportPayload, filename: string, options?: PdfExportOptions): Promise<void> {
-  const blob = await exportToPdf(payload, options)
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  link.click()
-  URL.revokeObjectURL(url)
+export async function downloadPdf(payload:ExportPayload,filename:string,options?:PdfExportOptions):Promise<void>{
+  const blob=await exportToPdf(payload,options)
+  const url=URL.createObjectURL(blob),link=document.createElement('a')
+  link.href=url;link.download=filename;link.click();URL.revokeObjectURL(url)
 }

@@ -58,10 +58,10 @@ export default function DatePage() {
             <Input label="End date" type="date" value={form.endDate ?? ''} onChange={(e) => set('endDate', e.target.value)} error={errors.endDate} />
           ) : (
             <>
-              <Input label="Years" type="number" value={form.years ?? 0} onChange={(e) => set('years', +e.target.value)} />
-              <Input label="Months" type="number" value={form.months ?? 0} onChange={(e) => set('months', +e.target.value)} />
-              <Input label="Weeks" type="number" value={form.weeks ?? 0} onChange={(e) => set('weeks', +e.target.value)} />
-              <Input label="Days" type="number" value={form.days ?? 0} onChange={(e) => set('days', +e.target.value)} />
+              <Input label="Years" type="number" signed value={form.years ?? 0} onChange={(e) => set('years', +e.target.value)} error={errors.years} />
+              <Input label="Months" type="number" signed value={form.months ?? 0} onChange={(e) => set('months', +e.target.value)} error={errors.months} />
+              <Input label="Weeks" type="number" signed value={form.weeks ?? 0} onChange={(e) => set('weeks', +e.target.value)} error={errors.weeks} />
+              <Input label="Days" type="number" signed value={form.days ?? 0} onChange={(e) => set('days', +e.target.value)} error={errors.days} />
             </>
           )}
         </>

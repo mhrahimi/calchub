@@ -3,6 +3,7 @@ export interface GcfLcmInput {
 }
 
 export interface GcfLcmResult {
+  warnings?: string[]
   inputs: bigint[]
   gcf: bigint
   lcm: bigint

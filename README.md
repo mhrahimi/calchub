@@ -46,7 +46,7 @@ npm run dev
 Open `http://localhost:5173/calchub/`
 
 ```bash
-npm run test        # unit tests (111+)
+npm run test        # automated regression tests
 npm run build       # production build → dist/
 npm run preview     # serve dist/ locally
 npm run check       # test + build (same as CI)

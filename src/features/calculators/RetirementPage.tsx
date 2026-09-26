@@ -1,7 +1,7 @@
 import { CalculatorLayout } from '@/components/calculator/CalculatorLayout'
 import { Input } from '@/components/ui/Input'
 import { ResultBlock, MetricRow } from '@/components/ui/ResultBlock'
-import { useCalculatorPage, formatResultCurrency } from './useCalculatorPage'
+import { useCalculatorPage } from './useCalculatorPage'
 import {
   calculateRetirement,
   explainRetirement,
@@ -34,9 +34,9 @@ export default function RetirementPage() {
     buildCharts: buildRetirementCharts,
     buildTable: buildRetirementTable,
     csvFilename: 'retirement-projection.csv',
-    getShareText: (r) =>
+    getShareText: (r, _input, formatResultCurrency) =>
       `Retirement: projected ${formatResultCurrency(r.projectedBalance)} vs required ${formatResultCurrency(r.requiredBalance)}`,
-    renderResults: (r) => (
+    renderResults: (r, _input, formatResultCurrency) => (
       <div className="space-y-4">
         <ResultBlock
           label={r.shortfallOrSurplus >= 0 ? 'Surplus at retirement' : 'Shortfall at retirement'}
@@ -48,10 +48,12 @@ export default function RetirementPage() {
           <MetricRow label="Projected balance" value={formatResultCurrency(r.projectedBalance)} />
           <MetricRow label="Required nest egg" value={formatResultCurrency(r.requiredBalance)} />
           <MetricRow
-            label="Required annual contribution"
+            label="Required first-year contribution"
             value={formatResultCurrency(r.requiredAnnualContribution)}
           />
           <MetricRow label="Years to retirement" value={String(r.yearsToRetirement)} />
+          {r.depletionAge != null && <MetricRow label="Savings depleted at age" value={String(r.depletionAge)} />}
+          {r.totalUnmetSpending !== undefined && <MetricRow label="Unmet retirement spending" value={formatResultCurrency(r.totalUnmetSpending)} />}
         </div>
       </div>
     ),
@@ -95,6 +97,7 @@ export default function RetirementPage() {
             value={form.annualContribution}
             onValueChange={(n) => set('annualContribution', n)}
             hint="Negative amounts are withdrawals."
+            error={errors.annualContribution}
           />
           <Input
             label="Contribution growth"
@@ -103,6 +106,7 @@ export default function RetirementPage() {
             signed
             value={form.contributionGrowth}
             onChange={(e) => set('contributionGrowth', +e.target.value)}
+            error={errors.contributionGrowth}
           />
           <Input
             label="Expected return"
@@ -119,6 +123,7 @@ export default function RetirementPage() {
             signed
             value={form.inflation}
             onChange={(e) => set('inflation', +e.target.value)}
+            error={errors.inflation}
           />
           <Input
             label="Retirement spending (annual)"
@@ -126,6 +131,7 @@ export default function RetirementPage() {
             grouped
             value={form.retirementSpending}
             onValueChange={(n) => set('retirementSpending', n)}
+            error={errors.retirementSpending}
           />
           <Input
             label="Retirement duration (years)"
@@ -140,6 +146,7 @@ export default function RetirementPage() {
             grouped
             value={form.otherRetirementIncome}
             onValueChange={(n) => set('otherRetirementIncome', n)}
+            error={errors.otherRetirementIncome}
           />
         </>
       }

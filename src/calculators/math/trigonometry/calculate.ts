@@ -1,3 +1,4 @@
+import { validateTrigonometry } from './validation'
 import type { TrigonometryInput, TrigonometryResult } from './types'
 import type { CalculationExplanation, TableData } from '@/calculators/types'
 
@@ -12,13 +13,15 @@ function toDisplay(angleRad: number, unit: TrigonometryInput['angleUnit']): numb
 }
 
 export function calculateTrigonometry(input: TrigonometryInput): TrigonometryResult {
+  const validation = validateTrigonometry(input)
+  if (!validation.valid) throw new Error(Object.values(validation.errors)[0])
   let opposite = input.opposite
   let adjacent = input.adjacent
   let hypotenuse = input.hypotenuse
   let angleRad: number | undefined = input.angle !== undefined ? toRad(input.angle, input.angleUnit) : undefined
 
   if (opposite !== undefined && adjacent !== undefined) {
-    hypotenuse = Math.sqrt(opposite * opposite + adjacent * adjacent)
+    hypotenuse = Math.hypot(opposite, adjacent)
     angleRad = Math.atan(opposite / adjacent)
   } else if (opposite !== undefined && hypotenuse !== undefined) {
     adjacent = Math.sqrt(hypotenuse * hypotenuse - opposite * opposite)
@@ -44,6 +47,7 @@ export function calculateTrigonometry(input: TrigonometryInput): TrigonometryRes
   const angleA = toDisplay(angleRad, input.angleUnit)
   const angleB = toDisplay(Math.PI / 2 - angleRad, input.angleUnit)
 
+  if (![opposite, adjacent, hypotenuse, angleA, angleB, opposite / adjacent].every(Number.isFinite)) throw new Error('Dimensions exceed the supported numerical range')
   return {
     opposite,
     adjacent,

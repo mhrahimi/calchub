@@ -37,7 +37,7 @@ export default function PValuePage() {
     renderResults: (r) => (
       <div className="space-y-4">
         {r.pValue !== undefined ? (
-          <ResultBlock label="p-value" value={r.pValue.toFixed(6)} primary />
+          <ResultBlock label="p-value" value={r.pValue} primary />
         ) : (
           <ResultBlock
             label="Confidence interval"
@@ -48,8 +48,8 @@ export default function PValuePage() {
         )}
         <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3">{r.caveat}</p>
         <div className="rounded-2xl border border-border bg-white p-4">
-          {r.testStatistic !== undefined && <MetricRow label="Test statistic" value={r.testStatistic.toFixed(4)} />}
-          {r.standardError !== undefined && <MetricRow label="Standard error" value={r.standardError.toFixed(6)} />}
+          {r.testStatistic !== undefined && <MetricRow label="Test statistic" value={r.testStatistic} />}
+          {r.standardError !== undefined && <MetricRow label="Standard error" value={r.standardError} />}
           {r.degreesOfFreedom !== undefined && <MetricRow label="df" value={String(r.degreesOfFreedom)} />}
         </div>
       </div>
@@ -87,9 +87,9 @@ export default function PValuePage() {
           )}
           {(form.mode === 'zTest' || form.mode === 'tTest' || form.mode === 'meanCi') && (
             <>
-              <Input label="Sample mean" type="number" value={form.sampleMean ?? ''} onChange={(e) => set('sampleMean', +e.target.value)} />
+              <Input label="Sample mean" type="number" value={form.sampleMean ?? ''} onChange={(e) => set('sampleMean', e.target.value === '' ? undefined : +e.target.value)} error={errors.sampleMean} />
               {form.mode !== 'meanCi' && (
-                <Input label="Hypothesized mean (μ₀)" type="number" value={form.hypothesizedMean ?? ''} onChange={(e) => set('hypothesizedMean', +e.target.value)} />
+                <Input label="Hypothesized mean (μ₀)" type="number" value={form.hypothesizedMean ?? ''} onChange={(e) => set('hypothesizedMean', e.target.value === '' ? undefined : +e.target.value)} error={errors.hypothesizedMean} />
               )}
               {form.mode === 'zTest' ? (
                 <Input label="Population SD (σ)" type="number" value={form.populationSd ?? ''} onChange={(e) => set('populationSd', +e.target.value)} error={errors.populationSd} />

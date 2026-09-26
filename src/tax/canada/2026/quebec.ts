@@ -14,7 +14,7 @@ export const quebec2026: TaxJurisdictionConfig = {
   metadata: {
     source: 'Revenu Québec 2026 rates',
     notes: [
-      'Quebec has separate payroll (QPP/QPIP). Do not apply CPP/EI to Quebec take-home.',
+      'Quebec employee payroll uses QPP rather than CPP, plus QPIP and EI at the Quebec rate.',
       'Federal abatement and Quebec-specific credits are not fully modeled.',
     ],
   },

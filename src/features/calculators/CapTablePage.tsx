@@ -3,7 +3,7 @@ import { CalculatorLayout } from '@/components/calculator/CalculatorLayout'
 import { Select } from '@/components/ui/Select'
 import { Input } from '@/components/ui/Input'
 import { ResultBlock, MetricRow } from '@/components/ui/ResultBlock'
-import { useCalculatorPage, formatResultCurrency } from './useCalculatorPage'
+import { useCalculatorPage } from './useCalculatorPage'
 import {
   calculateCapTable,
   explainCapTable,
@@ -33,8 +33,8 @@ export default function CapTablePage() {
     buildCharts: buildCapTableCharts,
     buildTable: buildCapTableTable,
     csvFilename: 'cap-table.csv',
-    getShareText: (r) => `PPS: $${r.pricePerShare.toFixed(4)}, Post-money FDS: ${r.postMoneyFds}`,
-    renderResults: (r) => (
+    getShareText: (r, _input, _formatResultCurrency) => `PPS: $${r.pricePerShare.toFixed(4)}, Post-money FDS: ${r.postMoneyFds}`,
+    renderResults: (r, _input, formatResultCurrency) => (
       <div className="space-y-4">
         <ResultBlock label="Price per share" value={formatResultCurrency(r.pricePerShare)} primary />
         <div className="rounded-2xl border border-border bg-white p-4">

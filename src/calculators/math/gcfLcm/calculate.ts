@@ -1,17 +1,26 @@
-import { gcdMultiple, lcmMultiple, euclideanSteps, primeFactors, formatPrimeFactors } from '@/utils/gcd'
+import { gcdMultiple, lcmMultiple, euclideanSteps, primeFactors, formatPrimeFactors, FactorizationLimitError } from '@/utils/gcd'
+import { validateGcfLcm } from './validation'
 import type { GcfLcmInput, GcfLcmResult } from './types'
 import type { CalculationExplanation, TableData } from '@/calculators/types'
 
 export function calculateGcfLcm(input: GcfLcmInput): GcfLcmResult {
+  const validation = validateGcfLcm(input)
+  if (!validation.valid) throw new Error(Object.values(validation.errors)[0])
   const inputs = input.values.split(/[\s,;]+/).filter(Boolean).map((v) => BigInt(v.trim()))
   const gcf = gcdMultiple(inputs)
   const lcm = lcmMultiple(inputs)
   const steps = inputs.length >= 2 ? euclideanSteps(inputs[0], inputs[1]) : []
-  const factors = inputs.map((n) => ({
-    value: n.toString(),
-    factors: formatPrimeFactors(primeFactors(n)),
-  }))
-  return { inputs, gcf, lcm, euclideanSteps: steps, primeFactors: factors }
+  const warnings: string[] = []
+  const factors = inputs.map((n) => {
+    try {
+      return { value: n.toString(), factors: formatPrimeFactors(primeFactors(n)) }
+    } catch (error) {
+      if (!(error instanceof FactorizationLimitError)) throw error
+      if (!warnings.length) warnings.push('Some prime factorizations were omitted after reaching the calculation limit. GCF and LCM remain exact.')
+      return { value: n.toString(), factors: 'Not expanded: calculation limit reached' }
+    }
+  })
+  return { inputs, gcf, lcm, euclideanSteps: steps, primeFactors: factors, warnings }
 }
 
 export function explainGcfLcm(_input: GcfLcmInput, result: GcfLcmResult): CalculationExplanation {

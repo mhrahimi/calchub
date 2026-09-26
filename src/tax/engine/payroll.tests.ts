@@ -36,10 +36,25 @@ describe('payroll engine', () => {
     expect(r.cpp2).toBe(0)
   })
 
-  it('uses QPP/QPIP for Quebec instead of CPP/EI', () => {
+  it('includes QPP, QPIP and Quebec EI with the published 2026 limits', () => {
     const r = computePayroll('CA', 80000, { jurisdictionId: 'quebec' })
-    expect(r.qpp).toBeGreaterThan(0)
-    expect(r.ei).toBeUndefined()
+    expect(r.qpp).toBe(4695.30)
+    expect(r.qpip).toBe(344)
+    expect(r.ei).toBe(895.70)
+    expect(r.total).toBe(5935)
     expect(r.cpp).toBeUndefined()
+  })
+
+  it('caps all Quebec contributions and handles the basic exemption', () => {
+    const high = computeCanadaPayroll(200000, true)
+    expect(high.qpp).toBe(4895.30)
+    expect(high.qpip).toBe(442.90)
+    expect(high.ei).toBe(895.70)
+    expect(high.total).toBe(6233.90)
+    const low = computeCanadaPayroll(3500, true)
+    expect(low.qpp).toBe(0)
+    expect(low.qpip).toBe(15.05)
+    expect(low.ei).toBe(45.50)
+    expect(computeCanadaPayroll(0, true).total).toBe(0)
   })
 })

@@ -26,7 +26,7 @@ export default function CategoryPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 lg:py-12">
+    <div className="max-w-6xl mx-auto px-4 py-8 lg:py-10">
       <h1 className="text-2xl font-bold text-text-primary">{category.title}</h1>
       <p className="text-text-secondary mt-1 mb-8">{category.description}</p>
 
@@ -38,7 +38,7 @@ export default function CategoryPage() {
           action={<Button onClick={() => navigate('/')}>See what’s available</Button>}
         />
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-x-6">
           {calculators.map((calc) => (
             <CalculatorCard
               key={calc.id}

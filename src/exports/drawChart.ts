@@ -1,3 +1,5 @@
+import { seriesColor as semanticColor } from '@/utils/chartPresentation'
+import type { CalculationProvenance } from './provenance'
 import type { jsPDF } from 'jspdf'
 import type { ChartData, ChartSeries } from '@/calculators/types'
 import { downsamplePoints } from '@/utils/chartSample'
@@ -5,9 +7,9 @@ import { downsamplePoints } from '@/utils/chartSample'
 const COLORS = ['#163B8C', '#4A7FD4', '#8A94A6', '#102A66', '#6B8F71', '#C07850', '#7A6B9A', '#3D6B8A']
 const PLOT_HEIGHT = 150
 const TITLE_H = 16
-const LEGEND_H = 22
-const AXIS_LEFT = 44
-const AXIS_BOTTOM = 18
+const LEGEND_H = 82
+const AXIS_LEFT = 58
+const AXIS_BOTTOM = 32
 
 export const PDF_CHART_BLOCK_HEIGHT = TITLE_H + PLOT_HEIGHT + AXIS_BOTTOM + LEGEND_H + 12
 
@@ -20,15 +22,8 @@ function seriesColor(series: ChartSeries, index: number): string {
   return series.color ?? COLORS[index % COLORS.length]
 }
 
-function formatTick(value: number, format?: ChartData['valueFormat']): string {
-  if (format === 'currency') {
-    const abs = Math.abs(value)
-    if (abs >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`
-    if (abs >= 10_000) return `$${(value / 1000).toFixed(0)}k`
-    return `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
-  }
-  if (format === 'percent') return `${value.toFixed(1)}%`
-  return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
+function formatTick(value: number, format?: ChartData['valueFormat'],locale='en-US'): string {
+  return new Intl.NumberFormat(locale,{notation:'compact',maximumFractionDigits:1}).format(value).replace(/^-/, '−')+(format==='percent'?'%':'')
 }
 
 function uniqueXs(series: ChartSeries[]): Array<string | number> {
@@ -54,12 +49,14 @@ function yLookup(series: ChartSeries): Map<string, number> {
 }
 
 /** Draws a chart with jsPDF primitives. Returns the vertical space consumed. */
-export function drawChart(doc: jsPDF, chart: ChartData, x: number, y: number, width: number): number {
+export function drawChart(doc: jsPDF, chart: ChartData, x: number, y: number, width: number, provenance?: CalculationProvenance): number {
+  if(chart.xType==='time')chart={...chart,series:chart.series.map(s=>({...s,data:s.data.map(p=>({...p,x:Date.parse(String(p.x))}))}))}
   const title = chart.title ?? 'Chart'
-  doc.setFont('helvetica', 'bold')
+  doc.setFont('Report', 'bold')
   doc.setFontSize(11)
   doc.setTextColor(17, 24, 39)
   doc.text(title, x, y + 11)
+  if(chart.yLabel){doc.setFont('Report','normal');doc.setFontSize(7);doc.text(chart.yLabel,x+width,y+11,{align:'right'})}
 
   const plotX = x + AXIS_LEFT
   const plotY = y + TITLE_H + 6
@@ -78,7 +75,7 @@ export function drawChart(doc: jsPDF, chart: ChartData, x: number, y: number, wi
   }))
   const xs = uniqueXs(sampled)
   if (xs.length === 0) {
-    doc.setFont('helvetica', 'normal')
+    doc.setFont('Report', 'normal')
     doc.setFontSize(9)
     doc.setTextColor(91, 100, 117)
     doc.text('No chart data', plotX, plotY + plotH / 2)
@@ -90,10 +87,9 @@ export function drawChart(doc: jsPDF, chart: ChartData, x: number, y: number, wi
   let yMax = 0
   if (chart.stacked) {
     for (const xv of xs) {
-      let sum = 0
-      for (const lookup of lookups) sum += lookup.get(String(xv)) ?? 0
-      yMax = Math.max(yMax, sum)
-      yMin = Math.min(yMin, sum)
+      let positive=0, negative=0
+      for (const lookup of lookups) { const v=lookup.get(String(xv))??0; if(v>=0)positive+=v;else negative+=v }
+      yMax=Math.max(yMax,positive);yMin=Math.min(yMin,negative)
     }
   } else {
     for (const lookup of lookups) {
@@ -105,27 +101,35 @@ export function drawChart(doc: jsPDF, chart: ChartData, x: number, y: number, wi
   }
   if (yMin > 0) yMin = 0
   if (yMax === yMin) yMax = yMin + 1
+  if(chart.hideValueAxis){yMin=0.5;yMax=1.5}
   const ySpan = yMax - yMin
 
-  const xAt = (i: number) => plotX + (xs.length === 1 ? plotW / 2 : (i / (xs.length - 1)) * plotW)
+  const numericX=xs.every(v=>typeof v==='number')
+  const firstX=Number(xs[0]),lastX=Number(xs.at(-1))
+  const minGap=numericX&&xs.length>1?Math.min(...xs.slice(1).map((v,i)=>Number(v)-Number(xs[i]))):1
+  const padding=chart.type==='bar'&&numericX?minGap/2:0
+  const xAt = (i: number) => plotX + (xs.length===1 ? plotW/2 : numericX && lastX>firstX ? (Number(xs[i])-firstX+padding)/(lastX-firstX+2*padding)*plotW : chart.type==='bar'?(i+0.5)*plotW/xs.length:i/(xs.length-1)*plotW)
+  const barGroupWidth=numericX&&xs.length>1?minGap/(lastX-firstX+2*padding)*plotW:plotW/xs.length
   const yAt = (v: number) => plotY + plotH - ((v - yMin) / ySpan) * plotH
 
   doc.setDrawColor(227, 232, 240)
   doc.setLineWidth(0.4)
   for (let i = 0; i <= 4; i++) {
     const gy = plotY + (i / 4) * plotH
-    doc.line(plotX, gy, plotX + plotW, gy)
+    if(!chart.hideValueAxis)doc.line(plotX, gy, plotX + plotW, gy)
     const tick = yMax - (i / 4) * ySpan
-    doc.setFont('helvetica', 'normal')
+    doc.setFont('Report', 'normal')
     doc.setFontSize(7)
     doc.setTextColor(91, 100, 117)
-    doc.text(formatTick(tick, chart.valueFormat), plotX - 4, gy + 2, { align: 'right' })
+    if(!chart.hideValueAxis&&(chart.yLabel!=='Count'||Number.isInteger(tick))) doc.text(formatTick(tick, chart.valueFormat, provenance?.locale??'en-US'), plotX - 4, gy + 2, { align: 'right' })
   }
   doc.setDrawColor(227, 232, 240)
   doc.rect(plotX, plotY, plotW, plotH)
 
   if (chart.type === 'bar') {
-    drawBars(doc, sampled, lookups, xs, xAt, yAt, plotY, plotH, plotW, chart.stacked)
+    const current=sampled.filter(s=>!s.baseline), baseline=sampled.filter(s=>s.baseline)
+    drawBars(doc, current, current.map(yLookup), xs, xAt, yAt, barGroupWidth, chart.stacked)
+    if(baseline.length)drawLinesOrArea(doc,baseline,baseline.map(yLookup),xs,xAt,yAt,false,false)
   } else {
     drawLinesOrArea(doc, sampled, lookups, xs, xAt, yAt, chart.type === 'area', Boolean(chart.stacked))
   }
@@ -135,10 +139,17 @@ export function drawChart(doc: jsPDF, chart: ChartData, x: number, y: number, wi
     const idx = xLabelCount === 1 ? 0 : Math.round((i * (xs.length - 1)) / (xLabelCount - 1))
     doc.setFontSize(7)
     doc.setTextColor(91, 100, 117)
-    doc.text(String(xs[idx]), xAt(idx), plotY + plotH + 12, { align: 'center' })
+    doc.text(chart.xType==='time'?new Date(Number(xs[idx])).toISOString().slice(0,10):typeof xs[idx]==='number'?Number((xs[idx] as number).toFixed(3)).toString():String(xs[idx]).slice(0,18), xAt(idx), plotY + plotH + 12, { align: 'center' })
   }
 
+  doc.setFontSize(7)
+  if(chart.xLabel)doc.text(chart.xLabel,plotX+plotW/2,plotY+plotH+25,{align:'center'})
   drawLegend(doc, { ...chart, series: sampled }, x, plotY + plotH + AXIS_BOTTOM, width, false)
+  doc.setFontSize(7)
+  if(chart.annotations?.length){
+    const notes=doc.splitTextToSize(chart.annotations.map(a=>a.label).join(' · '),width) as string[]
+    notes.slice(0,3).forEach((line,index)=>doc.text(line,x,plotY+plotH+AXIS_BOTTOM+45+index*10))
+  }
   return PDF_CHART_BLOCK_HEIGHT
 }
 
@@ -152,13 +163,15 @@ function drawLinesOrArea(
   area: boolean,
   stacked: boolean,
 ) {
-  const stacks = xs.map(() => 0)
+  const positive = xs.map(() => 0), negative = xs.map(() => 0)
   series.forEach((s, si) => {
     const rgb = hexToRgb(seriesColor(s, si))
     const tops: Array<{ x: number; y: number }> = []
     const bottoms: Array<{ x: number; y: number }> = []
     xs.forEach((xv, i) => {
-      const raw = lookups[si].get(String(xv)) ?? 0
+      if(!lookups[si].has(String(xv)))return
+      const raw = lookups[si].get(String(xv))!
+      const stacks = raw >= 0 ? positive : negative
       const base = stacked ? stacks[i] : 0
       const top = base + raw
       if (stacked) stacks[i] = top
@@ -186,9 +199,12 @@ function drawLinesOrArea(
     }
     doc.setDrawColor(...rgb)
     doc.setLineWidth(1.4)
+    doc.setLineDashPattern(s.dashed?[5,3]:[],0)
+    if(tops.length===1){doc.setFillColor(...rgb);doc.circle(tops[0].x,tops[0].y,2,'F')}
     for (let i = 1; i < tops.length; i++) {
       doc.line(tops[i - 1].x, tops[i - 1].y, tops[i].x, tops[i].y)
     }
+    doc.setLineDashPattern([],0)
   })
 }
 
@@ -199,32 +215,30 @@ function drawBars(
   xs: Array<string | number>,
   xAt: (i: number) => number,
   yAt: (v: number) => number,
-  plotY: number,
-  plotH: number,
-  plotW: number,
+  groupW: number,
   stacked?: boolean,
 ) {
-  const groupW = plotW / xs.length
   const inner = groupW * 0.72
   series.forEach((s, si) => {
     const rgb = hexToRgb(seriesColor(s, si))
     doc.setFillColor(...rgb)
     xs.forEach((xv, i) => {
-      const raw = lookups[si].get(String(xv)) ?? 0
+      if(!lookups[si].has(String(xv)))return
+      const raw = lookups[si].get(String(xv))!
       const cx = xs.length === 1 ? xAt(0) : xAt(i)
       if (stacked) {
         let base = 0
-        for (let k = 0; k < si; k++) base += lookups[k].get(String(xv)) ?? 0
+        for (let k = 0; k < si; k++) { const v=lookups[k].get(String(xv))??0; if((v>=0)===(raw>=0))base+=v }
         const top = yAt(base + raw)
         const bot = yAt(base)
-        const h = Math.max(0.6, bot - top)
-        doc.rect(cx - inner / 2, top, inner, h, 'F')
+        const h = Math.abs(bot - top)
+        if(h>0) doc.rect(cx - inner / 2, Math.min(top,bot), inner, h, 'F')
       } else {
         const barW = inner / Math.max(series.length, 1)
         const left = cx - inner / 2 + si * barW
         const top = yAt(raw)
-        const h = Math.max(0.6, plotY + plotH - top)
-        doc.rect(left, top, Math.max(barW - 1, 1), h, 'F')
+        const zero=yAt(0), h=Math.abs(zero-top)
+        if(h>0) doc.rect(left, Math.min(top,zero), Math.max(barW - 1, 0.1), h, 'F')
       }
     })
   })
@@ -243,24 +257,18 @@ function drawPie(doc: jsPDF, chart: ChartData, plotX: number, plotY: number, plo
     return
   }
   let angle = -Math.PI / 2
-  slices.forEach((slice, i) => {
+  slices.forEach((slice) => {
     const sweep = (slice.y / total) * Math.PI * 2
-    const rgb = hexToRgb(COLORS[i % COLORS.length])
+    const rgb = hexToRgb(semanticColor(String(slice.x)))
     doc.setFillColor(...rgb)
     const steps = Math.max(6, Math.ceil((Math.abs(sweep) / Math.PI) * 24))
-    for (let s = 0; s < steps; s++) {
-      const a0 = angle + (s / steps) * sweep
-      const a1 = angle + ((s + 1) / steps) * sweep
-      doc.triangle(
-        cx,
-        cy,
-        cx + r * Math.cos(a0),
-        cy + r * Math.sin(a0),
-        cx + r * Math.cos(a1),
-        cy + r * Math.sin(a1),
-        'F',
-      )
+    const points: Array<[number,number]> = [[r*Math.cos(angle),r*Math.sin(angle)]]
+    for (let step=1;step<=steps;step++) {
+      const previous=angle+(step-1)/steps*sweep, next=angle+step/steps*sweep
+      points.push([r*(Math.cos(next)-Math.cos(previous)),r*(Math.sin(next)-Math.sin(previous))])
     }
+    points.push([-r*Math.cos(angle+sweep),-r*Math.sin(angle+sweep)])
+    doc.lines(points,cx,cy,[1,1],'F',true)
     angle += sweep
   })
 }
@@ -274,20 +282,20 @@ function drawLegend(
   pie: boolean,
 ) {
   const items = pie
-    ? (chart.series[0]?.data ?? []).map((d, i) => ({ name: String(d.x), color: COLORS[i % COLORS.length] }))
-    : chart.series.map((s, i) => ({ name: s.name, color: seriesColor(s, i) }))
-  doc.setFont('helvetica', 'normal')
+    ? (chart.series[0]?.data ?? []).map((d) => ({ name: String(d.x), color: semanticColor(String(d.x)),dashed:false }))
+    : chart.series.map((s, i) => ({ name: s.name, color: seriesColor(s, i),dashed:s.dashed??false }))
+  doc.setFont('Report', 'normal')
   doc.setFontSize(8)
   let lx = x
-  const ly = y + 6
+  let ly = y + 6
   for (const item of items) {
+    const tw = doc.getTextWidth(item.name)
+    if(lx+tw+22>x+width){lx=x;ly+=14}
     const rgb = hexToRgb(item.color)
     doc.setFillColor(...rgb)
-    doc.rect(lx, ly - 6, 8, 8, 'F')
+    if(item.dashed){doc.setDrawColor(...rgb);doc.setLineDashPattern([2,2],0);doc.line(lx,ly-2,lx+8,ly-2);doc.setLineDashPattern([],0)}else doc.rect(lx, ly - 6, 8, 8, 'F')
     doc.setTextColor(17, 24, 39)
     doc.text(item.name, lx + 11, ly)
-    const tw = doc.getTextWidth(item.name)
     lx += 22 + tw
-    if (lx > x + width - 40) break
   }
 }

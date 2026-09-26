@@ -1,7 +1,7 @@
 import { CalculatorLayout } from '@/components/calculator/CalculatorLayout'
 import { Input } from '@/components/ui/Input'
 import { ResultBlock, MetricRow } from '@/components/ui/ResultBlock'
-import { useCalculatorPage, formatResultCurrency } from './useCalculatorPage'
+import { useCalculatorPage } from './useCalculatorPage'
 import {
   calculateCreWaterfall,
   explainCreWaterfall,
@@ -30,8 +30,8 @@ export default function CreWaterfallPage() {
     buildCharts: buildCreWaterfallCharts,
     buildTable: buildCreWaterfallTable,
     csvFilename: 'cre-waterfall.csv',
-    getShareText: (r) => `LP MOIC: ${r.lpMoic.toFixed(2)}x, GP MOIC: ${r.gpMoic.toFixed(2)}x`,
-    renderResults: (r) => (
+    getShareText: (r, _input, _formatResultCurrency) => `LP MOIC: ${r.lpMoic.toFixed(2)}x, GP MOIC: ${r.gpMoic.toFixed(2)}x`,
+    renderResults: (r, _input, formatResultCurrency) => (
       <div className="space-y-4">
         <ResultBlock label="LP distributions" value={formatResultCurrency(r.lpTotal)} primary />
         <ResultBlock label="GP distributions" value={formatResultCurrency(r.gpTotal)} />

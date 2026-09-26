@@ -1,29 +1,30 @@
+import { displayNumber, displayMetric } from '@/utils/numberFormat'
+import { useContext } from 'react'
+import { SnapshotFormatContext } from './SnapshotFormat'
+import { snapshotCurrency, type CalculationProvenance } from '@/exports/provenance'
 import { useEffect, useRef, useState } from 'react'
 import type { TableData } from '@/calculators/types'
 import { cn } from '@/utils/cn'
-import { formatCurrency, formatPercent, formatNumber } from '@/utils/currency'
 
 interface DataTableProps {
   table: TableData
   maxRows?: number
 }
 
-function formatCell(value: string | number, format?: string): string {
-  if (typeof value === 'string') return value
-  switch (format) {
-    case 'currency':
-      return formatCurrency(value)
-    case 'percent':
-      return formatPercent(value)
-    case 'number':
-      return formatNumber(value)
-    default:
-      return String(value)
-  }
+function formatCell(value: string | number, format?: string, p?: CalculationProvenance, precision?: number, unit?:string): string {
+  if (typeof value === 'string') return format==='text'||format==='date'?value:displayMetric(value,p?.locale??'en-US')
+  if (!Number.isFinite(value)) return value===Infinity?'No upper limit':'Not defined'
+  if (format === 'currency') return snapshotCurrency(value,p)
+  if (format === 'percent') return displayNumber(value*100,p?.locale??'en-US',precision??2,true)+'%'
+  return displayNumber(value,p?.locale??'en-US',precision??(Number.isInteger(value)?0:4))+(unit?` ${unit}`:'')
 }
 
 export function DataTable({ table, maxRows = 120 }: DataTableProps) {
-  const rows = table.rows.slice(0, maxRows)
+  const provenance = useContext(SnapshotFormatContext)
+  const [page,setPage] = useState(0)
+  useEffect(()=>setPage(0),[table.title,table.rows.length])
+  const currentPage = Math.min(page, Math.max(0, Math.ceil(table.rows.length / maxRows)-1))
+  const rows = table.rows.slice(currentPage * maxRows, (currentPage + 1) * maxRows)
   const hasMore = table.rows.length > maxRows
   const scrollerRef = useRef<HTMLDivElement>(null)
   const [canScrollMore, setCanScrollMore] = useState(false)
@@ -51,10 +52,10 @@ export function DataTable({ table, maxRows = 120 }: DataTableProps) {
   }, [table.columns, rows.length])
 
   return (
-    <div className="rounded-2xl border border-border bg-white overflow-hidden">
+    <div className="border-t border-border overflow-hidden">
       {table.title && (
-        <div className="px-4 py-3 border-b border-border bg-surface-lighter/50">
-          <h3 className="text-sm font-medium text-text-primary">{table.title}</h3>
+        <div className="py-4">
+          <h3 className="text-sm font-semibold text-text-primary">{table.title}</h3>
         </div>
       )}
       <div className="relative min-w-0">
@@ -70,7 +71,7 @@ export function DataTable({ table, maxRows = 120 }: DataTableProps) {
                     key={col.key}
                     className={cn(
                       'px-3 sm:px-4 py-3 font-medium text-text-secondary whitespace-nowrap',
-                      col.align === 'right' ? 'text-right' : 'text-left',
+                      (col.align === 'right' || (!col.align && table.rows.some(row=>typeof row[col.key]==='number'))) ? 'text-right' : 'text-left',
                       colIndex === 0 &&
                         cn(
                           'sticky left-0 z-20 bg-surface-lighter',
@@ -78,7 +79,7 @@ export function DataTable({ table, maxRows = 120 }: DataTableProps) {
                         ),
                     )}
                   >
-                    {col.label}
+                    {col.label}{col.format==='currency'?` (${provenance?.currency??'currency not recorded'})`:''}
                   </th>
                 ))}
               </tr>
@@ -91,7 +92,7 @@ export function DataTable({ table, maxRows = 120 }: DataTableProps) {
                       key={col.key}
                       className={cn(
                         'px-3 sm:px-4 py-2.5 tabular-nums text-text-primary whitespace-nowrap',
-                        col.align === 'right' ? 'text-right' : 'text-left',
+                        (col.align === 'right' || (!col.align && table.rows.some(row=>typeof row[col.key]==='number'))) ? 'text-right' : 'text-left',
                         colIndex === 0 &&
                           cn(
                             'sticky left-0 z-10 bg-white',
@@ -99,7 +100,7 @@ export function DataTable({ table, maxRows = 120 }: DataTableProps) {
                           ),
                       )}
                     >
-                      {formatCell(row[col.key], col.format)}
+                      {formatCell(row[col.key], col.format, provenance, col.precision, col.unit)}
                     </td>
                   ))}
                 </tr>
@@ -121,7 +122,9 @@ export function DataTable({ table, maxRows = 120 }: DataTableProps) {
       )}
       {hasMore && (
         <p className="px-4 py-2 text-xs text-text-muted border-t border-border">
-          Showing {maxRows} of {table.rows.length} rows. Export CSV for the full schedule.
+          Rows {currentPage * maxRows + 1}–{Math.min((currentPage+1)*maxRows,table.rows.length)} of {table.rows.length}.
+          <button className="ml-3 underline min-h-11" disabled={currentPage===0} onClick={()=>setPage(currentPage-1)}>Previous rows</button>
+          <button className="ml-3 underline min-h-11" disabled={(currentPage+1)*maxRows>=table.rows.length} onClick={()=>setPage(currentPage+1)}>Next rows</button>
         </p>
       )}
     </div>

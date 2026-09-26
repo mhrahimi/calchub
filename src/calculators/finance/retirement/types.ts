@@ -17,13 +17,19 @@ export interface RetirementResult {
   requiredBalance: number
   shortfallOrSurplus: number
   requiredAnnualContribution: number
+  depletionAge: number | null
+  totalUnmetSpending: number
+  status: 'success' | 'insufficient_funds'
+  warnings: string[]
   accumulation: Array<{ age: number; balance: number; contributions: number }>
-  drawdown: Array<{ age: number; balance: number; withdrawal: number }>
+  drawdown: Array<{ age: number; balance: number; withdrawal: number; plannedWithdrawal: number; unmetSpending: number }>
   annualSchedule: Array<{
     age: number
     phase: string
     balance: number
     contribution: number
     withdrawal: number
+    plannedWithdrawal: number
+    unmetSpending: number
   }>
 }

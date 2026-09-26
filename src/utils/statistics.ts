@@ -19,13 +19,14 @@ export interface DescriptiveStats {
   max: number
   range: number
   populationVariance: number
-  sampleVariance: number
+  sampleVariance: number | null
   populationSd: number
-  sampleSd: number
+  sampleSd: number | null
 }
 
 export function computeDescriptiveStats(values: number[]): DescriptiveStats {
   if (values.length === 0) throw new Error('Dataset cannot be empty')
+  if (values.length > 100000 || values.some(v => !Number.isFinite(v) || Math.abs(v) > 1e100)) throw new Error('Use at most 100,000 finite values with magnitude at most 1e100')
 
   let count = 0
   let mean = 0
@@ -46,7 +47,7 @@ export function computeDescriptiveStats(values: number[]): DescriptiveStats {
   }
 
   const populationVariance = m2 / count
-  const sampleVariance = count >= 2 ? m2 / (count - 1) : NaN
+  const sampleVariance = count >= 2 ? m2 / (count - 1) : null
 
   return {
     count,
@@ -58,7 +59,7 @@ export function computeDescriptiveStats(values: number[]): DescriptiveStats {
     populationVariance,
     sampleVariance,
     populationSd: Math.sqrt(populationVariance),
-    sampleSd: count >= 2 ? Math.sqrt(sampleVariance) : NaN,
+    sampleSd: sampleVariance === null ? null : Math.sqrt(sampleVariance),
   }
 }
 

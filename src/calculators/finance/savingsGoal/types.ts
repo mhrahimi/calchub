@@ -14,6 +14,8 @@ export interface SavingsGoalInput {
 export interface SavingsGoalResult {
   requiredContribution: number
   timeToGoal: number
+  periodsToGoal: number
+  periodsPerYear: number
   projectedBalance: number
   totalContributions: number
   goalAmount: number

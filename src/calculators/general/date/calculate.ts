@@ -38,7 +38,7 @@ export function explainDate(_input: DateInput, _result: DateResult): Calculation
       { label: 'Calendar', result: 'Gregorian' },
       { label: 'Month-end policy', result: 'Clamp to last day of month (e.g. Jan 31 + 1 month → Feb 28/29)' },
     ],
-    assumptions: ['Pure calendar dates; no timezone offset applied.'],
+    assumptions: ['Pure calendar dates; no timezone offset applied.', 'Differences count whole months from the earlier date, clamping month ends, then remaining days. Reversed dates negate those components.'],
   }
 }
 

@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { ResultBlock, MetricRow } from '@/components/ui/ResultBlock'
-import { useCalculatorPage, formatResultCurrency } from './useCalculatorPage'
+import { useCalculatorPage } from './useCalculatorPage'
 import {
   calculateInflation,
   explainInflation,
@@ -35,11 +35,11 @@ export default function InflationPage() {
     buildCharts: buildInflationCharts,
     buildTable: buildInflationTable,
     csvFilename: 'inflation-schedule.csv',
-    getShareText: (r) =>
+    getShareText: (r, _input, formatResultCurrency) =>
       r.mode === 'historical'
         ? `Equivalent purchasing power: ${formatResultCurrency(r.primaryAmount)}`
         : `Future price: ${formatResultCurrency(r.futurePrice ?? 0)} (assumption)`,
-    renderResults: (r) => (
+    renderResults: (r, _input, formatResultCurrency) => (
       <div className="space-y-4">
         {r.mode === 'historical' ? (
           <>

@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { ResultBlock, MetricRow } from '@/components/ui/ResultBlock'
-import { useCalculatorPage, formatResultCurrency } from './useCalculatorPage'
+import { useCalculatorPage } from './useCalculatorPage'
 import { calculateLoan, explainLoan, buildLoanCharts, buildLoanTable } from '@/calculators/finance/loan/calculate'
 import { validateLoan } from '@/calculators/finance/loan/validation'
 import type { LoanInput } from '@/calculators/finance/loan/types'
@@ -27,8 +27,8 @@ export default function LoanPage() {
     buildCharts: buildLoanCharts,
     buildTable: buildLoanTable,
     csvFilename: 'loan-schedule.csv',
-    getShareText: (r) => `Loan payment: ${formatResultCurrency(r.payment)}/period`,
-    renderResults: (r) => (
+    getShareText: (r, _input, formatResultCurrency) => `Loan payment: ${formatResultCurrency(r.payment)}/period`,
+    renderResults: (r, _input, formatResultCurrency) => (
       <div className="space-y-4">
         <ResultBlock label="Payment" value={formatResultCurrency(r.payment)} primary />
         <div className="rounded-2xl border border-border bg-white p-4">

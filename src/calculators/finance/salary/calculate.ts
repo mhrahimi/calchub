@@ -1,6 +1,6 @@
-import { getTaxConfig, TAX_CONFIG_VERSION } from '@/tax/registry'
-import { computeCombinedTax } from '@/tax/engine/progressiveTax'
-import { computePayroll } from '@/tax/engine/payroll'
+import { TAX_CONFIG_VERSION } from '@/tax/registry'
+import { computePayroll, PAYROLL_SOURCES } from '@/tax/engine/payroll'
+import { calculateIncomeTax } from '@/calculators/tax/incomeTax/calculate'
 import type { CalculationExplanation, ChartData, TableData } from '@/calculators/types'
 import type { PayFrequency, SalaryInput, SalaryResult } from './types'
 
@@ -80,13 +80,13 @@ export function calculateSalary(input: SalaryInput): SalaryResult {
   const pretax = Math.max(0, input.pretaxDeductions ?? 0)
   const year = input.taxYear ?? 2026
 
-  const { federal, regional } = getTaxConfig(country, jurisdictionId, year)
-  const tax = computeCombinedTax({
+  const tax = calculateIncomeTax({
+    country,
+    jurisdictionId,
+    taxYear: year,
     grossIncome: annualGross,
     pretaxDeductions: pretax,
     filingStatus,
-    federal,
-    regional,
     useStandardDeduction: country === 'US',
   })
   const payroll = computePayroll(country, annualGross - pretax, {
@@ -119,6 +119,14 @@ export function calculateSalary(input: SalaryInput): SalaryResult {
     pretaxDeductions: pretax,
     waterfall,
     taxConfigVersion: TAX_CONFIG_VERSION,
+    coverage: {
+      ...tax.coverage,
+      included: [...tax.coverage.included, 'Full-year employee payroll contributions'],
+      excluded: tax.coverage.excluded.filter((item) => item !== 'Payroll contributions and local taxes')
+        .concat('Local taxes, payroll exemptions, partial-year employment and changes of employer/province'),
+      sources: [...tax.coverage.sources, ...(country === 'CA' ? PAYROLL_SOURCES : [])],
+    },
+    notes: tax.notes.filter((note) => !note.startsWith('Excluded:')),
   }
 }
 
@@ -152,10 +160,13 @@ export function explainSalary(input: SalaryInput, result: SalaryResult): Calcula
       },
     ],
     assumptions: [
+      ...(result.notes ?? ['Rough headline estimate; unconfigured credits and deductions are excluded.']),
+      ...(result.coverage ? [`Excluded: ${result.coverage.excluded.join('; ')}.`] : []),
       `Tax year ${input.taxYear ?? 2026}. This is an estimated take-home calculation, not a tax return.`,
       'Payroll withholding and annual tax liability can differ.',
+      'Full-year employee model. Enter only deductions exempt from both income tax and payroll contributions; other deduction types are not modeled.',
       ...(input.country === 'CA' && input.jurisdictionId === 'quebec'
-        ? ['Quebec uses QPP/QPIP instead of CPP/EI.']
+        ? ['Quebec payroll includes QPP, QPIP and EI at the Quebec rate.']
         : []),
     ],
   }

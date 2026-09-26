@@ -55,7 +55,7 @@ export default function TrigonometryPage() {
           <Input label="Opposite" type="number" value={form.opposite ?? ''} onChange={(e) => set('opposite', e.target.value ? +e.target.value : undefined)} error={errors.opposite} />
           <Input label="Adjacent" type="number" value={form.adjacent ?? ''} onChange={(e) => set('adjacent', e.target.value ? +e.target.value : undefined)} error={errors.adjacent} />
           <Input label="Hypotenuse" type="number" value={form.hypotenuse ?? ''} onChange={(e) => set('hypotenuse', e.target.value ? +e.target.value : undefined)} error={errors.hypotenuse} />
-          <Input label="Angle" type="number" value={form.angle ?? ''} onChange={(e) => set('angle', e.target.value ? +e.target.value : undefined)} />
+          <Input label="Angle" type="number" value={form.angle ?? ''} onChange={(e) => set('angle', e.target.value ? +e.target.value : undefined)} error={errors.angle} />
           <p className="text-xs text-text-muted">Provide any two values to solve the triangle.</p>
         </>
       }

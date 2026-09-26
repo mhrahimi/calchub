@@ -1,13 +1,29 @@
-import { useState, type ReactNode } from 'react'
-import { Star, ChevronDown, Download, Bookmark, FileText } from 'lucide-react'
+import type { ReportField } from '@/exports/reportFields'
+import type { ExportPayload } from '@/exports/types'
+import type { ComparisonSnapshot } from '@/features/comparison/model'
+import { ComparisonPanel } from './ComparisonPanel'
+import { ResultSummary } from './ResultSummary'
+import { ResultDetailsContext } from './ResultDetailsContext'
+import { SnapshotFormatContext } from './SnapshotFormat'
+import type { CalculationProvenance } from '@/exports/provenance'
+import { useState, useEffect, useRef, type ReactNode } from 'react'
+import { Star, ChevronDown } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { Button } from '@/components/ui/Button'
 import type { CalculationExplanation, ChartData, TableData } from '@/calculators/types'
 import { DataTable } from '@/components/calculator/DataTable'
 import { ChartPanel } from '@/components/calculator/ChartPanel'
-import { ShareMenu, type ShareMenuActions } from '@/components/calculator/ShareMenu'
+import { type ShareMenuActions } from '@/components/calculator/ShareMenu'
 
 interface CalculatorLayoutProps {
+  resultFields?: ReportField[]
+  resultWarnings?: string[]
+  currentPayload?: ExportPayload|null
+  baseline?: ComparisonSnapshot|null
+  onBaseline?: (snapshot:ComparisonSnapshot|null)=>void
+  comparisonOpen?:boolean
+  onCompare?:()=>void
+
   title: string
   description: string
   isFavorite: boolean
@@ -26,9 +42,17 @@ interface CalculatorLayoutProps {
   onCalculate: () => void
   calculating?: boolean
   calculationError?: string
+  inputsChanged?: boolean
+  provenance?: CalculationProvenance
+  resultAnnouncement?: string
+  saveOpen?: boolean
+  savedNotice?: string
+  onSaveCancel?: () => void
+  onSaveConfirm?: (name:string) => Promise<void>
 }
 
 export function CalculatorLayout({
+  resultFields, resultWarnings, currentPayload, baseline, onBaseline, comparisonOpen, onCompare,
   title,
   description,
   isFavorite,
@@ -45,12 +69,17 @@ export function CalculatorLayout({
   pdfLoading,
   copyNotice,
   onCalculate,
-  calculationError,
+  calculationError, inputsChanged, provenance, resultAnnouncement, saveOpen, savedNotice, onSaveCancel, onSaveConfirm,
 }: CalculatorLayoutProps) {
   const [methodOpen, setMethodOpen] = useState(false)
+  const [name, setName] = useState(title)
+  const [saveError, setSaveError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const dialog = useRef<HTMLDialogElement>(null)
+  useEffect(() => { if (saveOpen) { setName(title); setSaveError(''); dialog.current?.showModal() } else dialog.current?.close() },[saveOpen,title])
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 lg:py-10 min-w-0">
+    <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-6 lg:py-8 min-w-0">
       <header className="mb-8 pb-6 border-b border-border">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -69,20 +98,30 @@ export function CalculatorLayout({
         </div>
       </header>
 
-      <div className="grid lg:grid-cols-[2fr_3fr] gap-8 lg:gap-10 min-w-0">
+      <div className="grid lg:grid-cols-[minmax(280px,0.7fr)_minmax(0,1.4fr)] gap-8 lg:gap-12 min-w-0">
         <section className="min-w-0 space-y-6">
-          <div className="rounded-2xl border border-border bg-white p-4 sm:p-6 space-y-5">{inputs}</div>
+          <div className="bg-background-secondary/60 rounded-xl p-4 sm:p-5 space-y-5">{inputs}</div>
           <Button onClick={onCalculate} className="w-full lg:w-auto">
             Calculate
           </Button>
         </section>
 
-        <section className="min-w-0 space-y-6 lg:sticky lg:top-6 lg:self-start" aria-live="polite" aria-atomic="true">
+        <section className="min-w-0 space-y-6" aria-label="Calculation results">
+          <p role="status" className="sr-only">{resultAnnouncement}</p>
+          {inputsChanged && <p role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">Inputs changed — recalculate. The results below belong to the previous input snapshot. Save, compare, copy, and export become available after recalculation.</p>}
+          {provenance && results && <p className="text-xs text-text-secondary">Calculated {provenance.calculatedAt ? new Date(provenance.calculatedAt).toLocaleString(provenance.locale ?? 'en-US') : 'at an unrecorded time'} · {provenance.currency ?? 'Currency not recorded'}</p>}
           {calculationError && <p role="alert" className="text-red-700">{calculationError}</p>}
           {results ? (
             <>
-              {results}
+              <ResultSummary fields={resultFields??[]} disabled={inputsChanged} loading={pdfLoading} comparing={comparisonOpen} onSave={onSave} onCompare={onCompare??(()=>{})} onCopy={shareActions?.onCopySummary} onPdf={onExportPdf} onCsv={onExportCsv} onShare={shareActions?.canShareNative?shareActions.onNativeShare:undefined} notice={copyNotice?'Copied to clipboard.':savedNotice} />
+              {resultWarnings?.map((warning,index)=><p key={index} className="text-sm text-amber-900">{warning}</p>)}
+              {comparisonOpen&&currentPayload&&onBaseline&&<ComparisonPanel current={currentPayload} baseline={baseline??null} onBaseline={onBaseline} refreshKey={savedNotice} disabled={inputsChanged}/>}
+              <details className="result-details border-b border-border pb-4">
+                <summary className="cursor-pointer py-2 font-medium text-sm text-primary">All results and breakdown</summary>
+                <SnapshotFormatContext.Provider value={provenance}><ResultDetailsContext.Provider value={!!resultFields?.length}>{results}</ResultDetailsContext.Provider></SnapshotFormatContext.Provider>
+              </details>
 
+              <SnapshotFormatContext.Provider value={provenance}>
               {charts && charts.length > 0 && (
                 <div className="space-y-4">
                   {charts.map((chart, i) => (
@@ -93,45 +132,22 @@ export function CalculatorLayout({
 
               {table && table.rows.length > 0 && <DataTable table={table} />}
 
+              </SnapshotFormatContext.Provider>
+
               {pdfLoading && (
                 <div className="rounded-2xl border border-border bg-surface-lighter/50 p-4 animate-pulse">
                   <p className="text-sm text-text-muted">Generating PDF report…</p>
                 </div>
               )}
 
-              <div className="flex flex-wrap gap-3">
-                {onSave && (
-                  <Button variant="secondary" size="sm" onClick={onSave}>
-                    <Bookmark className="w-4 h-4 mr-2" />
-                    Save
-                  </Button>
-                )}
-                {onExportPdf && (
-                  <Button variant="secondary" size="sm" onClick={onExportPdf} disabled={pdfLoading}>
-                    <FileText className="w-4 h-4 mr-2" />
-                    Export PDF
-                  </Button>
-                )}
-                {onExportCsv && (
-                  <Button variant="secondary" size="sm" onClick={onExportCsv}>
-                    <Download className="w-4 h-4 mr-2" />
-                    Export CSV
-                  </Button>
-                )}
-                {shareActions && <ShareMenu actions={shareActions} />}
-              </div>
 
-              {copyNotice && (
-                <p className="text-sm text-primary" role="status">
-                  Copied to clipboard.
-                </p>
-              )}
 
               {explanation && (
-                <div className="rounded-2xl border border-border bg-white overflow-hidden">
+                <div className="border-t border-border overflow-hidden">
                   <button
+                    aria-expanded={methodOpen}
                     onClick={() => setMethodOpen(!methodOpen)}
-                    className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-surface-lighter transition-colors"
+                    className="w-full flex items-center justify-between px-0 py-4 text-left hover:bg-surface-lighter transition-colors"
                   >
                     <span className="font-medium text-text-primary">How this was calculated</span>
                     <ChevronDown
@@ -139,7 +155,7 @@ export function CalculatorLayout({
                     />
                   </button>
                   {methodOpen && (
-                    <div className="px-6 pb-6 space-y-4 border-t border-border pt-4">
+                    <div className="pb-6 space-y-4 pt-4">
                       {explanation.steps.map((step, i) => (
                         <div key={i}>
                           <p className="text-sm font-medium text-text-primary">{step.label}</p>
@@ -172,6 +188,15 @@ export function CalculatorLayout({
           )}
         </section>
       </div>
+      <dialog ref={dialog} onCancel={onSaveCancel} aria-labelledby="save-title" className="m-auto w-[min(92vw,28rem)] rounded-2xl p-6 shadow-xl backdrop:bg-black/30">
+        <form onSubmit={async e => { e.preventDefault(); setSaving(true); try { await onSaveConfirm?.(name) } catch { setSaveError('Could not save. Check available browser storage and try again.') } finally { setSaving(false) } }} className="space-y-4">
+          <h2 id="save-title" className="text-lg font-semibold">Save calculation</h2>
+          <label htmlFor="calculation-name" className="block text-sm">Calculation name</label>
+          <input id="calculation-name" autoFocus required maxLength={160} value={name} onChange={e=>setName(e.target.value)} className="w-full border border-border rounded-lg p-3" />
+          {saveError && <p role="alert" className="text-red-700">{saveError}</p>}
+          <div className="flex gap-3"><Button type="submit" disabled={saving || !name.trim()}>Save calculation</Button><Button type="button" variant="secondary" onClick={onSaveCancel}>Cancel</Button></div>
+        </form>
+      </dialog>
     </div>
   )
 }

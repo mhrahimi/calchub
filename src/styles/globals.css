@@ -61,3 +61,20 @@
     scroll-behavior: auto !important;
   }
 }
+
+:where(a, button, input, select, textarea):focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
+button:disabled { cursor: not-allowed; }
+
+/* Result detail sections use whitespace and rules instead of nested cards. */
+.result-details .rounded-2xl {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  padding: 1rem 0;
+}
+.result-details td, .result-details th, .result-summary {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+summary:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
+summary::-webkit-details-marker { display: none; }

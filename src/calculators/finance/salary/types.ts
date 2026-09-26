@@ -1,4 +1,5 @@
 import type { TaxCountry, FilingStatus } from '@/tax/types'
+import type { IncomeTaxResult } from '@/calculators/tax/incomeTax/types'
 
 export type SalaryMode = 'conversion' | 'take-home'
 export type PayFrequency =
@@ -37,4 +38,6 @@ export interface SalaryResult {
   pretaxDeductions?: number
   waterfall?: { label: string; amount: number }[]
   taxConfigVersion?: string
+  coverage?: IncomeTaxResult['coverage']
+  notes?: string[]
 }

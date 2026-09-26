@@ -2,7 +2,7 @@ import { CalculatorLayout } from '@/components/calculator/CalculatorLayout'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { ResultBlock, MetricRow } from '@/components/ui/ResultBlock'
-import { useCalculatorPage, formatResultCurrency } from './useCalculatorPage'
+import { useCalculatorPage } from './useCalculatorPage'
 import { calculateSavingsGoal, explainSavingsGoal, buildSavingsGoalCharts, buildSavingsGoalTable } from '@/calculators/finance/savingsGoal/calculate'
 import { validateSavingsGoal } from '@/calculators/finance/savingsGoal/validation'
 import type { SavingsGoalInput } from '@/calculators/finance/savingsGoal/types'
@@ -28,14 +28,14 @@ export default function SavingsGoalPage() {
     buildCharts: buildSavingsGoalCharts,
     buildTable: buildSavingsGoalTable,
     csvFilename: 'savings-goal.csv',
-    getShareText: (r) => `Savings goal: contribute ${formatResultCurrency(r.requiredContribution)}/period`,
-    renderResults: (r, input) => (
+    getShareText: (r, _input, formatResultCurrency) => `Savings goal: contribute ${formatResultCurrency(r.requiredContribution)}/period`,
+    renderResults: (r, input, formatResultCurrency) => (
       <div className="space-y-4">
         {input.solveFor === 'contribution' && (
           <ResultBlock label="Required contribution" value={formatResultCurrency(r.requiredContribution)} sublabel="per period" primary />
         )}
         {input.solveFor === 'time' && (
-          <ResultBlock label="Time to goal" value={`${r.timeToGoal} years`} primary />
+          <ResultBlock label="Time to goal" value={r.periodsToGoal === undefined ? `${r.timeToGoal} years` : `${r.periodsToGoal} contribution periods`} sublabel={`${Number(r.timeToGoal.toFixed(4))} years; end-of-period contributions`} primary />
         )}
         {input.solveFor === 'balance' && (
           <ResultBlock label="Projected balance" value={formatResultCurrency(r.projectedBalance)} primary />
@@ -48,7 +48,7 @@ export default function SavingsGoalPage() {
             <MetricRow label="Projected balance" value={formatResultCurrency(r.projectedBalance)} />
           )}
           {input.solveFor !== 'time' && (
-            <MetricRow label="Time to goal" value={`${r.timeToGoal} years`} />
+            <MetricRow label="Time horizon" value={`${Number(r.timeToGoal.toFixed(4))} years`} />
           )}
           <MetricRow label="Total contributions" value={formatResultCurrency(r.totalContributions)} />
         </div>

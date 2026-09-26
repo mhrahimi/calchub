@@ -31,8 +31,9 @@ export function calculateSavingsGoal(input: SavingsGoalInput): SavingsGoalResult
       throw new CalculationError('unreachable', 'Goal cannot be reached with these savings, contributions and return.')
     } else {
       if (periods > 1000 * ppy) throw new CalculationError('unreachable', 'Goal exceeds the supported 1,000-year horizon.')
-      n = Math.ceil(periods)
-      timeToGoal = periods / ppy
+      n = Math.ceil(periods - 1e-10)
+      while (fvEnd(input.currentSavings, r, n, pmt) < input.goalAmount - 1e-8) n++
+      timeToGoal = n / ppy
       projectedBalance = fvEnd(input.currentSavings, r, n, pmt)
     }
   } else {
@@ -50,11 +51,13 @@ export function calculateSavingsGoal(input: SavingsGoalInput): SavingsGoalResult
     bal = fvEnd(bal, r, 1, pmt)
     full.push({ period: p / ppy, balance: Math.round(bal * 100) / 100 })
   }
-  const schedule = downsamplePoints(full, 21)
+  const schedule = full
 
   return {
     requiredContribution: Math.round(requiredContribution * 100) / 100,
-    timeToGoal: Math.round(timeToGoal * 100) / 100,
+    timeToGoal,
+    periodsToGoal: n,
+    periodsPerYear: ppy,
     projectedBalance: Math.round(projectedBalance * 100) / 100,
     totalContributions: Math.round((input.currentSavings + pmt * n) * 100) / 100,
     goalAmount: input.goalAmount,
@@ -82,7 +85,7 @@ export function explainSavingsGoal(input: SavingsGoalInput, _result: SavingsGoal
   return {
     title: 'Savings goal',
     steps,
-    assumptions: ['Return is treated as constant; inflation and taxes are not modeled.'],
+    assumptions: ['Return is treated as constant; inflation and taxes are not modeled.', 'Time to goal is the first whole contribution period reaching the target. Contributions arrive at the end of each period.'],
   }
 }
 
@@ -92,10 +95,10 @@ export function buildSavingsGoalCharts(result: SavingsGoalResult): ChartData[] {
     title: 'Goal progress',
     valueFormat: 'currency',
     series: [
-      { name: 'Balance', data: result.schedule.map((s) => ({ x: s.period, y: s.balance })), color: '#163B8C' },
+      { name: 'Balance', data: downsamplePoints(result.schedule, 241).map((s) => ({ x: s.period, y: s.balance })), color: '#163B8C' },
       {
         name: 'Goal',
-        data: result.schedule.map((s) => ({ x: s.period, y: result.goalAmount })),
+        data: downsamplePoints(result.schedule, 241).map((s) => ({ x: s.period, y: result.goalAmount })),
         color: '#8A94A6',
       },
     ],
@@ -104,7 +107,7 @@ export function buildSavingsGoalCharts(result: SavingsGoalResult): ChartData[] {
 
 export function buildSavingsGoalTable(result: SavingsGoalResult): TableData {
   return {
-    title: 'Milestone schedule',
+    title: 'Complete contribution schedule',
     columns: [
       { key: 'period', label: 'Year', align: 'right', format: 'number' },
       { key: 'balance', label: 'Balance', align: 'right', format: 'currency' },

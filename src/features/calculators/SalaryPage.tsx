@@ -4,7 +4,7 @@ import { Select } from '@/components/ui/Select'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { JurisdictionSelect } from '@/components/ui/JurisdictionSelect'
 import { ResultBlock, MetricRow } from '@/components/ui/ResultBlock'
-import { useCalculatorPage, formatResultCurrency } from './useCalculatorPage'
+import { useCalculatorPage } from './useCalculatorPage'
 import { useApp } from '@/app/providers'
 import {
   calculateSalary,
@@ -50,18 +50,18 @@ export default function SalaryPage() {
     buildCharts: buildSalaryCharts,
     buildTable: buildSalaryTable,
     csvFilename: 'salary-breakdown.csv',
-    getShareText: (r) =>
+    getShareText: (r, _input, formatResultCurrency) =>
       r.mode === 'take-home'
         ? `Estimated take-home: ${formatResultCurrency(r.estimatedNetAnnual ?? 0)}/year`
         : `Converted salary: ${formatResultCurrency(r.convertedAmount)}`,
-    renderResults: (r) => (
+    renderResults: (r, input, formatResultCurrency) => (
       <div className="space-y-4">
         {r.mode === 'take-home' ? (
           <>
             <ResultBlock
               label="Estimated take-home (annual)"
               value={formatResultCurrency(r.estimatedNetAnnual ?? 0)}
-              sublabel="Estimated take-home calculation"
+              sublabel="Rough annual estimate; review the exclusions below."
               primary
             />
             <div className="rounded-2xl border border-border bg-white p-4">
@@ -69,13 +69,14 @@ export default function SalaryPage() {
               <MetricRow label="Federal tax" value={formatResultCurrency(r.federalTax ?? 0)} />
               <MetricRow label="State / provincial" value={formatResultCurrency(r.regionalTax ?? 0)} />
               <MetricRow label="Payroll" value={formatResultCurrency(r.payrollTotal ?? 0)} />
+              {r.payrollLabels?.map((item) => <MetricRow key={item.label} label={item.label} value={formatResultCurrency(item.amount)} />)}
               <MetricRow label="Per selected frequency" value={formatResultCurrency(r.convertedAmount)} />
             </div>
           </>
         ) : (
           <>
             <ResultBlock
-              label={`Equivalent (${form.toFrequency})`}
+              label={`Equivalent (${input.toFrequency})`}
               value={formatResultCurrency(r.convertedAmount)}
               primary
             />
@@ -180,7 +181,8 @@ export default function SalaryPage() {
                 />
               )}
               <Input
-                label="Pretax deductions (annual)"
+                label="Deductions exempt from income and payroll tax (annual)"
+                hint="Only deductions eligible for both. Other deduction types are not modeled."
                 prefix="$"
                 grouped
                 value={form.pretaxDeductions ?? 0}

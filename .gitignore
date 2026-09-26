@@ -25,3 +25,6 @@ dist-ssr
 *.sw?
 
 docs
+
+# Local agent-generated review notes
+/agent-notes/

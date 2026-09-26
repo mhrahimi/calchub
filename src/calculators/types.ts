@@ -18,6 +18,8 @@ export interface ChartSeries {
   name: string
   data: Array<{ x: number | string; y: number }>
   color?: string
+  dashed?: boolean
+  baseline?: boolean
 }
 
 export interface ChartData {
@@ -28,6 +30,10 @@ export interface ChartData {
   yLabel?: string
   stacked?: boolean
   valueFormat?: 'currency' | 'percent' | 'number'
+  xType?: 'number' | 'category' | 'time'
+  precision?: number
+  hideValueAxis?: boolean
+  annotations?: Array<{ label: string; x?: number | string; y?: number }>
 }
 
 export interface TableColumn {
@@ -35,6 +41,8 @@ export interface TableColumn {
   label: string
   align?: 'left' | 'right'
   format?: 'currency' | 'percent' | 'number' | 'date' | 'text'
+  precision?: number
+  unit?: string
 }
 
 export interface TableData {

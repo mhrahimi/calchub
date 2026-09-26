@@ -7,6 +7,9 @@ export type FnName =
   | 'sin'
   | 'cos'
   | 'tan'
+  | 'asin'
+  | 'acos'
+  | 'atan'
   | 'sinh'
   | 'cosh'
   | 'tanh'
@@ -50,6 +53,7 @@ export type CalculatorAction =
   | { type: 'constant'; name: 'π' | 'e' }
   | { type: 'postfix'; name: PostfixName }
   | { type: 'toggleAngle' }
+  | { type: 'setAngle'; mode: AngleMode }
 
 type Token =
   | { kind: 'number'; value: string }
@@ -77,6 +81,9 @@ export const FN_DISPLAY: Record<FnName, string> = {
   sin: 'sin',
   cos: 'cos',
   tan: 'tan',
+  asin: 'asin',
+  acos: 'acos',
+  atan: 'atan',
   sinh: 'sinh',
   cosh: 'cosh',
   tanh: 'tanh',
@@ -233,6 +240,13 @@ function applyFn(name: FnName, args: Decimal[], angleMode: AngleMode): Decimal |
       case 'tan':
         result = Math.tan(toRadians(n, angleMode))
         break
+      case 'asin':
+      case 'acos':
+      case 'atan': {
+        const radians = name === 'asin' ? Math.asin(n) : name === 'acos' ? Math.acos(n) : Math.atan(n)
+        result = angleMode === 'deg' ? radians * 180 / Math.PI : radians
+        break
+      }
       case 'sinh':
         result = Math.sinh(n)
         break
@@ -279,12 +293,12 @@ function applyFn(name: FnName, args: Decimal[], angleMode: AngleMode): Decimal |
 function tokenize(source: string): Token[] | null {
   const tokens: Token[] = []
   let i = 0
-  let s = source.replace(/−/g, '-').replace(/\s+/g, '')
+  let s = source.replace(/−/g, '-').replace(/\//g, '÷').replace(/\s+/g, '')
   s = s
     .replace(/logₓ/g, 'logx')
     .replace(/√/g, 'sqrt')
     .replace(/∛/g, 'cbrt')
-    .replace(/10\^/g, 'tenexp')
+    .replace(/10\^\(/g, 'tenexp(')
     .replace(/π/g, `(${Math.PI})`)
   // standalone e constant (not part of scientific notation or function names)
   s = s.replace(/(?<![a-zA-Z0-9.])e(?![a-zA-Z0-9.(])/g, `(${Math.E})`)
@@ -335,11 +349,10 @@ function tokenize(source: string): Token[] | null {
       if (unary) {
         let j = i + 1
         if (j >= s.length || !/[0-9.]/.test(s[j])) return null
-        let num = '-'
-        while (j < s.length && /[0-9.]/.test(s[j])) {
-          num += s[j]
-          j += 1
-        }
+        const match = s.slice(i).match(/^-?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?/i)
+        if (!match) return null
+        const num = match[0]
+        j = i + num.length
         if (num === '-' || num === '-.' || !Number.isFinite(Number(num))) return null
         tokens.push({ kind: 'number', value: num })
         i = j
@@ -352,12 +365,11 @@ function tokenize(source: string): Token[] | null {
     }
 
     if (/[0-9.]/.test(ch)) {
-      let num = ''
-      while (i < s.length && /[0-9.]/.test(s[i])) {
-        num += s[i]
-        i += 1
-      }
-      // scientific notation leftover like e+10 from Math.PI string? handled via parens
+      const match = s.slice(i).match(/^(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?/i)
+      if (!match) return null
+      const num = match[0]
+      i += num.length
+      if (s[i] === '.') return null
       if (num === '.' || !Number.isFinite(Number(num))) return null
       tokens.push({ kind: 'number', value: num })
       continue
@@ -518,6 +530,35 @@ function evaluateRpn(rpn: RpnToken[], angleMode: AngleMode): string | null {
 }
 
 function evaluateTokens(tokens: Token[], angleMode: AngleMode): string | null {
+  // Free-form edits need stricter syntax checks than keypad-generated input.
+  let needsValue = true
+  const groups: Array<{ fn: FnName | null; arguments: number }> = []
+  for (let i = 0; i < tokens.length; i += 1) {
+    const token = tokens[i]
+    if (token.kind === 'number') {
+      if (!needsValue) return null
+      needsValue = false
+    } else if (token.kind === 'fn') {
+      if (!needsValue || tokens[i + 1]?.kind !== 'paren' || tokens[i + 1]?.value !== '(') return null
+    } else if (token.kind === 'paren' && token.value === '(') {
+      if (!needsValue) return null
+      const previous = tokens[i - 1]
+      groups.push({ fn: previous?.kind === 'fn' ? previous.value : null, arguments: 1 })
+    } else if (token.kind === 'paren') {
+      const group = groups.pop()
+      if (needsValue || !group || group.arguments !== (group.fn === 'logx' ? 2 : 1)) return null
+      needsValue = false
+    } else if (token.kind === 'comma') {
+      const group = groups[groups.length - 1]
+      if (needsValue || !group?.fn) return null
+      group.arguments += 1
+      needsValue = true
+    } else if (token.kind === 'op') {
+      if (needsValue) return null
+      needsValue = true
+    } else if (needsValue) return null
+  }
+  if (needsValue || groups.length) return null
   return evaluateRpn(toRpn(tokens), angleMode)
 }
 
@@ -526,11 +567,19 @@ export function tryEvaluateExpression(
   source: string,
   angleMode: AngleMode = 'deg',
 ): string | null {
+  if (source.length > 2000) return null
   const tokens = tokenize(source)
   if (!tokens || tokens.length === 0) return null
   const result = evaluateTokens(tokens, angleMode)
   if (result == null || result === 'Error') return null
   return result
+}
+
+/** Preserve the actual calculation when opening the expression editor. */
+export function expressionForEditing(state: CalculatorState): string {
+  if (state.error) return state.expression
+  if (state.justEvaluated) return state.expression || state.entry
+  return formulaSource(state)
 }
 
 function formulaSource(state: CalculatorState, autoClose = false): string {
@@ -666,6 +715,9 @@ export function reduceCalculator(state: CalculatorState, action: CalculatorActio
 
     case 'toggleAngle':
       return { ...state, angleMode: state.angleMode === 'deg' ? 'rad' : 'deg' }
+
+    case 'setAngle':
+      return state.angleMode === action.mode ? state : { ...state, angleMode: action.mode }
 
     case 'loadResult': {
       const value = action.value.trim()
@@ -1007,24 +1059,28 @@ export function reduceCalculator(state: CalculatorState, action: CalculatorActio
     }
 
     case 'backspace': {
-      if (state.error || state.justEvaluated) {
+      if (state.error) {
         return { ...initialCalculatorState, angleMode: state.angleMode }
       }
-      if (!state.overwrite) return { ...state, entry: deleteDigit(state.entry) }
-      if (endsWithOperator(state.expression)) {
-        const trimmed = trimTrailingOp(state.expression)
-        const match = trimmed.match(/(-?\d+(?:\.\d+)?)\s*$/)
-        if (match) {
-          return {
-            ...state,
-            expression: trimmed.slice(0, match.index),
-            entry: match[1],
-            overwrite: false,
-          }
-        }
-        return { ...state, expression: trimmed }
+      if (state.justEvaluated) {
+        return { ...initialCalculatorState, angleMode: state.angleMode, entry: deleteDigit(state.entry), overwrite: false }
       }
-      return state
+      if (!state.overwrite) return { ...state, entry: deleteDigit(state.entry) }
+      const source = state.expression.trimEnd()
+      if (!source) return { ...state, entry: deleteDigit(state.entry), overwrite: false }
+      const fnSuffix = Object.values(FN_DISPLAY).find((label) => source.endsWith(`${label}(`))
+      const trimmed = (fnSuffix ? source.slice(0, -fnSuffix.length - 1) : source.slice(0, -1)).trimEnd()
+      const match = trimmed.match(/(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i)
+      const expression = match ? trimmed.slice(0, match.index) : trimmed
+      return {
+        ...state,
+        expression,
+        entry: match ? match[0] : '0',
+        overwrite: !match,
+        openParens: Math.max(0, (expression.match(/\(/g) ?? []).length - (expression.match(/\)/g) ?? []).length),
+        repeatOperand: null,
+        repeatOperator: null,
+      }
     }
 
     default:

@@ -1,10 +1,11 @@
+import { useSnapshotCurrency } from '@/components/calculator/SnapshotFormat'
 import { CalculatorLayout } from '@/components/calculator/CalculatorLayout'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { ResultBlock, MetricRow } from '@/components/ui/ResultBlock'
-import { useCalculatorPage, formatResultCurrency } from './useCalculatorPage'
+import { useCalculatorPage } from './useCalculatorPage'
 import {
   calculateMortgage,
   explainMortgage,
@@ -75,6 +76,7 @@ function formatPct(n: number) {
 }
 
 function BreakdownList({ title, slices }: { title: string; slices: CostSlice[] }) {
+  const formatResultCurrency = useSnapshotCurrency()
   return (
     <div className="rounded-2xl border border-border bg-white p-4">
       <p className="text-sm font-medium text-text-primary mb-2">{title}</p>
@@ -99,9 +101,9 @@ export default function MortgagePage() {
     buildCharts: buildMortgageCharts,
     buildTable: buildMortgageTable,
     csvFilename: 'mortgage-schedule.csv',
-    getShareText: (r) =>
+    getShareText: (r, _input, formatResultCurrency) =>
       `Mortgage: P&I ${formatResultCurrency(r.principalAndInterest)}, Total housing ${formatResultCurrency(r.totalMonthlyHousing)}/mo`,
-    renderResults: (r) => (
+    renderResults: (r, _input, formatResultCurrency) => (
       <div className="space-y-4">
         <ResultBlock
           label="Principal & interest"
@@ -126,8 +128,11 @@ export default function MortgagePage() {
             label="First payment → interest"
             value={`${formatResultCurrency(r.firstPaymentInterest)} (${formatPct(r.monthlyBreakdown.find((s) => s.label === 'Interest')?.percent ?? 0)})`}
           />
+          <MetricRow label="Remaining principal" value={formatResultCurrency(r.remainingBalance ?? r.schedule.at(-1)?.balance ?? 0)} />
+          <MetricRow label="Final installment" value={formatResultCurrency(r.finalPayment ?? r.schedule.at(-1)?.payment ?? 0)} />
+          <MetricRow label="Payoff date" value={r.payoffDate ?? ((r.schedule.at(-1)?.balance ?? 0) > 0 ? "Balance due at end of schedule" : "Not recorded")} />
           <MetricRow label="Total interest (life of loan)" value={formatResultCurrency(r.totalInterest)} />
-          <MetricRow label="Lifetime housing cost" value={formatResultCurrency(r.totalLifetimeCost)} />
+          <MetricRow label="Housing cost during loan" value={formatResultCurrency(r.totalLifetimeCost)} />
           {r.interestSaved !== undefined && (
             <MetricRow label="Interest saved (extra)" value={formatResultCurrency(r.interestSaved)} />
           )}
@@ -418,7 +423,7 @@ export default function MortgagePage() {
               onChange={(v) => set('country', v)}
             />
             <p className="text-sm text-text-muted">
-              US rates use APR ÷ 12 (monthly compounding). Canada converts the quoted rate from
+              US rates use the nominal annual note rate ÷ 12 (monthly compounding). Canada converts the quoted rate from
               semi-annual compounding to a monthly equivalent, so the same nominal rate usually
               produces a slightly lower payment.
             </p>

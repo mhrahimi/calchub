@@ -17,6 +17,7 @@ export function buildCouponSchedule(
   periods: number,
   frequency: number,
 ): BondCashFlow[] {
+  if (!Number.isInteger(periods) || periods < 1 || periods > 10000) throw new Error('Use whole regular coupon periods')
   const coupon = couponPerPeriod(faceValue, couponRate, frequency)
   return Array.from({ length: periods }, (_, i) => {
     const period = i + 1
@@ -102,7 +103,7 @@ export function priceYieldCurve(
   const centerAnnual = yieldPerPeriod * frequency
   const points: Array<{ yield: number; price: number }> = []
   for (let i = 0; i <= steps; i++) {
-    const annual = Math.max(0.001, centerAnnual - 0.05 + (0.1 * i) / steps)
+    const annual = Math.max(-0.95 * frequency, centerAnnual - 0.05 + (0.1 * i) / steps)
     const yPeriod = annual / frequency
     points.push({
       yield: annual * 100,

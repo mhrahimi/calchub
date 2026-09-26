@@ -1,7 +1,20 @@
 import { describe, it, expect } from 'vitest'
 import { calculateSalary } from './calculate'
+import { explainSalary } from './calculate'
+import { resultMetadata } from '@/exports/resultMetadata'
 
 describe('salary', () => {
+  it('shows Quebec payroll and the same income-tax exclusions in take-home results', () => {
+    const input = {mode:'take-home' as const,amount:100000,fromFrequency:'annual' as const,toFrequency:'monthly' as const,country:'CA' as const,jurisdictionId:'quebec'}
+    const r = calculateSalary(input)
+    expect(r.payrollTotal).toBe(6221)
+    expect(r.payrollLabels).toContainEqual({label:'EI (Quebec)',amount:895.7})
+    expect(r.coverage?.excluded).toContain('Quebec federal abatement')
+    expect(r.coverage?.excluded).not.toContain('Payroll contributions and local taxes')
+    expect(explainSalary(input,r).assumptions?.join(' ')).toContain('QPP, QPIP and EI')
+    expect(explainSalary(input,r).assumptions?.join(' ')).not.toContain('Do not apply CPP/EI')
+    expect(resultMetadata('salary',r).status).toBe('approximate')
+  })
   it('converts hourly to annual', () => {
     const r = calculateSalary({
       mode: 'conversion',

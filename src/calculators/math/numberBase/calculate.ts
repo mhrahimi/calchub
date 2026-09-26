@@ -26,7 +26,7 @@ export function buildNumberBaseTable(result: NumberBaseResult): TableData {
     title: 'Conversion steps',
     columns: [
       { key: 'step', label: 'Step', align: 'left' },
-      { key: 'value', label: 'Value', align: 'left' },
+      { key: 'value', label: 'Value', align: 'left', format: 'text' },
     ],
     rows: result.steps.map((s, i) => ({ step: s.label, value: s.value, _index: i })),
   }

@@ -24,6 +24,7 @@ export function SegmentedControl<T extends string>({
         <button
           key={opt.value}
           type="button"
+          aria-pressed={value === opt.value}
           onClick={() => onChange(opt.value)}
           className={cn(
             'flex-1 min-w-0 min-h-11 px-2 sm:px-4 py-2 text-xs sm:text-sm leading-tight text-center rounded-full transition-all duration-200 whitespace-normal',

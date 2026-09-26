@@ -301,6 +301,11 @@ export function calculateMortgage(input: MortgageInput): MortgageResult {
   )
 
   return {
+    status: scheduleResult.status,
+    warnings: scheduleResult.warnings,
+    remainingBalance: scheduleResult.remainingBalance,
+    finalPayment: scheduleResult.schedule.at(-1)?.payment ?? 0,
+    payoffDate: scheduleResult.remainingBalance === 0 ? scheduleResult.schedule.at(-1)?.date ?? null : null,
     loanAmount,
     downPaymentAmount,
     principalAndInterest: baseline.payment,
@@ -335,7 +340,7 @@ export function explainMortgage(input: MortgageInput, result: MortgageResult): C
   const rateNote =
     input.country === 'CA'
       ? `Canadian monthly rate = (1 + j/2)^(2/12) - 1 = ${(result.monthlyRate * 100).toFixed(4)}%`
-      : `US monthly rate = APR / 12 = ${(result.monthlyRate * 100).toFixed(4)}%`
+      : `US monthly rate = nominal annual note rate / 12 = ${(result.monthlyRate * 100).toFixed(4)}%`
   return {
     title: 'Mortgage calculation',
     steps: [
@@ -356,6 +361,8 @@ export function explainMortgage(input: MortgageInput, result: MortgageResult): C
     assumptions: [
       'Taxes, insurance, and fees are estimates held constant each month.',
       'First-month principal/interest split uses the amortization schedule.',
+      'Interest and payments are rounded to cents at payment dates; the final fixed-rate installment settles the remaining balance.',
+      'Note rate excludes loan fees. Housing costs cover only the modeled loan horizon and exclude acquisition cash and later ownership costs.',
     ],
   }
 }

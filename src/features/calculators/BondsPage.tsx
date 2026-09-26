@@ -2,7 +2,7 @@ import { CalculatorLayout } from '@/components/calculator/CalculatorLayout'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { ResultBlock, MetricRow } from '@/components/ui/ResultBlock'
-import { useCalculatorPage, formatResultCurrency } from './useCalculatorPage'
+import { useCalculatorPage } from './useCalculatorPage'
 import {
   calculateBonds,
   explainBonds,
@@ -30,16 +30,16 @@ export default function BondsPage() {
     buildCharts: buildBondsCharts,
     buildTable: buildBondsTable,
     csvFilename: 'bond-cashflows.csv',
-    getShareText: (r) => `YTM: ${r.ytmPercent.toFixed(2)}%, Duration: ${r.macaulayDuration.toFixed(2)}`,
-    renderResults: (r) => (
+    getShareText: (r, _input, _formatResultCurrency) => `YTM: ${r.ytmPercent.toFixed(2)}%, Duration: ${r.macaulayDuration.toFixed(2)}`,
+    renderResults: (r, _input, formatResultCurrency) => (
       <div className="space-y-4">
         <ResultBlock label="Yield to maturity" value={`${r.ytmPercent.toFixed(4)}%`} primary />
         <div className="rounded-2xl border border-border bg-white p-4">
           <MetricRow label="Coupon payment" value={formatResultCurrency(r.couponPayment)} />
           <MetricRow label="Current yield" value={`${r.currentYield.toFixed(2)}%`} />
-          <MetricRow label="Macaulay duration" value={r.macaulayDuration.toFixed(4)} />
-          <MetricRow label="Modified duration" value={r.modifiedDuration.toFixed(4)} />
-          <MetricRow label="Convexity" value={r.convexity.toFixed(4)} />
+          <MetricRow label="Macaulay duration" value={`${r.macaulayDuration.toFixed(4)} years`} />
+          <MetricRow label="Modified duration" value={`${r.modifiedDuration.toFixed(4)} years`} />
+          <MetricRow label="Convexity" value={`${r.convexity.toFixed(4)} years²`} />
         </div>
       </div>
     ),
@@ -53,7 +53,7 @@ export default function BondsPage() {
         <>
           <Input label="Face value" prefix="$" grouped value={form.faceValue} onValueChange={(n) => set('faceValue', n)} error={errors.faceValue} />
           <Input label="Bond price" prefix="$" grouped value={form.bondPrice} onValueChange={(n) => set('bondPrice', n)} error={errors.bondPrice} />
-          <Input label="Coupon rate" suffix="%" type="number" value={form.couponRate} onChange={(e) => set('couponRate', +e.target.value)} />
+          <Input label="Coupon rate" suffix="%" type="number" value={form.couponRate} onChange={(e) => set('couponRate', +e.target.value)} error={errors.couponRate} />
           <Select
             label="Coupon frequency"
             value={String(form.couponFrequency)}
@@ -65,7 +65,7 @@ export default function BondsPage() {
               { value: '12', label: 'Monthly' },
             ]}
           />
-          <Input label="Periods to maturity" type="number" value={form.periodsToMaturity} onChange={(e) => set('periodsToMaturity', +e.target.value)} error={errors.periodsToMaturity} />
+          <Input label="Regular coupon periods to maturity" type="number" value={form.periodsToMaturity} onChange={(e) => set('periodsToMaturity', +e.target.value)} error={errors.periodsToMaturity} />
         </>
       }
     />

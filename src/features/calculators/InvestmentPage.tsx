@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { ResultBlock, MetricRow } from '@/components/ui/ResultBlock'
-import { useCalculatorPage, formatResultCurrency } from './useCalculatorPage'
+import { useCalculatorPage } from './useCalculatorPage'
 import { calculateInvestment, explainInvestment, buildInvestmentCharts, buildInvestmentTable } from '@/calculators/finance/investment/calculate'
 import { validateInvestment } from '@/calculators/finance/investment/validation'
 import type { InvestmentInput } from '@/calculators/finance/investment/types'
@@ -29,10 +29,10 @@ export default function InvestmentPage() {
     buildCharts: buildInvestmentCharts,
     buildTable: buildInvestmentTable,
     csvFilename: 'investment-growth.csv',
-    getShareText: (r) => `Investment ending balance: ${formatResultCurrency(r.endingBalance)}`,
-    renderResults: (r) => (
+    getShareText: (r, _input, formatResultCurrency) => `Investment ending balance: ${formatResultCurrency(r.endingBalance)}`,
+    renderResults: (r, input, formatResultCurrency) => (
       <div className="space-y-4">
-        <ResultBlock label={r.solvedLabel} value={form.solveFor === 'fv' ? formatResultCurrency(r.endingBalance) : String(r.solvedValue)} primary />
+        <ResultBlock label={r.solvedLabel} value={input.solveFor === 'rate' ? `${r.solvedValue}%` : input.solveFor === 'periods' ? `${r.solvedValue} years` : formatResultCurrency(r.solvedValue)} primary />
         <div className="rounded-2xl border border-border bg-white p-4">
           <MetricRow label="Starting principal" value={formatResultCurrency(r.startingPrincipal)} />
           <MetricRow label="Total contributions" value={formatResultCurrency(r.totalContributions)} />
