@@ -16,8 +16,8 @@ export const REPORT_FIELDS:Record<string,Definition[]> = {
   mortgage:[money('principalAndInterest','Principal and interest per month'),money('totalMonthlyHousing','Monthly housing cost'),money('loanAmount','Original mortgage principal'),money('downPaymentAmount','Down payment'),money('totalInterest','Total interest'),money('totalPrincipalPaid','Principal repaid'),money('remainingBalance','Remaining principal'),money('totalPayments','Total mortgage payments'),money('finalPayment',"Final month's loan payments"),money('totalLifetimeCost','Housing costs during loan horizon'),['payoffDate','Payoff date','date'],fraction('monthlyRate','Effective monthly interest rate'),money('interestSaved','Interest saved'),number('periodsSaved','Months saved','months',0)],
   loan:[...loanFields,money('financedAmount','Financed amount'),money('totalCost','Total cost')],
   'interest-rate':[fraction('annualRate','Nominal annual rate'),fraction('effectiveAnnualRate','Effective annual rate'),fraction('periodicRate','Rate per payment period'),money('totalInterest','Total interest'),money('remainingBalance','Remaining principal')],
-  'compound-interest':[money('finalBalance','Final balance'),money('totalContributions','Total contributions'),money('interestEarned','Interest earned'),money('realValue','Inflation-adjusted balance')],
-  investment:[money('solvedValue','Solved amount'),money('endingBalance','Ending balance'),money('startingPrincipal','Starting investment'),money('totalContributions','Total contributions'),money('investmentEarnings','Investment earnings')],
+  'compound-interest':[money('finalBalance','Final balance'),money('totalContributions','Total contributions'),money('interestEarned','Interest earned'),money('realValue','Inflation-adjusted balance'),['effectiveAnnualRate','Effective annual rate','percent','%',4],text('rateConvention','Rate convention'),['depletionDate','Funds depleted on','date'],money('unmetWithdrawals','Unmet withdrawals')],
+  investment:[money('solvedValue','Solved amount'),money('endingBalance','Ending balance'),money('startingPrincipal','Starting investment'),money('totalContributions','Total contributions'),money('investmentEarnings','Investment earnings'),['effectiveAnnualRate','Effective annual return','percent','%',4],text('rateConvention','Rate convention'),number('elapsedPeriods','Elapsed contribution periods','periods',0),number('depletionPeriod','Funds depleted after','years',6),money('unmetWithdrawals','Unmet withdrawals')],
   'savings-goal':[money('requiredContribution','Contribution per period'),number('periodsToGoal','Whole contribution periods','periods',0),number('timeToGoal','Time horizon','years',6),money('projectedBalance','Projected balance'),money('goalAmount','Goal amount'),money('totalContributions','Total contributions')],
   retirement:[money('projectedBalance','Projected retirement balance'),money('requiredBalance','Required retirement balance'),money('shortfallOrSurplus','Surplus / shortfall'),money('requiredAnnualContribution','Required first-year contribution'),number('depletionAge','Age at depletion','years',0),money('totalUnmetSpending','Total unmet retirement spending'),number('yearsToRetirement','Years until retirement','years',0)],
   dti:[percent('backEndDti','Total debt-to-income ratio'),percent('frontEndDti','Housing debt-to-income ratio'),money('housingCost','Monthly housing cost'),money('totalDebt','Total monthly debt'),['withinGuideline','Within selected guideline','boolean']],
@@ -67,7 +67,7 @@ export function resultFields(id:string,inputs:unknown,results:unknown,p:Calculat
   if(model==='investment') {defs[0]=['solvedValue',String(r.solvedLabel),i.solveFor==='rate'?'percent':i.solveFor==='periods'?'number':'currency',i.solveFor==='periods'?'years':'']}
   if(model==='savings-goal') primary=i.solveFor==='contribution'?'requiredContribution':i.solveFor==='time'?'periodsToGoal':'projectedBalance'
   if(model==='p-value'&&!('pValue'in r)) primary='estimate'
-  const fields=defs.filter(d=>atPath(r,d[0])!==undefined).map(d=>{
+  const fields=defs.filter(d=>atPath(r,d[0])!==undefined && !(model==='compound-interest'&&d[0]==='realValue'&&!i.adjustForInflation) && !(d[0]==='unmetWithdrawals'&&r.depletionDate===undefined&&r.depletionPeriod===undefined)).map(d=>{
     if(model==='trigonometry'&&['angleA','angleB'].includes(d[0]))d[3]=String(r.angleUnit)
     if(model==='conversion')d[3]=String(d[0]==='outputValue'?r.toSymbol:r.fromSymbol)
     const field=makeField(d,atPath(r,d[0]),p)
@@ -75,6 +75,8 @@ export function resultFields(id:string,inputs:unknown,results:unknown,p:Calculat
     if (model === 'standard-deviation' && ['sampleSd','sampleVariance'].includes(d[0]) && (field.raw === null || typeof field.raw === 'number' && !Number.isFinite(field.raw))) field.display = 'Not defined for one observation'
     if (model === 'random-number' && d[0] === 'values' && Array.isArray(r.values) && r.values.length > 20) field.display = `${r.values.slice(0,20).join(', ')} … (${r.values.length} values; see complete table)`
     if (d[0] === 'terminalMethod') field.display = field.raw === 'gordon' ? 'Perpetual growth' : 'Exit multiple'
+    if (d[0] === 'rateConvention' && field.raw === 'nominal-annual') field.display = 'Nominal annual'
+    if (model === 'investment' && d[0] === 'solvedValue' && i.solveFor === 'periods' && typeof r.elapsedTime === 'string') field.display = r.elapsedTime
     field.primary=d[0]===primary
     return field
   })
@@ -93,12 +95,18 @@ const enumLabels:Record<string,Record<string,string>> = {
   terminalMethod:{gordon:'Perpetual growth',exitMultiple:'Exit multiple'},
   country:{US:'United States',CA:'Canada'},
   contributionTiming:{begin:'Beginning of period',end:'End of period'},
+  rateConvention:{'nominal-annual':'Nominal annual'},
+  contributionFrequency:{daily:'Daily',weekly:'Weekly','bi-weekly':'Every two weeks','bi-monthly':'Twice a month',semimonthly:'Twice a month',monthly:'Monthly',quarterly:'Quarterly','semi-annual':'Every six months',annual:'Yearly',yearly:'Yearly'},
 }
 const percentInputs=new Set('interestRate returnRate expectedReturn contributionGrowth inflationRate inflation couponRate riskFreeRate volatility dividendYield salesTaxRate wacc terminalGrowth taxRate effectiveTaxRate revenueGrowth ebitdaMargin exitFeePercent guideline confidenceLevel downPaymentPercent'.split(' '))
 export function inputFields(inputs:unknown,p:CalculationProvenance):ReportField[] {
   const out:ReportField[]=[]
   const root=inputs as Record<string,unknown>
+  const inactive = p.modelVersion.startsWith('investment/')
+    ? ({ fv: ['targetValue'], pv: ['startingInvestment'], pmt: ['periodicContribution'], rate: ['returnRate'], periods: ['period', 'periodUnit'] } as Record<string,string[]>)[String(root.solveFor)] ?? []
+    : []
   const visit=(value:unknown,path:string,label:string,key:string)=>{
+    if (inactive.includes(path)) return
     if(value===undefined)return
     if(value&&typeof value==='object') { for(const [k,v] of Object.entries(value))visit(v,path?`${path}.${k}`:k,`${label}${label?' / ':''}${/^\d+$/.test(k)?Number(k)+1:humanizeKey(k)}`,k); return }
     let kind:FieldKind=typeof value==='boolean'?'boolean':typeof value==='number'?'number':'text'

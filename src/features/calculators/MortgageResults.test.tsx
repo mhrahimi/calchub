@@ -25,7 +25,7 @@ function render(input: MortgageInput, legacy = false) {
 describe('mortgage result presentation', () => {
   it('clearly labels a principal-and-interest-only estimate', () => {
     const html = render(base)
-    expect(html).toContain('$2,528.27')
+    expect(html.replace(/<[^>]*>/g, '')).toContain('$2,528.27')
     expect(html).toContain('Taxes, insurance and other ownership costs are not included.')
     expect(html).toContain('aria-label="Mortgage result views"')
     expect(html).not.toMatch(/NaN|undefined|Currency not recorded/)
@@ -33,14 +33,14 @@ describe('mortgage result presentation', () => {
   it('labels housing costs and preserves the calculated country currency', () => {
     const html = render({ ...base, country: 'CA', includeTaxesAndCosts: true })
     expect(html).toContain('Monthly housing estimate')
-    expect(html).toContain('$650.00')
+    expect(html.replace(/<[^>]*>/g, '')).toContain('$650.00')
     expect(html).toContain('Canadian quotes use semi-annual compounding.')
     expect(html).not.toMatch(/CAD|USD/)
   })
   it('explains extra cash requirements, including on reopened legacy results', () => {
     const html = render({ ...base, includeExtraPayments: true, monthlyExtraPayment: 200 }, true)
     expect(html).toContain('With your planned monthly extra:')
-    expect(html).toContain('$2,728.27')
+    expect(html.replace(/<[^>]*>/g, '')).toContain('$2,728.27')
     expect(html).toContain('Extra principal')
     expect(html).toContain('Annual and one-time extras are separate')
   })

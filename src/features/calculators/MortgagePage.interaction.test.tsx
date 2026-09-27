@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
+import { HashRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import MortgagePage from './MortgagePage'
 import { DEFAULT_SETTINGS, type AppSettings } from '@/calculators/types'
@@ -59,6 +60,22 @@ afterEach(async () => {
 })
 
 describe('mortgage interactions', () => {
+  it('jumps to the estimate without leaving the calculator or losing edited inputs', async () => {
+    window.history.replaceState(null, '', '#/calculators/mortgage')
+    await act(async () => root.render(<HashRouter><Routes>
+      <Route path="/calculators/mortgage" element={<MortgagePage />} />
+      <Route path="*" element={<p>Left the calculator</p>} />
+    </Routes></HashRouter>))
+    await type('interest-rate', '5'); await settle()
+    await click(container.querySelector<HTMLElement>('.mortgage-jump')!); await settle()
+    expect(window.location.hash).toBe('#/calculators/mortgage')
+    expect(amount()).toContain('$2,147.29')
+    expect(inputById('interest-rate').value).toBe('5')
+    expect(document.activeElement?.id).toBe('mortgage-estimate-title')
+    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled()
+    window.history.replaceState(null, '', '/')
+  })
+
   it('updates after typing without a stale-results warning, calculate button, or focus jump', async () => {
     await mount()
     expect(amount()).toContain('$2,528.27')

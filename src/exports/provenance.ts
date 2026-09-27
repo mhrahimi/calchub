@@ -20,13 +20,13 @@ export interface CalculationProvenance {
 export function captureProvenance(id: string, inputs: object, metadata: ResultMetadata, settings: AppSettings, results: unknown, calculatedAt = new Date().toISOString()): CalculationProvenance {
   const input = inputs as Record<string, unknown>
   const r = results as Record<string, unknown>
-  const units = Object.fromEntries(Object.entries(input).filter(([key,value]) => /(?:Unit|Frequency|Timing|System)$/.test(key) && typeof value === 'string').map(([key,value])=>[key,String(value)]))
+  const units = Object.fromEntries(Object.entries(input).filter(([key,value]) => /(?:Unit|Frequency|Timing|System|Convention)$/.test(key) && typeof value === 'string').map(([key,value])=>[key,String(value)]))
   // Jurisdiction-specific calculations are denominated in that jurisdiction's money.
   const currency = ['income-tax','salary'].includes(id) && input.country ? (input.country === 'CA' ? 'CAD' : 'USD') : id === 'inflation' && input.mode === 'historical' ? 'USD' : settings.currency
   return { currency, locale: settings.numberFormat, measurementSystem: settings.measurementSystem, calculatedAt, modelVersion: metadata.modelVersion,
     taxConfigVersion: typeof r.taxConfigVersion === 'string' ? r.taxConfigVersion : undefined,
     dataRevision: id === 'inflation' && input.mode === 'historical' ? CPI_VERSION : undefined,
-    units, precision: 'Currency displayed to 2 decimals; calculations retain model precision. Payment ledgers round to cents at events.', assumptions: [...metadata.assumptions] }
+    units, precision: ['investment', 'compound-interest'].includes(id) ? 'Currency displayed to 2 decimals; growth and cash flows retain model precision until display.' : 'Currency displayed to 2 decimals; calculations retain model precision. Payment ledgers round to cents at events.', assumptions: [...metadata.assumptions] }
 }
 
 export function legacyProvenance(modelVersion: string, calculatedAt = ''): CalculationProvenance {

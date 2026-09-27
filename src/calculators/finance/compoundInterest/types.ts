@@ -1,4 +1,5 @@
 export interface CompoundInterestInput {
+  rateConvention?: 'nominal-annual'
   startDate?: string
   principal: number
   interestRate: number
@@ -14,9 +15,15 @@ export interface CompoundInterestInput {
 }
 
 export interface CompoundInterestResult {
+  status: 'success' | 'depleted'
+  warnings: string[]
+  rateConvention: 'nominal-annual'
+  effectiveAnnualRate: number
+  depletionDate?: string
+  unmetWithdrawals: number
   finalBalance: number
   realValue: number
   totalContributions: number
   interestEarned: number
-  schedule: Array<{ period: number; date?: string; balance: number; contributions: number; interest: number }>
+  schedule: Array<{ period: number; date?: string; balance: number; contributions: number; interest: number; unmetWithdrawals?: number }>
 }

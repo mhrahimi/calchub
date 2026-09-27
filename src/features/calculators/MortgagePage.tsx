@@ -48,14 +48,15 @@ export default function MortgagePage() {
   const downAmount = form.downPaymentIsPercent ? form.homePrice * form.downPayment / 100 : form.downPayment
   const downPercent = form.homePrice > 0 ? downAmount / form.homePrice * 100 : 0
   const updateExtra = (index: number, patch: Partial<OneTimeExtraPayment>) => set('oneTimeExtraPayments', (form.oneTimeExtraPayments ?? []).map((payment, i) => i === index ? { ...payment, ...patch } : payment))
+  const focusEstimate = () => {
+    const heading = document.getElementById('mortgage-estimate-title')
+    heading?.focus({ preventScroll: true })
+    heading?.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })
+  }
   const calculate = () => {
     handleCalculate(form)
     if (validateMortgage(form).valid && window.matchMedia('(max-width: 1023px)').matches) {
-      requestAnimationFrame(() => {
-        const heading = document.getElementById('mortgage-estimate-title')
-        heading?.focus({ preventScroll: true })
-        heading?.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })
-      })
+      requestAnimationFrame(focusEstimate)
     }
   }
   const applyPayoff = (option: PayoffOption) => {
@@ -76,7 +77,7 @@ export default function MortgagePage() {
         if (event.key === 'Enter' && event.target instanceof HTMLInputElement && event.target.type !== 'checkbox') { event.preventDefault(); calculate() }
       }}>
         {layoutProps.provenance?.currency && layoutProps.provenance.currency !== currency && <p className="mortgage-note">This saved estimate is in {layoutProps.provenance.currency}; your app is set to {currency}. Editing uses your app currency without converting amounts.</p>}
-        {result && <a className="mortgage-jump" href="#mortgage-estimate-title">View your estimate <span aria-hidden="true">↓</span></a>}
+        {result && <button type="button" className="mortgage-jump" onClick={focusEstimate}>View your estimate <span aria-hidden="true">↓</span></button>}
         <fieldset className="mortgage-fieldset">
           <legend><span>01</span>Your mortgage</legend>
           <p className="mortgage-note">Starting values are examples. Use your own price and lender quote.</p>

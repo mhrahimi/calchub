@@ -19,11 +19,11 @@ const primary: Record<string,string> = {
   'fractions-percentage':'primary','standard-deviation':'populationSd','random-number':'values',
   triangle:'area',trigonometry:'angleA','p-value':'pValue','gcf-lcm':'gcf',date:'totalDays',conversion:'outputValue',
 }
-const correctedModels = new Set(['date', 'salary', 'income-tax', 'retirement', 'p-value', 'random-number', 'gcf-lcm', 'mortgage', 'amortization', 'loan', 'bonds', 'savings-goal', 'investment', 'trigonometry', 'inflation', 'standard-deviation'])
+const correctedModels = new Set(['compound-interest', 'date', 'salary', 'income-tax', 'retirement', 'p-value', 'random-number', 'gcf-lcm', 'mortgage', 'amortization', 'loan', 'bonds', 'savings-goal', 'investment', 'trigonometry', 'inflation', 'standard-deviation'])
 export function resultMetadata(id:string,result:unknown,explanation?:CalculationExplanation,legacy=false):ResultMetadata {
   const r=(result??{}) as Record<string,unknown>
   const model=id==='dcf-lbo'?('moic' in r?'lbo':'dcf'):id
-  const version = `${model}/${model === 'mortgage' ? '2.4.0' : correctedModels.has(model) ? '2.2.0' : '2.0.0'}`
+  const version = `${model}/${model === 'mortgage' ? '2.4.0' : ['investment', 'compound-interest'].includes(model) ? '2.3.0' : correctedModels.has(model) ? '2.2.0' : '2.0.0'}`
   if (r.metadata) {
     const saved = r.metadata as ResultMetadata
     if (correctedModels.has(model) && saved.modelVersion !== version) {

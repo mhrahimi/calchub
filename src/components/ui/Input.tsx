@@ -28,8 +28,12 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   suffix?: string
   prefix?: string
   grouped?: boolean
-  /** Show a +/- control; keyboard minus is ignored (decimal pad friendly). */
+  /** Show a +/- control; allowSignedTyping additionally enables typed signs. */
   signed?: boolean
+  /** Preserve typed/pasted minus signs; callers validate the permitted range. */
+  allowSignedTyping?: boolean
+  /** Keep required numeric fields empty instead of silently replacing them with zero. */
+  emptyAsNaN?: boolean
   onValueChange?: (value: number) => void
 }
 
@@ -41,7 +45,9 @@ function numericFrom(value: InputHTMLAttributes<HTMLInputElement>['value']): num
 function initialDisplay(
   value: InputHTMLAttributes<HTMLInputElement>['value'],
   grouped: boolean,
+  emptyAsNaN = false,
 ): string {
+  if (emptyAsNaN && (value === '' || value === undefined || (typeof value === 'number' && Number.isNaN(value)))) return ''
   const n = numericFrom(value)
   return grouped ? formatGroupedInput(n) : formatDecimalDisplay(n)
 }
@@ -71,6 +77,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       id,
       grouped = false,
       signed = false,
+      allowSignedTyping = false,
+      emptyAsNaN = false,
       onValueChange,
       onChange,
       onBlur,
@@ -89,12 +97,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     const pendingTokens = useRef<number | null>(null)
     const isNumberType = type === 'number'
     const useDraft = grouped || isNumberType
-    const [display, setDisplay] = useState(() => initialDisplay(value, grouped))
+    const [display, setDisplay] = useState(() => initialDisplay(value, grouped, emptyAsNaN))
 
     useEffect(() => {
       if (!useDraft || focusedRef.current) return
-      setDisplay(initialDisplay(value, grouped))
-    }, [grouped, useDraft, value])
+      setDisplay(initialDisplay(value, grouped, emptyAsNaN))
+    }, [grouped, useDraft, value, emptyAsNaN])
 
     useLayoutEffect(() => {
       if (!grouped || pendingTokens.current === null) return
@@ -112,20 +120,22 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     }
 
     const handleGroupedChange = (e: ChangeEvent<HTMLInputElement>) => {
-      let raw = e.target.value
-      if (signed) {
+      let raw = allowSignedTyping ? e.target.value.replace(/−/g, '-') : e.target.value
+      if (signed && !allowSignedTyping) {
         raw = applyDraftSign(raw.replace(/-/g, ''), draftIsNegative(display))
       }
       pendingTokens.current = caretTokenCount(raw, e.target.selectionStart ?? raw.length)
       const next = formatGroupedInput(raw)
       setDisplay(next)
-      onValueChange?.(raw === '' || raw === '-' ? 0 : parseMoney(next))
+      onValueChange?.(raw === '' || raw === '-' ? (emptyAsNaN ? NaN : 0) : parseMoney(next))
       onChange?.(e)
     }
 
     const handleDecimalChange = (e: ChangeEvent<HTMLInputElement>) => {
-      let raw = e.target.value
-      if (signed) {
+      let raw = allowSignedTyping ? e.target.value.replace(/−/g, '-') : e.target.value
+      if (allowSignedTyping) {
+        raw = sanitizeDecimalDraft(raw, { allowSign: true })
+      } else if (signed) {
         raw = applyDraftSign(
           sanitizeDecimalDraft(raw, { allowSign: false }),
           draftIsNegative(display),
@@ -134,8 +144,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         raw = sanitizeDecimalDraft(raw, { allowSign: false })
       }
       setDisplay(raw)
-      const empty = raw === '' || raw === '-'
-      onValueChange?.(empty ? 0 : parseDecimalDraft(raw))
+      const empty = raw === '' || raw === '-' || raw === '.' || raw === '-.'
+      onValueChange?.(empty ? (emptyAsNaN ? NaN : 0) : emptyAsNaN ? Number(raw) : parseDecimalDraft(raw))
       if (onChange) {
         const valueForParent = empty ? '' : raw
         onChange({
@@ -182,7 +192,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 
     const handleBlur = (e: FocusEvent<HTMLInputElement>) => {
       focusedRef.current = false
-      if (useDraft) setDisplay(initialDisplay(value, grouped))
+      if (useDraft) setDisplay(initialDisplay(value, grouped, emptyAsNaN))
       onBlur?.(e)
     }
 
@@ -225,7 +235,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               ref={assignRef}
               id={inputId}
               aria-invalid={!!error}
-              aria-describedby={error ? `${inputId}-error` : undefined}
+              aria-describedby={[hint && `${inputId}-hint`, error && `${inputId}-error`].filter(Boolean).join(' ') || undefined}
               className={cn(
                 'w-full h-11 rounded-xl border border-border bg-white px-3 text-text-primary text-base',
                 'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:border-primary',
@@ -260,7 +270,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             )}
           </div>
         </div>
-        {hint && <p className="text-sm text-text-muted">{hint}</p>}
+        {hint && <p id={`${inputId}-hint`} className="text-sm text-text-muted">{hint}</p>}
         {error && (
           <p id={`${inputId}-error`} className="text-sm text-red-600" role="alert">
             {error}

@@ -21,7 +21,7 @@ describe('investment', () => {
   })
 
   it('solves PV as the discounted residual after contribution FV', () => {
-    const target = 250000
+    const target = 350000
     const r = calculateInvestment({ ...base, solveFor: 'pv', targetValue: target })
     const expected = pvFromFv(target, 0.07 / 12, 240, 500)
     expect(r.solvedValue).toBeCloseTo(expected, 1)
@@ -35,12 +35,12 @@ describe('investment', () => {
     expect(begin.endingBalance).toBeGreaterThan(end.endingBalance)
   })
 
-  it('applies a negative contribution as a withdrawal in FV', () => {
-    const r = calculateInvestment({ ...base, solveFor: 'fv', periodicContribution: -200 })
-    const expected = fvEnd(10000, 0.07 / 12, 240, -200)
+  it('applies funded withdrawals in FV without borrowing', () => {
+    const r = calculateInvestment({ ...base, period: 2, solveFor: 'fv', periodicContribution: -200 })
+    const expected = fvEnd(10000, 0.07 / 12, 24, -200)
     expect(r.endingBalance).toBeCloseTo(expected, 1)
     expect(r.schedule.at(-1)!.balance).toBeCloseTo(r.endingBalance, 1)
-    expect(r.totalContributions).toBeCloseTo(10000 + -200 * 240, 1)
+    expect(r.totalContributions).toBeCloseTo(10000 + -200 * 24, 1)
     expect(r.endingBalance).toBeLessThan(fvEnd(10000, 0.07 / 12, 240, 0))
   })
 })

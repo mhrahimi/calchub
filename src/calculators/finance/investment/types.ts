@@ -1,6 +1,7 @@
 export type SolveFor = 'fv' | 'pv' | 'pmt' | 'rate' | 'periods'
 
 export interface InvestmentInput {
+  rateConvention?: 'nominal-annual'
   solveFor: SolveFor
   startingInvestment: number
   periodicContribution: number
@@ -13,11 +14,19 @@ export interface InvestmentInput {
 }
 
 export interface InvestmentResult {
+  status: 'success' | 'depleted'
+  warnings: string[]
+  rateConvention: 'nominal-annual'
+  effectiveAnnualRate: number
+  depletionPeriod?: number
+  unmetWithdrawals: number
+  elapsedPeriods?: number
+  elapsedTime?: string
   endingBalance: number
   startingPrincipal: number
   totalContributions: number
   investmentEarnings: number
   solvedValue: number
   solvedLabel: string
-  schedule: Array<{ period: number; balance: number; contributions: number; earnings: number }>
+  schedule: Array<{ period: number; balance: number; contributions: number; earnings: number; unmetWithdrawals?: number }>
 }

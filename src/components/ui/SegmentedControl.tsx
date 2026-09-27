@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { cn } from '@/utils/cn'
 
 interface SegmentedControlProps<T extends string> {
@@ -5,6 +6,8 @@ interface SegmentedControlProps<T extends string> {
   value: T
   onChange: (value: T) => void
   className?: string
+  label?: string
+  error?: string
 }
 
 export function SegmentedControl<T extends string>({
@@ -12,9 +15,18 @@ export function SegmentedControl<T extends string>({
   value,
   onChange,
   className,
+  label,
+  error,
 }: SegmentedControlProps<T>) {
+  const errorId = useId()
   return (
+    <>
     <div
+      role={label ? 'group' : undefined}
+      aria-label={label}
+      aria-invalid={!!error}
+      aria-describedby={error ? errorId : undefined}
+      tabIndex={error ? -1 : undefined}
       className={cn(
         'flex w-full max-w-full rounded-full bg-surface-lighter p-1 border border-border',
         className,
@@ -37,5 +49,7 @@ export function SegmentedControl<T extends string>({
         </button>
       ))}
     </div>
+    {error && <p id={errorId} role="alert" className="mt-1 text-sm text-red-600">{error}</p>}
+    </>
   )
 }

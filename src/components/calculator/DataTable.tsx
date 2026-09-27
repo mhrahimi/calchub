@@ -5,11 +5,13 @@ import { snapshotCurrency, type CalculationProvenance, type CurrencyDisplay } fr
 import { useEffect, useRef, useState } from 'react'
 import type { TableData } from '@/calculators/types'
 import { cn } from '@/utils/cn'
+import { FormattedAmount } from '@/components/ui/FormattedAmount'
 
 interface DataTableProps {
   table: TableData
   maxRows?: number
   scrollable?: boolean
+  softenDecimals?: boolean
 }
 
 function formatCell(value: string | number, format?: string, p?: CalculationProvenance, precision?: number, unit?:string, currencyDisplay: CurrencyDisplay = 'code'): string {
@@ -20,7 +22,7 @@ function formatCell(value: string | number, format?: string, p?: CalculationProv
   return displayNumber(value,p?.locale??'en-US',precision??(Number.isInteger(value)?0:4))+(unit?` ${unit}`:'')
 }
 
-export function DataTable({ table, maxRows = 120, scrollable = false }: DataTableProps) {
+export function DataTable({ table, maxRows = 120, scrollable = false, softenDecimals = false }: DataTableProps) {
   const provenance = useContext(SnapshotFormatContext)
   const currencyDisplay = useContext(CurrencyDisplayContext)
   const [page,setPage] = useState(0)
@@ -74,6 +76,7 @@ export function DataTable({ table, maxRows = 120, scrollable = false }: DataTabl
                 {table.columns.map((col, colIndex) => (
                   <th
                     key={col.key}
+                    data-column={col.key}
                     className={cn(
                       'px-3 sm:px-4 py-3 font-medium text-text-secondary whitespace-nowrap',
                       scrollable && 'sticky top-0 z-20 bg-surface-lighter',
@@ -96,6 +99,7 @@ export function DataTable({ table, maxRows = 120, scrollable = false }: DataTabl
                   {table.columns.map((col, colIndex) => (
                     <td
                       key={col.key}
+                      data-column={col.key}
                       className={cn(
                         'px-3 sm:px-4 py-2.5 tabular-nums text-text-primary whitespace-nowrap',
                         (col.align === 'right' || (!col.align && table.rows.some(row=>typeof row[col.key]==='number'))) ? 'text-right' : 'text-left',
@@ -106,7 +110,9 @@ export function DataTable({ table, maxRows = 120, scrollable = false }: DataTabl
                           ),
                       )}
                     >
-                      {formatCell(row[col.key], col.format, provenance, col.precision, col.unit, currencyDisplay)}
+                      {softenDecimals && col.format === 'currency'
+                        ? <FormattedAmount value={formatCell(row[col.key], col.format, provenance, col.precision, col.unit, currencyDisplay)} />
+                        : formatCell(row[col.key], col.format, provenance, col.precision, col.unit, currencyDisplay)}
                     </td>
                   ))}
                 </tr>

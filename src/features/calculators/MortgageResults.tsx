@@ -5,6 +5,7 @@ import { DataTable } from '@/components/calculator/DataTable'
 import { useSnapshotCurrency } from '@/components/calculator/SnapshotFormat'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Button } from '@/components/ui/Button'
+import { FormattedAmount } from '@/components/ui/FormattedAmount'
 import { durationLabel, monthlyExtra, mortgageScheduleTable, rateScenarios } from '@/calculators/finance/mortgage/insights'
 import type { CostSlice, MortgageInput, MortgageResult, PayoffOption } from '@/calculators/finance/mortgage/types'
 import type { ChartData } from '@/calculators/types'
@@ -12,20 +13,30 @@ import { seriesColor } from '@/utils/chartPresentation'
 
 type View = 'overview' | 'payoff' | 'schedule'
 
+const ownershipColors: Record<string, string> = {
+  'Property tax': '#B45E2B', 'Home insurance': '#7553A6', 'HOA / strata': '#55738D',
+  PMI: '#9E456B', Other: '#60752D', 'Extra principal': '#406E96',
+}
+const costColor = (label: string) => ownershipColors[label] ?? seriesColor(label)
+
 function monthLabel(value: string | null | undefined) {
   if (!value) return 'Not recorded'
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })
 }
 
-function CostBreakdown({ slices, title, note }: { slices: CostSlice[]; title: string; note: string }) {
+function Amount({ value }: { value: number }) {
   const money = useSnapshotCurrency()
+  return <FormattedAmount value={money(value)} />
+}
+
+function CostBreakdown({ slices, title, note, showTotal }: { slices: CostSlice[]; title: string; note: string; showTotal: boolean }) {
   return <section className="mortgage-panel">
-    <div className="mortgage-section-heading"><h3>{title}</h3><span>{money(slices.reduce((sum, slice) => sum + slice.amount, 0))}</span></div>
-    <div className="mortgage-cost-bar" aria-hidden="true">{slices.map(slice => <span key={slice.label} style={{ width: `${slice.percent}%`, background: seriesColor(slice.label) }} />)}</div>
+    <div className="mortgage-section-heading"><h3>{title}</h3>{showTotal && <span>Total <Amount value={slices.reduce((sum, slice) => sum + slice.amount, 0)} /></span>}</div>
+    <div className="mortgage-cost-bar" aria-hidden="true">{slices.map(slice => <span key={slice.label} style={{ width: `${slice.percent}%`, background: costColor(slice.label) }} />)}</div>
     <dl className="mortgage-cost-list">{slices.map(slice => <div key={slice.label}>
-      <dt><span className="mortgage-dot" style={{ background: seriesColor(slice.label) }} />{slice.label}</dt>
-      <dd><span>{slice.percent.toFixed(1)}%</span><strong>{money(slice.amount)}</strong></dd>
+      <dt><span className="mortgage-dot" style={{ background: costColor(slice.label) }} />{slice.label}</dt>
+      <dd><span className="mortgage-cost-share">{slice.percent.toFixed(1)}%</span><strong><Amount value={slice.amount} /></strong></dd>
     </div>)}</dl>
     <p className="mortgage-note">{note}</p>
   </section>
@@ -38,7 +49,6 @@ export function MortgageResults({ result: r, input, charts, disabled, onApplyPay
   disabled?: boolean
   onApplyPayoff: (option: PayoffOption) => void
 }) {
-  const money = useSnapshotCurrency()
   const [view, setView] = useState<View>('overview')
   const [annual, setAnnual] = useState(true)
   const [chartView, setChartView] = useState<'balance' | 'payments'>('balance')
@@ -52,7 +62,6 @@ export function MortgageResults({ result: r, input, charts, disabled, onApplyPay
   const extra = monthlyExtra(input)
   const scenarios = useMemo(() => rateScenarios(input, r.loanAmount), [input, r.loanAmount])
   const activeChart = charts?.find(chart => chartView === 'balance' ? chart.title?.startsWith('Remaining balance') : chart.title?.startsWith('Principal vs interest'))
-  const downPercent = r.downPaymentAmount / (r.loanAmount + r.downPaymentAmount) * 100
   const firstMonthExtra = r.schedule.filter(row => row.period === 1).reduce((sum, row) => sum + (row.extraPrincipal ?? 0), 0)
   // Rebuild percentages for legacy snapshots whose saved first-month mix omitted extras.
   const monthlySlices = useMemo(() => {
@@ -66,19 +75,17 @@ export function MortgageResults({ result: r, input, charts, disabled, onApplyPay
     <section className="mortgage-hero" aria-labelledby="mortgage-estimate-title">
       <div className="mortgage-eyebrow"><span>YOUR PAYMENT ESTIMATE</span><span>monthly</span></div>
       <h2 id="mortgage-estimate-title" tabIndex={-1}>{input.includeTaxesAndCosts ? 'Monthly housing estimate' : 'Monthly principal & interest'}</h2>
-      <p className="mortgage-hero-amount">{money(r.totalMonthlyHousing)}<span>/mo</span></p>
-      <p className="mortgage-hero-caption">{input.includeTaxesAndCosts ? `${money(r.principalAndInterest)} loan payment + ${money(housingExtras)} taxes, insurance & fees.` : 'Taxes, insurance and other ownership costs are not included.'}</p>
-      {extra > 0 && <p className="mortgage-budget-note">With your planned monthly extra: <strong>{money(r.totalMonthlyHousing + extra)}/mo</strong>. Annual and one-time extras are separate; the final payment is capped at the balance due.</p>}
-      <dl className="mortgage-hero-facts">
-        <div><dt>Loan amount</dt><dd>{money(r.loanAmount)}</dd></div>
-        <div><dt>Down payment · {downPercent.toFixed(1)}%</dt><dd>{money(r.downPaymentAmount)}</dd></div>
-        <div><dt>Rate · amortization</dt><dd>{input.interestRate}% · {durationLabel(input.termYears * 12 + input.termMonths)}</dd></div>
-      </dl>
+      <p className="mortgage-hero-amount"><Amount value={r.totalMonthlyHousing} /><span className="mortgage-hero-unit">/mo</span></p>
+      {input.includeTaxesAndCosts ? <dl className="mortgage-hero-components">
+        <div><dt>Loan payment</dt><dd><Amount value={r.principalAndInterest} /></dd></div>
+        <div><dt>Taxes, insurance & fees</dt><dd><Amount value={housingExtras} /></dd></div>
+      </dl> : <p className="mortgage-hero-caption">Taxes, insurance and other ownership costs are not included.</p>}
+      {extra > 0 && <p className="mortgage-budget-note">With your planned monthly extra: <strong><Amount value={r.totalMonthlyHousing + extra} />/mo</strong>. Annual and one-time extras are separate; the final payment is capped at the balance due.</p>}
     </section>
 
     <dl className="mortgage-key-metrics">
       <div><dt><CalendarDays aria-hidden="true" />Estimated payoff</dt><dd>{monthLabel(r.payoffDate)}</dd><span>{durationLabel(r.payoffPeriod)} of payments</span></div>
-      <div><dt><TrendingDown aria-hidden="true" />Interest over the loan</dt><dd>{money(r.totalInterest)}</dd><span>{r.loanAmount > 0 ? `${(r.totalInterest / r.loanAmount * 100).toFixed(1)}% of the amount borrowed` : 'Based on this scenario'}</span></div>
+      <div><dt><TrendingDown aria-hidden="true" />Interest over the loan</dt><dd><Amount value={r.totalInterest} /></dd><span>{r.loanAmount > 0 ? `${(r.totalInterest / r.loanAmount * 100).toFixed(1)}% of the amount borrowed` : 'Based on this scenario'}</span></div>
     </dl>
 
     <nav className="mortgage-view-nav" aria-label="Mortgage result views">{([
@@ -87,33 +94,40 @@ export function MortgageResults({ result: r, input, charts, disabled, onApplyPay
 
     <div id="mortgage-result-view">
       {view === 'overview' && <div className="mortgage-view-content">
+        <div>
+          <SegmentedControl options={[{ value: 'monthly', label: 'First month' }, { value: 'lifetime', label: 'Over the loan' }]} value={costView} onChange={setCostView} />
+          <CostBreakdown slices={costView === 'monthly' ? monthlySlices : r.lifetimeBreakdown}
+            showTotal={costView === 'lifetime' || Math.abs(monthlySlices.reduce((sum, slice) => sum + slice.amount, 0) - r.totalMonthlyHousing) >= 0.005}
+            title={costView === 'monthly' ? 'Where your first payment goes' : 'Housing costs during the loan'}
+            note={costView === 'monthly' ? 'Includes extra principal actually paid in the first month. The principal / interest split changes with each payment.' : 'Includes loan payments and selected ownership costs until payoff. Excludes your down payment, closing costs and costs after payoff.'} />
+        </div>
         <section className="mortgage-panel mortgage-chart-panel">
           <div className="mortgage-section-heading"><h3>Your path to owning it outright</h3></div>
           <SegmentedControl options={[{ value: 'balance', label: 'Loan balance' }, { value: 'payments', label: 'Principal & interest' }]} value={chartView} onChange={setChartView} />
           {activeChart && <ChartPanel data={activeChart} />}
-          <p className="mortgage-insight">In your first {Math.min(12, r.payoffPeriod)} months, <strong>{money(firstYearPrincipal)}</strong> goes toward the loan and <strong>{money(firstYearInterest)}</strong> goes to interest.</p>
+          <div className="mortgage-first-year"><h4>Your first {Math.min(12, r.payoffPeriod)} {r.payoffPeriod === 1 ? 'month' : 'months'}</h4><dl>
+            <div><dt>Principal repaid</dt><dd><Amount value={firstYearPrincipal} /></dd></div>
+            <div><dt>Interest paid</dt><dd><Amount value={firstYearInterest} /></dd></div>
+          </dl></div>
         </section>
-        <div>
-          <SegmentedControl options={[{ value: 'monthly', label: 'First month' }, { value: 'lifetime', label: 'Over the loan' }]} value={costView} onChange={setCostView} />
-          <CostBreakdown slices={costView === 'monthly' ? monthlySlices : r.lifetimeBreakdown}
-            title={costView === 'monthly' ? 'Where your first payment goes' : 'Housing costs during the loan'}
-            note={costView === 'monthly' ? 'Includes extra principal actually paid in the first month. The principal / interest split changes with each payment.' : 'Includes loan payments and selected ownership costs until payoff. Excludes your down payment, closing costs and costs after payoff.'} />
-        </div>
         <section className="mortgage-panel">
-          <div className="mortgage-section-heading"><h3>What if the rate changes?</h3><span>P&I / month</span></div>
+          <div className="mortgage-section-heading"><h3>What if the rate changes?</h3></div>
           <p className="mortgage-note">Compare starting rates on the same loan amount and amortization. These are hypothetical scenarios, not current offers or renewal forecasts.</p>
-          <div className="mortgage-rate-grid">{scenarios.map(scenario => <div key={scenario.rate} className={scenario.rate === input.interestRate ? 'is-current' : ''}>
-            <span>{scenario.rate.toFixed(2)}%{scenario.rate === input.interestRate ? ' · your rate' : ''}</span>
-            <strong>{money(scenario.payment)}</strong>
-            <small>{scenario.rate === input.interestRate ? 'Current scenario' : `${scenario.payment >= r.principalAndInterest ? '+' : '−'}${money(Math.abs(scenario.payment - r.principalAndInterest))}/mo`}</small>
-          </div>)}</div>
+          <div className="mortgage-rate-comparison"><table aria-label="Monthly principal and interest at different rates">
+            <thead><tr><th scope="col">Rate</th><th scope="col">Monthly P&I</th><th scope="col">Change / mo</th></tr></thead>
+            <tbody>{scenarios.map(scenario => <tr key={scenario.rate} className={scenario.rate === input.interestRate ? 'is-current' : ''}>
+              <th scope="row">{scenario.rate.toFixed(2)}%{scenario.rate === input.interestRate && <small>Your rate</small>}</th>
+              <td><Amount value={scenario.payment} /></td>
+              <td className="mortgage-rate-change">{scenario.rate === input.interestRate ? <span aria-label="No change">—</span> : <>{scenario.payment >= r.principalAndInterest ? '+' : '−'}<Amount value={Math.abs(scenario.payment - r.principalAndInterest)} /></>}</td>
+            </tr>)}</tbody>
+          </table></div>
         </section>
       </div>}
 
       {view === 'payoff' && <div className="mortgage-view-content">
         <section className="mortgage-savings-panel">
           <h3>{(r.interestSaved ?? 0) > 0 ? 'Your extra payments make a difference' : 'See what an extra payment can do'}</h3>
-          {(r.interestSaved ?? 0) > 0 ? <dl className="mortgage-savings-grid"><div><dt>Interest saved</dt><dd>{money(r.interestSaved!)}</dd></div><div><dt>Time saved</dt><dd>{durationLabel(r.periodsSaved ?? 0)}</dd></div></dl> : <p>Choose a shorter payoff below, or add a monthly, annual or one-time payment in your inputs.</p>}
+          {(r.interestSaved ?? 0) > 0 ? <dl className="mortgage-savings-grid"><div><dt>Interest saved</dt><dd><Amount value={r.interestSaved!} /></dd></div><div><dt>Time saved</dt><dd>{durationLabel(r.periodsSaved ?? 0)}</dd></div></dl> : <p>Choose a shorter payoff below, or add a monthly, annual or one-time payment in your inputs.</p>}
           <p className="mortgage-note">Savings compare with the same loan without extra payments. Check your lender’s prepayment limits; penalties are not included.</p>
         </section>
         <section className="mortgage-panel">
@@ -121,11 +135,11 @@ export function MortgageResults({ result: r, input, charts, disabled, onApplyPay
           <p className="mortgage-note">Each option is a separate plan starting with your original loan. Applying one replaces all current extras with the monthly amount shown.</p>
           <div className="mortgage-payoff-options">{(r.payoffOptions ?? []).filter(option => option.monthlyExtra > 0).map(option => <article key={option.years}>
             <div><h4>{option.years} {option.years === 1 ? 'year' : 'years'}</h4><span>{option.payoffDate}</span></div>
-            <div><strong>+{money(option.monthlyExtra)}<small>/mo</small></strong><span>Save {money(option.interestSaved)} in interest</span><span>{money(option.totalExtraPaid)} total extra principal</span></div>
+            <div><strong>+<Amount value={option.monthlyExtra} /><small>/mo</small></strong><span>Save <Amount value={option.interestSaved} /> in interest</span><span><Amount value={option.totalExtraPaid} /> total extra principal</span></div>
             <Button size="sm" variant="secondary" disabled={disabled} onClick={() => onApplyPayoff(option)} aria-label={`Apply ${option.years} year payoff plan`}>Apply <ArrowUpRight className="w-4 h-4 ml-1" aria-hidden="true" /></Button>
           </article>)}</div>
           {!r.payoffOptions?.some(option => option.monthlyExtra > 0) && <p className="mortgage-note">This loan is too short for a whole-year target. Use a monthly or one-time extra payment to explore earlier payoff.</p>}
-          <details className="mortgage-details"><summary>Compare annual lump-sum alternatives</summary><p className="mortgage-note">Annual extras are paid at months 12, 24, and so on, instead of monthly extras. Savings above apply only to the monthly plan.</p><dl className="mortgage-cost-list">{(r.payoffOptions ?? []).filter(option => option.yearlyExtra > 0).map(option => <div key={option.years}><dt>Finish in {option.years} years</dt><dd>{money(option.yearlyExtra)} / year</dd></div>)}</dl></details>
+          <details className="mortgage-details"><summary>Compare annual lump-sum alternatives</summary><p className="mortgage-note">Annual extras are paid at months 12, 24, and so on, instead of monthly extras. Savings above apply only to the monthly plan.</p><dl className="mortgage-cost-list mortgage-annual-alternatives">{(r.payoffOptions ?? []).filter(option => option.yearlyExtra > 0).map(option => <div key={option.years}><dt>Finish in {option.years} years</dt><dd><Amount value={option.yearlyExtra} /> / year</dd></div>)}</dl></details>
         </section>
       </div>}
 
@@ -133,8 +147,8 @@ export function MortgageResults({ result: r, input, charts, disabled, onApplyPay
         <div className="mortgage-section-heading"><h3>Follow every payment</h3><span>{r.payoffPeriod} months</span></div>
         <SegmentedControl options={[{ value: 'annual', label: 'By loan year' }, { value: 'monthly', label: 'By month' }]} value={annual ? 'annual' : 'monthly'} onChange={value => setAnnual(value === 'annual')} />
         <p className="mortgage-note">Total paid = principal + extra principal + interest. Taxes and ownership costs are separate. Loan years start with your first payment.</p>
-        <DataTable key={annual ? 'annual' : 'monthly'} table={schedule} scrollable />
-        <div className="mortgage-schedule-footer"><span>Final month’s loan payments</span><strong>{money(Number(monthlySchedule.rows.at(-1)?.payment ?? 0))}</strong><span>Remaining balance</span><strong>{money(r.remainingBalance ?? 0)}</strong></div>
+        <DataTable key={annual ? 'annual' : 'monthly'} table={schedule} scrollable softenDecimals />
+        <div className="mortgage-schedule-footer"><span>Final month’s loan payments</span><strong><Amount value={Number(monthlySchedule.rows.at(-1)?.payment ?? 0)} /></strong><span>Remaining balance</span><strong><Amount value={r.remainingBalance ?? 0} /></strong></div>
         <p className="mortgage-note">Export CSV for the complete cash-flow event schedule, including individual extra payments.</p>
       </section>}
     </div>
