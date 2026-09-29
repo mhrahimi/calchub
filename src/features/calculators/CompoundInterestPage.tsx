@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { ValidationSummary } from '@/components/calculator/ValidationSummary'
 import { CalculatorLayout } from '@/components/calculator/CalculatorLayout'
 import { Input } from '@/components/ui/Input'
@@ -23,7 +24,19 @@ const defaultInput: CompoundInterestInput = {
   inflationRate: 3,
 }
 
+type CashFlowKind = 'deposit' | 'withdrawal'
+
+function signedContribution(kind: CashFlowKind, magnitude: number): number {
+  if (Number.isNaN(magnitude)) return NaN
+  const amount = Math.abs(magnitude)
+  return kind === 'withdrawal' ? -amount : amount
+}
+
 export default function CompoundInterestPage() {
+  const [cashFlow, setCashFlow] = useState<CashFlowKind>(
+    defaultInput.contribution < 0 ? 'withdrawal' : 'deposit',
+  )
+
   const { form, set, errors, handleCalculate, layoutProps } = useCalculatorPage({
     calculatorId: 'compound-interest',
     defaultInput,
@@ -41,7 +54,10 @@ export default function CompoundInterestPage() {
           <ResultBlock label="Inflation-adjusted value" value={formatResultCurrency(r.realValue)} />
         )}
         <div className="rounded-2xl border border-border bg-white p-4">
-          <MetricRow label="Total contributions" value={formatResultCurrency(r.totalContributions)} />
+          <MetricRow
+            label={input.contribution < 0 ? 'Net capital' : 'Total contributions'}
+            value={formatResultCurrency(r.totalContributions)}
+          />
           <MetricRow label="Interest earned" value={formatResultCurrency(r.interestEarned)} />
           {r.effectiveAnnualRate !== undefined && <MetricRow label="Effective annual rate" value={`${r.effectiveAnnualRate.toFixed(4)}%`} />}
           {r.depletionDate && <>
@@ -52,6 +68,15 @@ export default function CompoundInterestPage() {
       </div>
     ),
   })
+
+  // History/share restore may bring a signed contribution; keep the mode in sync.
+  useEffect(() => {
+    if (form.contribution < 0) setCashFlow('withdrawal')
+    else if (form.contribution > 0) setCashFlow('deposit')
+  }, [form.contribution])
+
+  const withdrawing = cashFlow === 'withdrawal'
+  const amountMagnitude = Number.isNaN(form.contribution) ? NaN : Math.abs(form.contribution)
 
   return (
     <CalculatorLayout
@@ -88,19 +113,39 @@ export default function CompoundInterestPage() {
               { value: 'continuous', label: 'Continuous' },
             ]}
           />
+          <div className="space-y-1.5">
+            <p className="text-sm font-medium text-text-primary">Periodic cash flow</p>
+            <SegmentedControl
+              label="Periodic cash flow"
+              options={[
+                { value: 'deposit', label: 'Deposit' },
+                { value: 'withdrawal', label: 'Withdrawal' },
+              ]}
+              value={cashFlow}
+              onChange={(kind) => {
+                setCashFlow(kind)
+                set('contribution', signedContribution(kind, form.contribution))
+              }}
+            />
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
-              label="Contribution"
+              id="contribution"
+              label={withdrawing ? 'Withdrawal amount' : 'Deposit amount'}
               prefix="$"
               grouped
-              signed allowSignedTyping emptyAsNaN
+              emptyAsNaN
               error={errors.contribution}
-              value={form.contribution}
-              onValueChange={(n) => set('contribution', n)}
-              hint="Negative amounts are withdrawals, capped at available funds."
+              value={amountMagnitude}
+              onValueChange={(n) => set('contribution', signedContribution(cashFlow, n))}
+              hint={
+                withdrawing
+                  ? 'Withdrawals are capped at available funds; unmet amounts are reported separately.'
+                  : 'Added each period at the timing selected below.'
+              }
             />
             <Select
-              label="Contribution frequency"
+              label={withdrawing ? 'Withdrawal frequency' : 'Deposit frequency'}
               error={errors.contributionFrequency}
               value={form.contributionFrequency}
               onChange={(v) => set('contributionFrequency', v)}
@@ -114,7 +159,16 @@ export default function CompoundInterestPage() {
               ]}
             />
           </div>
-          <SegmentedControl label="Contribution timing" error={errors.contributionTiming} options={[{ value: 'end', label: 'End of period' }, { value: 'begin', label: 'Beginning' }]} value={form.contributionTiming} onChange={(v) => set('contributionTiming', v)} />
+          <div className="space-y-1.5">
+            <p className="text-sm font-medium text-text-primary">{withdrawing ? 'Withdrawal timing' : 'Deposit timing'}</p>
+            <SegmentedControl
+              label={withdrawing ? 'Withdrawal timing' : 'Deposit timing'}
+              error={errors.contributionTiming}
+              options={[{ value: 'end', label: 'End of period' }, { value: 'begin', label: 'Beginning' }]}
+              value={form.contributionTiming}
+              onChange={(v) => set('contributionTiming', v)}
+            />
+          </div>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={form.adjustForInflation} onChange={(e) => set('adjustForInflation', e.target.checked)} />
             Adjust for inflation

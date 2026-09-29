@@ -93,6 +93,12 @@ export function explainCompoundInterest(
 }
 
 export function buildCompoundInterestCharts(result: CompoundInterestResult): ChartData[] {
+  const firstCapital = result.schedule[0]?.contributions
+  const usedWithdrawals =
+    result.depletionDate !== undefined ||
+    result.unmetWithdrawals > 0 ||
+    result.schedule.some((s, i) => i > 0 && firstCapital !== undefined && s.contributions < firstCapital)
+  const capitalLabel = usedWithdrawals ? 'Net capital' : 'Contributions'
   return [
     {
       type: 'line',
@@ -102,11 +108,11 @@ export function buildCompoundInterestCharts(result: CompoundInterestResult): Cha
     },
     {
       type: 'area',
-      title: 'Contributions vs interest',
+      title: usedWithdrawals ? 'Net capital vs interest' : 'Contributions vs interest',
       stacked: true,
       valueFormat: 'currency',
       series: [
-        { name: 'Contributions', data: result.schedule.map((s) => ({ x: s.period, y: s.contributions })), color: '#4A7FD4' },
+        { name: capitalLabel, data: result.schedule.map((s) => ({ x: s.period, y: s.contributions })), color: '#4A7FD4' },
         { name: 'Interest', data: result.schedule.map((s) => ({ x: s.period, y: s.interest })), color: '#163B8C' },
       ],
     },
@@ -114,12 +120,17 @@ export function buildCompoundInterestCharts(result: CompoundInterestResult): Cha
 }
 
 export function buildCompoundInterestTable(result: CompoundInterestResult): TableData {
+  const firstCapital = result.schedule[0]?.contributions
+  const usedWithdrawals =
+    result.depletionDate !== undefined ||
+    result.unmetWithdrawals > 0 ||
+    result.schedule.some((s, i) => i > 0 && firstCapital !== undefined && s.contributions < firstCapital)
   return {
     title: 'Growth schedule',
     columns: [
       { key: 'period', label: 'Year', align: 'right' },
       { key: 'balance', label: 'Balance', align: 'right', format: 'currency' },
-      { key: 'contributions', label: 'Contributions', align: 'right', format: 'currency' },
+      { key: 'contributions', label: usedWithdrawals ? 'Net capital' : 'Contributions', align: 'right', format: 'currency' },
       { key: 'interest', label: 'Interest', align: 'right', format: 'currency' },
       ...(result.depletionDate ? [{ key: 'unmetWithdrawals', label: 'Unmet withdrawals (cumulative)', align: 'right' as const, format: 'currency' as const }] : []),
     ],

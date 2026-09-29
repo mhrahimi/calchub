@@ -121,8 +121,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 
     const handleGroupedChange = (e: ChangeEvent<HTMLInputElement>) => {
       let raw = allowSignedTyping ? e.target.value.replace(/−/g, '-') : e.target.value
-      if (signed && !allowSignedTyping) {
-        raw = applyDraftSign(raw.replace(/-/g, ''), draftIsNegative(display))
+      if (!allowSignedTyping) {
+        // Magnitude-only fields (and toggle-managed signs) should not keep a typed minus.
+        const stripped = raw.replace(/-/g, '')
+        raw = signed ? applyDraftSign(stripped, draftIsNegative(display)) : stripped
       }
       pendingTokens.current = caretTokenCount(raw, e.target.selectionStart ?? raw.length)
       const next = formatGroupedInput(raw)

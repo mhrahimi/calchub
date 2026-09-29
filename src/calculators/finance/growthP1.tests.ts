@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { calculateInvestment, explainInvestment, buildInvestmentTable } from './investment/calculate'
 import { validateInvestment } from './investment/validation'
 import type { InvestmentInput } from './investment/types'
-import { calculateCompoundInterest, explainCompoundInterest } from './compoundInterest/calculate'
+import { calculateCompoundInterest, explainCompoundInterest, buildCompoundInterestCharts, buildCompoundInterestTable } from './compoundInterest/calculate'
 import { validateCompoundInterest } from './compoundInterest/validation'
 import type { CompoundInterestInput } from './compoundInterest/types'
 import { resultMetadata } from '@/exports/resultMetadata'
@@ -168,6 +168,10 @@ describe('P1 compound interest validation and withdrawal policy', () => {
     expect(r.unmetWithdrawals).toBe(2300)
     expect(r.schedule.every(row => row.balance >= 0)).toBe(true)
     expect(r.schedule.at(-1)?.unmetWithdrawals).toBe(r.unmetWithdrawals)
+    const charts = buildCompoundInterestCharts(r)
+    expect(charts[1].title).toBe('Net capital vs interest')
+    expect(charts[1].series[0].name).toBe('Net capital')
+    expect(buildCompoundInterestTable(r).columns.find(c => c.key === 'contributions')?.label).toBe('Net capital')
   })
 })
 

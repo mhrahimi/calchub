@@ -25,7 +25,11 @@ function ChartPanelInner({data}:ChartPanelProps) {
   const xTick=(v:number|string)=>data.xType==='time'?new Intl.DateTimeFormat(locale,{month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(Number(v))):typeof v==='number'?displayNumber(v,locale,2):String(v)
   const currentSeries=data.series.filter(s=>!s.baseline)
   const currentTotal=(x:string|number)=>currentSeries.reduce((total,s)=>total+(s.data.find(d=>d.x===x)?.y??0),0)
-  const numericValues=data.stacked?rows.map(row=>currentTotal(row.x as string|number)):data.series.flatMap(s=>s.data.map(d=>d.y))
+  // Stacked charts can have negative series (e.g. net capital after withdrawals) even when
+  // the per-x total stays non-negative — check series values, not only stack totals.
+  const numericValues=data.stacked
+    ? [...data.series.flatMap(s=>s.data.map(d=>d.y)), ...rows.map(row=>currentTotal(row.x as string|number))]
+    : data.series.flatMap(s=>s.data.map(d=>d.y))
   const hasNegative=numericValues.some(n=>n<0)
   const height=desktop?272:232
   const pieItems=data.series[0]?.data??[]
