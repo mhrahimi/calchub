@@ -24,6 +24,8 @@ export default function InterestRatePage() {
     explain: explainInterestRate,
     buildCharts: buildInterestRateCharts,
     buildTable: buildInterestRateTable,
+    calculateOnLoad: true,
+    autoCalculate: true,
     csvFilename: 'interest-rate-schedule.csv',
     getShareText: (r, _input, _formatResultCurrency) => `Implied annual rate: ${(r.annualRate * 100).toFixed(4)}%`,
     renderResults: (r, _input, formatResultCurrency) => (
