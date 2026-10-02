@@ -74,35 +74,38 @@ function logGamma(z: number): number {
 }
 
 function betacf(a: number, b: number, x: number): number {
+  // Modified Lentz continued fraction for the incomplete beta (Numerical Recipes).
   const maxIter = 200
   const eps = 3e-7
-  let am = 1
-  let bm = 1
-  let az = 1
-  let qab = a + b
-  let qap = a + 1
-  let qam = a - 1
-  let bz = 1 - (qab * x) / qap
+  const fpmin = 1e-30
+  const qab = a + b
+  const qap = a + 1
+  const qam = a - 1
+  let c = 1
+  let d = 1 - (qab * x) / qap
+  if (Math.abs(d) < fpmin) d = fpmin
+  d = 1 / d
+  let h = d
   for (let m = 1; m <= maxIter; m++) {
-    const em = m
-    let tem = em + em
-    let d = (em * (b - em) * x) / ((qam + tem) * (a + tem))
-    am = 1 + d * am
-    bm = 1 + d * bm
-    d = (-(a + em) * (qab + em) * x) / ((a + tem) * (qap + tem))
-    az = 1 + d * az
-    bz = 1 + d * bz
-    if (am !== 0) {
-      const aRatio = az / am
-      const bRatio = bz / bm
-      if (Math.abs(aRatio - bRatio) < eps * Math.abs(aRatio)) return aRatio
-      am = 1 / am
-      bm = 1 / bm
-      az = aRatio
-      bz = bRatio
-    }
+    const m2 = 2 * m
+    let aa = (m * (b - m) * x) / ((qam + m2) * (a + m2))
+    d = 1 + aa * d
+    if (Math.abs(d) < fpmin) d = fpmin
+    c = 1 + aa / c
+    if (Math.abs(c) < fpmin) c = fpmin
+    d = 1 / d
+    h *= d * c
+    aa = (-(a + m) * (qab + m) * x) / ((a + m2) * (qap + m2))
+    d = 1 + aa * d
+    if (Math.abs(d) < fpmin) d = fpmin
+    c = 1 + aa / c
+    if (Math.abs(c) < fpmin) c = fpmin
+    d = 1 / d
+    const del = d * c
+    h *= del
+    if (Math.abs(del - 1) < eps) break
   }
-  return az
+  return h
 }
 
 function betainc(a: number, b: number, x: number): number {
@@ -128,9 +131,20 @@ export function studentTCDF(t: number, df: number): number {
 }
 
 export function studentTQuantile(p: number, df: number): number {
-  let lo = -100
-  let hi = 100
-  for (let i = 0; i < 80; i++) {
+  if (p <= 0 || p >= 1) throw new Error('Probability must be between 0 and 1')
+  if (!(df > 0)) throw new Error('Degrees of freedom must be positive')
+  if (Math.abs(p - 0.5) < 1e-15) return 0
+  // Use upper-tail search + symmetry for a clean positive bracket.
+  if (p < 0.5) return -studentTQuantile(1 - p, df)
+
+  let lo = 0
+  let hi = 1
+  while (studentTCDF(hi, df) < p) {
+    lo = hi
+    hi *= 2
+    if (hi > 1e12) throw new Error('studentTQuantile failed to bracket the probability')
+  }
+  for (let i = 0; i < 100; i++) {
     const mid = (lo + hi) / 2
     if (studentTCDF(mid, df) < p) lo = mid
     else hi = mid

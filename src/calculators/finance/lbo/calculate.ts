@@ -21,6 +21,7 @@ export function calculateLbo(input: LboInput): LboResult {
     const y = input.forecast[i]
     const interest = balances.reduce((s,b,j) => s+b*tranches[j].interestRate/100,0)
     const cashTaxes = Math.max(0, y.ebitda - (y.depreciation ?? 0) - interest) * (y.taxRate ?? 0) / 100
+    // Pre-interest operating cash (not levered FCF). Interest is deducted on the next line.
     const fcf = y.ebitda - cashTaxes - y.capex - y.nwcChange
     cash += fcf - interest
     let fundingShortfall = Math.max(0, minimumCash - cash)
@@ -94,7 +95,8 @@ export function explainLbo(_input: LboInput, _result: LboResult): CalculationExp
       },
     ],
     assumptions: [
-      'Cash sweep applies excess FCF to debt paydown after interest',
+      'Schedule “Cash before interest” is EBITDA − cash taxes − capex − ΔNWC; interest is applied separately before mandatory amortization and cash sweep.',
+      'Cash sweep applies excess cash to debt paydown after interest',
       'Tranches repay in input order; interest uses opening balances. No automatic refinancing or revolver.',
       'Taxes and D&A default to zero if omitted. No loss carryforwards or interest deduction limits.',
       ..._result.warnings,
@@ -119,7 +121,7 @@ export function buildLboTable(result: LboResult): TableData {
     columns: [
       { key: 'year', label: 'Year', align: 'right' },
       { key: 'ebitda', label: 'EBITDA', align: 'right', format: 'currency' },
-      { key: 'fcf', label: 'FCF', align: 'right', format: 'currency' },
+      { key: 'fcf', label: 'Cash before interest', align: 'right', format: 'currency' },
       { key: 'interest', label: 'Interest', align: 'right', format: 'currency' },
       { key: 'paydown', label: 'Paydown', align: 'right', format: 'currency' },
       ...['cashTaxes','endingCash','fundingShortfall'].map(key=>({key,label:({depreciation:'D&A',ebit:'EBIT',cashTaxes:'Cash taxes',capex:'Capex',nwcChange:'Change in NWC',endingCash:'Retained cash',fundingShortfall:'Funding shortfall'} as Record<string,string>)[key],align:'right' as const,format:'currency' as const})),

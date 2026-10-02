@@ -52,10 +52,6 @@ function lawOfCosinesSide(b: number, c: number, Adeg: number): number {
   return Math.sqrt(b * b + c * c - 2 * b * c * Math.cos(A))
 }
 
-function lawOfSinesAngle(opposite: number, knownOpposite: number, knownAngleDeg: number): number {
-  return toDeg(Math.asin(clamp((opposite * Math.sin(toRad(knownAngleDeg))) / knownOpposite)))
-}
-
 export function solveTriangle(
   triangleCase: TriangleCase,
   sideA?: number,
@@ -79,7 +75,9 @@ export function solveTriangle(
       const c = sideC!
       const A = angleA!
       const a = lawOfCosinesSide(b, c, A)
-      const B = lawOfSinesAngle(b, a, A)
+      // Law of cosines for B (acos is unambiguous). Asin via law of sines
+      // would return only the acute angle when B is obtuse.
+      const B = toDeg(Math.acos(clamp((a * a + c * c - b * b) / (2 * a * c))))
       const C = 180 - A - B
       return [makeSolution(a, b, c, A, B, C)]
     }

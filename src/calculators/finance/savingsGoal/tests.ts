@@ -74,6 +74,26 @@ describe('savings goal', () => {
     })
     expect(r.requiredContribution).toBe(-200)
     expect(r.projectedBalance).toBeLessThan(50000)
+    expect(r.projectedBalance).toBeGreaterThanOrEqual(0)
+    expect(r.unmetWithdrawals).toBe(0)
+  })
+
+  it('caps withdrawals at available funds and reports unmet amounts', () => {
+    const r = calculateSavingsGoal({
+      solveFor: 'balance',
+      currentSavings: 1000,
+      goalAmount: 0,
+      returnRate: 0,
+      period: 1,
+      periodUnit: 'years',
+      contributionFrequency: 'monthly',
+      periodicContribution: -500,
+    })
+    // 12 × $500 requested = $6,000; only $1,000 available → $5,000 unmet; balance floors at 0
+    expect(r.projectedBalance).toBe(0)
+    expect(r.schedule.every((s) => s.balance >= 0)).toBe(true)
+    expect(r.unmetWithdrawals).toBeCloseTo(5000, 0)
+    expect(r.warnings.length).toBeGreaterThan(0)
   })
 
   it('solves for a negative contribution when current savings exceed the goal', () => {

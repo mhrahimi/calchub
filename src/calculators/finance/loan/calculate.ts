@@ -10,13 +10,16 @@ export function calculateLoan(input: LoanInput): LoanResult {
 
   if (input.mode === 'auto') {
     const price = input.vehiclePrice ?? 0
+    // Sales tax on vehicle price only; financed fees (`taxableFees`) are not taxed here.
     const tax = price * ((input.salesTaxRate ?? 0) / 100)
-    const fees = (input.taxableFees ?? 0) + tax
+    const financedFees = input.taxableFees ?? 0
+    const taxAndFees = financedFees + tax
     financedAmount =
-      price + fees - (input.cashDown ?? 0) - (input.tradeIn ?? 0) - (input.rebates ?? 0)
+      price + taxAndFees - (input.cashDown ?? 0) - (input.tradeIn ?? 0) - (input.rebates ?? 0)
     costBreakdown = [
       { label: 'Vehicle price', amount: price },
-      { label: 'Sales tax & fees', amount: fees },
+      { label: 'Sales tax', amount: tax },
+      { label: 'Fees (financed)', amount: financedFees },
       { label: 'Down payment', amount: -(input.cashDown ?? 0) },
       { label: 'Trade-in', amount: -(input.tradeIn ?? 0) },
       { label: 'Rebates', amount: -(input.rebates ?? 0) },
@@ -41,12 +44,16 @@ export function calculateLoan(input: LoanInput): LoanResult {
     costBreakdown.push({ label: 'Interest', amount: sched.totalInterest })
   }
 
+  // `fees` are prepaid/non-financed (standard loans). Auto financed fees are already
+  // inside `financedAmount` via `taxableFees` and must not be added again.
+  const prepaidFees = input.mode === 'auto' ? 0 : (input.fees ?? 0)
+
   return {
     status: sched.status, warnings: sched.warnings, remainingBalance: sched.remainingBalance, balloonPaid: sched.balloonPaid,
     financedAmount,
     payment: sched.payment,
     totalInterest: sched.totalInterest,
-    totalCost: financedAmount + sched.totalInterest + (input.fees ?? 0),
+    totalCost: financedAmount + sched.totalInterest + prepaidFees,
     schedule: sched.schedule,
     costBreakdown,
   }
@@ -57,7 +64,7 @@ export function explainLoan(input: LoanInput, _result: LoanResult): CalculationE
   if (input.mode === 'auto') {
     steps.push({
       label: 'Amount financed',
-      expression: 'Price + tax & fees − down − trade-in − rebates',
+      expression: 'Price + sales tax(on price) + financed fees − down − trade-in − rebates',
     })
   }
   steps.push(
@@ -76,9 +83,12 @@ export function explainLoan(input: LoanInput, _result: LoanResult): CalculationE
   return {
     title: input.mode === 'auto' ? 'Auto loan calculation' : 'Loan calculation',
     steps,
-    assumptions: input.extraPayment
-      ? ['Extra payments are applied every period and shorten the schedule.']
-      : undefined,
+    assumptions: [
+      ...(input.mode === 'auto'
+        ? ['Sales tax is applied to vehicle price only. Financed fees are added to principal but not taxed in this model. Prepaid `fees` apply to standard loans only.']
+        : ['Optional prepaid fees are included in total cost but not financed.']),
+      ...(input.extraPayment ? ['Extra payments are applied every period and shorten the schedule.'] : []),
+    ],
   }
 }
 

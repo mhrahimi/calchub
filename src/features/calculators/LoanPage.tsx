@@ -56,7 +56,7 @@ export default function LoanPage() {
               <Input label="Trade-in value" prefix="$" grouped value={form.tradeIn ?? 0} onValueChange={(n) => set('tradeIn', n)} />
               <Input label="Rebates" prefix="$" grouped value={form.rebates ?? 0} onValueChange={(n) => set('rebates', n)} />
               <Input label="Sales tax rate" suffix="%" type="number" value={form.salesTaxRate ?? 0} onChange={(e) => set('salesTaxRate', +e.target.value)} />
-              <Input label="Fees" prefix="$" grouped value={form.taxableFees ?? 0} onValueChange={(n) => set('taxableFees', n)} />
+              <Input label="Fees (financed)" prefix="$" grouped value={form.taxableFees ?? 0} onValueChange={(n) => set('taxableFees', n)} />
             </>
           )}
           <Input label="Interest rate" suffix="%" type="number" value={form.interestRate} onChange={(e) => set('interestRate', +e.target.value)} />

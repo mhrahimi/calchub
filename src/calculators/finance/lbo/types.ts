@@ -23,6 +23,7 @@ export interface LboInput {
 export interface LboDebtRow {
   year: number
   ebitda: number
+  /** EBITDA − cash taxes − capex − ΔNWC (interest applied on the next line). */
   fcf: number
   interest: number
   paydown: number

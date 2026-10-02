@@ -19,5 +19,7 @@ export interface SavingsGoalResult {
   projectedBalance: number
   totalContributions: number
   goalAmount: number
-  schedule: Array<{ period: number; balance: number }>
+  unmetWithdrawals: number
+  warnings: string[]
+  schedule: Array<{ period: number; balance: number; unmetWithdrawals: number }>
 }

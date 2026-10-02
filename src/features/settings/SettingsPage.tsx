@@ -1,5 +1,7 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useApp } from '@/app/providers'
+import { ShortcutsDialog } from '@/features/calculator/ShortcutsDialog'
+import { loadShortcuts, subscribeShortcuts } from '@/features/calculator/shortcuts'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 import { exportBackup, importBackup, parseBackupText, serializeBackup } from '@/persistence/backup'
@@ -20,6 +22,10 @@ export default function SettingsPage() {
   const [historyCleared, setHistoryCleared] = useState(false)
   const [backupMessage, setBackupMessage] = useState<string | null>(null)
   const [backupError, setBackupError] = useState<string | null>(null)
+  const [shortcuts, setShortcuts] = useState(loadShortcuts)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+
+  useEffect(() => subscribeShortcuts(() => setShortcuts(loadShortcuts())), [])
 
   const handleChange = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     updateSettings({ [key]: value })
@@ -39,6 +45,7 @@ export default function SettingsPage() {
     await clearSaved()
     resetSettings()
     reloadFromStorage()
+    setShortcuts(loadShortcuts())
     setCleared(true)
     setTimeout(() => setCleared(false), 3000)
   }
@@ -168,6 +175,19 @@ export default function SettingsPage() {
             { value: 'full', label: 'Full schedule / table' },
           ]}
         />
+      </section>
+
+      <section className="space-y-4 rounded-2xl border border-border bg-white p-6">
+        <h2 className="font-semibold text-text-primary">Calculator shortcuts</h2>
+        <p className="text-sm text-text-secondary">
+          {countLabel(shortcuts.shortcuts.length, 'custom key shortcut', 'custom key shortcuts')}
+          {shortcuts.holdDigitZeros !== null && `, plus hold ${shortcuts.holdDigitZeros} + 1–9 for zeros`}.
+          You can import and export them as a file.
+        </p>
+        <Button variant="secondary" onClick={() => setShortcutsOpen(true)}>
+          Customize shortcuts
+        </Button>
+        <ShortcutsDialog open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       </section>
 
       <section className="space-y-4 rounded-2xl border border-border bg-white p-6">

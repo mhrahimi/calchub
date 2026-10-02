@@ -1,8 +1,41 @@
 import { CalculationError } from '@/utils/rootSolve'
 import { fvEnd, pmtFromFv, periodsFromFv, periodsPerYear } from '@/utils/annuity'
+import { applyGrowthCashFlow, checkedAmount } from '@/utils/growthProjection'
 import { downsamplePoints } from '@/utils/chartSample'
 import type { SavingsGoalInput, SavingsGoalResult } from './types'
 import type { CalculationExplanation, ChartData, TableData } from '@/calculators/types'
+
+/** Grow one period then apply contribution/withdrawal with a no-borrowing floor. */
+function stepBalance(balance: number, r: number, pmt: number) {
+  const grown = r === 0 ? balance : balance * (1 + r)
+  return applyGrowthCashFlow(grown, pmt)
+}
+
+function projectSchedule(start: number, r: number, n: number, pmt: number, ppy: number) {
+  const full: SavingsGoalResult['schedule'] = []
+  let bal = start
+  let unmetWithdrawals = 0
+  full.push({ period: 0, balance: Math.round(bal * 100) / 100, unmetWithdrawals: 0 })
+  const steps = Math.max(n, 0)
+  let actualContributions = 0
+  for (let p = 1; p <= steps; p++) {
+    const flow = stepBalance(bal, r, pmt)
+    bal = flow.balance
+    actualContributions = checkedAmount(actualContributions + flow.actual)
+    unmetWithdrawals = checkedAmount(unmetWithdrawals + flow.unmet)
+    full.push({
+      period: p / ppy,
+      balance: Math.round(bal * 100) / 100,
+      unmetWithdrawals: Math.round(unmetWithdrawals * 100) / 100,
+    })
+  }
+  return {
+    schedule: full,
+    projectedBalance: Math.round(bal * 100) / 100,
+    unmetWithdrawals: Math.round(unmetWithdrawals * 100) / 100,
+    totalContributions: Math.round((start + actualContributions) * 100) / 100,
+  }
+}
 
 export function calculateSavingsGoal(input: SavingsGoalInput): SavingsGoalResult {
   const ppy = periodsPerYear(input.contributionFrequency)
@@ -14,14 +47,12 @@ export function calculateSavingsGoal(input: SavingsGoalInput): SavingsGoalResult
 
   let requiredContribution = 0
   let timeToGoal = years
-  let projectedBalance = 0
   let n = nGiven
   let pmt = pmtGiven
 
   if (input.solveFor === 'contribution') {
     requiredContribution = pmtFromFv(input.currentSavings, r, n, input.goalAmount)
     pmt = requiredContribution
-    projectedBalance = fvEnd(input.currentSavings, r, n, pmt)
     timeToGoal = years
   } else if (input.solveFor === 'time') {
     requiredContribution = pmtGiven
@@ -34,38 +65,36 @@ export function calculateSavingsGoal(input: SavingsGoalInput): SavingsGoalResult
       n = Math.ceil(periods - 1e-10)
       while (fvEnd(input.currentSavings, r, n, pmt) < input.goalAmount - 1e-8) n++
       timeToGoal = n / ppy
-      projectedBalance = fvEnd(input.currentSavings, r, n, pmt)
     }
   } else {
     requiredContribution = pmtGiven
     pmt = pmtGiven
-    projectedBalance = fvEnd(input.currentSavings, r, n, pmt)
     timeToGoal = years
   }
 
-  const full: SavingsGoalResult['schedule'] = []
-  let bal = input.currentSavings
-  full.push({ period: 0, balance: Math.round(bal * 100) / 100 })
-  const steps = Math.max(n, 0)
-  for (let p = 1; p <= steps; p++) {
-    bal = fvEnd(bal, r, 1, pmt)
-    full.push({ period: p / ppy, balance: Math.round(bal * 100) / 100 })
-  }
-  const schedule = full
+  const projected = projectSchedule(input.currentSavings, r, n, pmt, ppy)
+  const warnings =
+    projected.unmetWithdrawals > 0
+      ? [
+          'Withdrawals are capped at available funds; unmet withdrawals are reported separately. No borrowing is assumed.',
+        ]
+      : []
 
   return {
     requiredContribution: Math.round(requiredContribution * 100) / 100,
     timeToGoal,
     periodsToGoal: n,
     periodsPerYear: ppy,
-    projectedBalance: Math.round(projectedBalance * 100) / 100,
-    totalContributions: Math.round((input.currentSavings + pmt * n) * 100) / 100,
+    projectedBalance: projected.projectedBalance,
+    totalContributions: projected.totalContributions,
     goalAmount: input.goalAmount,
-    schedule,
+    unmetWithdrawals: projected.unmetWithdrawals,
+    warnings,
+    schedule: projected.schedule,
   }
 }
 
-export function explainSavingsGoal(input: SavingsGoalInput, _result: SavingsGoalResult): CalculationExplanation {
+export function explainSavingsGoal(input: SavingsGoalInput, result: SavingsGoalResult): CalculationExplanation {
   const timingNote =
     'FV = PV(1+r)^n + PMT × ((1+r)^n − 1) / r  (end-of-period contributions)'
   const steps: CalculationExplanation['steps'] =
@@ -85,7 +114,12 @@ export function explainSavingsGoal(input: SavingsGoalInput, _result: SavingsGoal
   return {
     title: 'Savings goal',
     steps,
-    assumptions: ['Return is treated as constant; inflation and taxes are not modeled.', 'Time to goal is the first whole contribution period reaching the target. Contributions arrive at the end of each period.'],
+    assumptions: [
+      'Return is treated as constant; inflation and taxes are not modeled.',
+      'Time to goal is the first whole contribution period reaching the target. Contributions arrive at the end of each period.',
+      'Withdrawals are capped at available funds; unmet withdrawals do not become debt.',
+      ...result.warnings,
+    ],
   }
 }
 
@@ -111,6 +145,9 @@ export function buildSavingsGoalTable(result: SavingsGoalResult): TableData {
     columns: [
       { key: 'period', label: 'Year', align: 'right', format: 'number' },
       { key: 'balance', label: 'Balance', align: 'right', format: 'currency' },
+      ...(result.unmetWithdrawals > 0
+        ? [{ key: 'unmetWithdrawals', label: 'Unmet withdrawals (cumulative)', align: 'right' as const, format: 'currency' as const }]
+        : []),
     ],
     rows: result.schedule.map((s) => ({ ...s })),
   }

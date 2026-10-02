@@ -35,6 +35,9 @@ export function validateTriangle(input: TriangleInput) {
     case 'AAS':
       angle(input.angleA, 'angleA')
       angle(input.angleB, 'angleB')
+      if (input.angleA && input.angleB && input.angleA + input.angleB >= 180) {
+        errors.angleB = 'Sum of angles A and B must be less than 180°'
+      }
       positive(input.sideA, 'sideA')
       break
     case 'SSA':

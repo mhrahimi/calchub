@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { Fraction } from './fractions'
 import { convertBase, parseIntegerPart, encodeIntegerPart } from './baseConvert'
 import { parseDataset, computeDescriptiveStats } from './statistics'
-import { normalCDF, twoSidedPValue } from './distributions'
+import { normalCDF, studentTCDF, studentTQuantile, twoSidedPValue } from './distributions'
 import { gcdBigInt, lcmBigInt, gcdMultiple } from './gcd'
 import { generateRandomNumbers } from './random'
 import { parseIsoDate, dateDifference, addToDate, isLeapYear } from './dates'
@@ -50,6 +50,24 @@ describe('distributions', () => {
   it('computes two-sided p-value', () => {
     const p = twoSidedPValue(normalCDF, 1.96)
     expect(p).toBeCloseTo(0.05, 2)
+  })
+  it('student-t CDF matches Cauchy and published critical values', () => {
+    expect(studentTCDF(0, 10)).toBeCloseTo(0.5, 8)
+    expect(studentTCDF(1, 1)).toBeCloseTo(0.75, 4)
+    expect(studentTCDF(2.228, 10)).toBeCloseTo(0.975, 3)
+  })
+  it('student-t quantile expands beyond ±100 for low df', () => {
+    // Cauchy (df=1): F^{-1}(p) = tan(π(p − 1/2)); p=0.999 → ≈318.3
+    const q = studentTQuantile(0.999, 1)
+    expect(q).toBeCloseTo(Math.tan(Math.PI * 0.499), 0)
+    expect(q).toBeGreaterThan(100)
+    expect(studentTCDF(q, 1)).toBeCloseTo(0.999, 3)
+  })
+  it('student-t quantile is antisymmetric and matches moderate tails', () => {
+    expect(studentTQuantile(0.5, 10)).toBeCloseTo(0, 8)
+    const q975 = studentTQuantile(0.975, 10)
+    expect(q975).toBeCloseTo(2.228, 2)
+    expect(studentTQuantile(0.025, 10)).toBeCloseTo(-q975, 6)
   })
 })
 

@@ -139,7 +139,10 @@ export function usMonthlyRate(apr: number): number {
   return apr / 12
 }
 
-/** Periods per year from frequency string */
+/** Periods per year from frequency string.
+ * Note: `bi-monthly` means twice per month (24), same as `semimonthly` —
+ * not once every two months. UI copy uses “Twice a month”.
+ */
 export function periodsPerYear(frequency: string): number {
   const map: Record<string, number> = {
     daily: 365,

@@ -27,10 +27,10 @@ export function explainConversion(input: ConversionInput, result: ConversionResu
       steps: [
         {
           label: 'Affine path',
-          expression: `${from.symbol} → Kelvin → ${to.symbol}`,
+          expression: `${from.symbol} → Celsius → ${to.symbol}`,
         },
       ],
-      assumptions: ['Temperature is not a simple multiplier; it uses an offset plus a scale.'],
+      assumptions: ['Temperature uses Celsius as the canonical base (affine offset + scale), not a simple multiplier.'],
     }
   }
   const fromFactor = from.kind === 'multiplicative' ? from.factor : 1

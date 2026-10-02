@@ -12,8 +12,10 @@ import { normalizePastedText } from './clipboard'
 import { evaluateExpression, MAX_EXPRESSION_LENGTH } from './expression'
 import { formatCalculatorDisplay } from './formatDisplay'
 import { formatExpressionInput, moveInputCaret, stripInputGrouping } from './inputFormatting'
-import { keyBindings } from './keyBindings'
+import { staticHelpRows } from './keyBindings'
 import { createKeyChordController } from './keyChordController'
+import { loadShortcuts, shortcutHelpRows, subscribeShortcuts } from './shortcuts'
+import { ShortcutsDialog } from './ShortcutsDialog'
 import { KeypadGrid, type KeypadCell } from './KeypadGrid'
 import { clearHistoryStore, loadHistory, pushHistory, saveHistory, type CalculatorHistoryEntry } from './historyStore'
 
@@ -122,7 +124,10 @@ export default function BasicCalculatorPage() {
   const helpRef = useRef<HTMLDivElement>(null)
   const helpButtonRef = useRef<HTMLButtonElement>(null)
   const reduceMotion = useReducedMotion()
-  const chordRef = useRef(createKeyChordController())
+  const [shortcuts, setShortcuts] = useState(loadShortcuts)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const chordRef = useRef(createKeyChordController(shortcuts))
+  const helpRows = useMemo(() => [...staticHelpRows, ...shortcutHelpRows(shortcuts)], [shortcuts])
   const preview = useMemo(() => evaluateExpression(session.source, session.angleMode), [session.source, session.angleMode])
   const invalid = !!session.inputError || preview.status === 'error' || (session.showErrors && preview.status === 'incomplete')
   const issue = session.inputError || ((preview.status === 'error' || preview.status === 'incomplete') ? preview.message : null)
@@ -169,6 +174,15 @@ export default function BasicCalculatorPage() {
       if (copyTimer.current) clearTimeout(copyTimer.current)
     }
   }, [applyActions, flushPending])
+
+  useEffect(() => subscribeShortcuts(() => setShortcuts(loadShortcuts())), [])
+  const shortcutsAppliedRef = useRef(shortcuts)
+  useEffect(() => {
+    if (shortcutsAppliedRef.current === shortcuts) return
+    shortcutsAppliedRef.current = shortcuts
+    flushPending()
+    chordRef.current = createKeyChordController(shortcuts)
+  }, [shortcuts, flushPending])
 
   useLayoutEffect(() => {
     if (document.activeElement === editorRef.current) {
@@ -238,12 +252,9 @@ export default function BasicCalculatorPage() {
     }
     if (event.key.length !== 1) { flushPending(); return }
     event.preventDefault()
-    if (/^[0-9.+\-*/^(),%!]$/.test(event.key)) {
-      applyActions(chordRef.current.onKeyDown(event.key, performance.now(), { repeat: event.repeat }).actions)
-    } else {
-      flushPending()
-      dispatchSession({ type: 'insert', text: event.key })
-    }
+    const result = chordRef.current.onKeyDown(event.key, performance.now(), { repeat: event.repeat })
+    applyActions(result.actions)
+    if (result.text !== undefined) dispatchSession({ type: 'insert', text: result.text })
   }
   // Commit the new caret before the browser emits its selection event for this
   // key. Otherwise an old selection can overwrite the next insertion position.
@@ -266,7 +277,7 @@ export default function BasicCalculatorPage() {
         onClick={() => onAction(key.kind === 'clear' ? { type: 'allClear' } : key.action)} /> }
   }))
 
-  return (
+  return (<>
     <div className={cn('mx-auto px-4 py-8 lg:py-12', scientificOpen ? 'max-w-5xl' : 'max-w-3xl')}
       onKeyDownCapture={(event) => {
         if (event.nativeEvent.isComposing) return
@@ -300,7 +311,7 @@ export default function BasicCalculatorPage() {
         }
       }}
       onKeyUp={(event) => {
-        if (!event.nativeEvent.isComposing && event.key === keyBindings.holdKey) {
+        if (!event.nativeEvent.isComposing && chordRef.current.handles(event.key)) {
           const result = chordRef.current.onKeyUp(event.key, performance.now())
           if (result.handled) { event.preventDefault(); flushSync(() => applyActions(result.actions)) }
         }
@@ -357,8 +368,10 @@ export default function BasicCalculatorPage() {
                 {helpOpen && <div id="keyboard-shortcuts" role="dialog" aria-label="Keyboard shortcuts" className="absolute left-0 top-full z-20 mt-2 w-64 rounded-xl border border-border bg-white p-3 shadow-soft">
                   <div className="flex items-center justify-between mb-2"><p className="text-xs font-semibold text-text-primary">Keyboard shortcuts</p>
                     <button type="button" autoFocus aria-label="Close keyboard shortcuts" className={controlClass} onClick={() => { setHelpOpen(false); helpButtonRef.current?.focus() }}><X className="w-3.5 h-3.5" aria-hidden /></button></div>
-                  <ul className="space-y-1.5">{keyBindings.help.map((row) => <li key={row.keys} className="flex items-baseline justify-between gap-3 text-xs"><span className="font-medium text-text-secondary shrink-0">{row.keys}</span><span className="text-text-muted text-right">{row.meaning}</span></li>)}</ul>
+                  <ul className="space-y-1.5">{helpRows.map((row) => <li key={row.keys} className="flex items-baseline justify-between gap-3 text-xs"><span className="font-medium text-text-secondary shrink-0">{row.keys}</span><span className="text-text-muted text-right">{row.meaning}</span></li>)}</ul>
                   <p className="text-xs text-text-muted mt-3">Numbers are grouped as 123٬456. A regular comma separates function arguments, as in logx(2, 8). Use a decimal point. For percentages, 200 + 10% = 220.</p>
+                  <button type="button" onClick={() => { flushPending(); setHelpOpen(false); setShortcutsOpen(true) }}
+                    className="mt-3 w-full h-9 rounded-lg bg-primary text-xs font-medium text-white hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">Set your shortcuts</button>
                 </div>}
               </div>
             </div>
@@ -441,5 +454,6 @@ export default function BasicCalculatorPage() {
         </section>
       </div>
     </div>
-  )
+    <ShortcutsDialog open={shortcutsOpen} onClose={() => { setShortcutsOpen(false); focusExpression() }} />
+  </>)
 }

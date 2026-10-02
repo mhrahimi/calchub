@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { createKeyChordController } from './keyChordController'
-import { keyBindings } from './keyBindings'
+import { DEFAULT_SHORTCUTS, type Shortcut, type ShortcutConfig } from './shortcuts'
 import type { CalculatorAction } from './engine'
+
+function config(shortcuts: Shortcut[]): ShortcutConfig {
+  return { ...DEFAULT_SHORTCUTS, shortcuts }
+}
 
 function actionsOf(
   result: { actions: CalculatorAction[] },
@@ -60,16 +64,46 @@ describe('keyChordController', () => {
     ])
   })
 
-  it('uses holdCombos from config so bindings are easy to change', () => {
-    const custom = {
-      ...keyBindings,
-      holdCombos: {
-        '/': { type: 'paren' as const, which: ')' as const },
-      },
-    }
-    const c = createKeyChordController(custom)
+  it('uses hold combos from config so bindings are easy to change', () => {
+    const c = createKeyChordController(config([{ id: 'a', trigger: { kind: 'hold', hold: '0', key: '/' }, action: 'closeParen' }]))
     c.onKeyDown('0', 0)
     expect(actionsOf(c.onKeyDown('/', 10))).toEqual([{ type: 'paren', which: ')' }])
+  })
+
+  it('supports more than one hold key', () => {
+    const c = createKeyChordController(config([
+      ...DEFAULT_SHORTCUTS.shortcuts,
+      { id: 'b', trigger: { kind: 'hold', hold: '.', key: 's' }, action: 'sqrt' },
+    ]))
+    c.onKeyDown('.', 0)
+    expect(actionsOf(c.onKeyDown('s', 10))).toEqual([{ type: 'fn', name: 'sqrt' }])
+    expect(actionsOf(c.onKeyUp('.', 20))).toEqual([])
+    c.onKeyDown('.', 30)
+    expect(actionsOf(c.onKeyUp('.', 40))).toEqual([{ type: 'decimal' }])
+    c.onKeyDown('0', 50)
+    expect(actionsOf(c.onKeyDown('/', 60))).toEqual([{ type: 'paren', which: '(' }])
+  })
+
+  it('maps press shortcuts and passes other letters through as text', () => {
+    const c = createKeyChordController(config([{ id: 'c', trigger: { kind: 'press', key: 'r' }, action: 'sqrt' }]))
+    expect(c.handles('r')).toBe(true)
+    expect(actionsOf(c.onKeyDown('r', 0))).toEqual([{ type: 'fn', name: 'sqrt' }])
+    expect(c.onKeyDown('s', 10)).toMatchObject({ actions: [], text: 's' })
+    expect(c.onKeyDown('p', 20)).toMatchObject({ actions: [], text: 'p' })
+  })
+
+  it('uses the configured double-tap window', () => {
+    const c = createKeyChordController({ ...DEFAULT_SHORTCUTS, doubleTapMs: 600 })
+    c.onKeyDown('*', 0)
+    expect(actionsOf(c.poll(400))).toEqual([])
+    expect(actionsOf(c.onKeyDown('*', 500))).toEqual([{ type: 'operator', operator: '^' }])
+  })
+
+  it('types 0 immediately when hold-for-zeros is off and 0 has no chords', () => {
+    const c = createKeyChordController({ ...DEFAULT_SHORTCUTS, holdDigitZeros: null, shortcuts: [] })
+    expect(c.handles('0')).toBe(false)
+    expect(actionsOf(c.onKeyDown('0', 0))).toEqual([{ type: 'digit', digit: '0' }])
+    expect(actionsOf(c.onKeyDown('3', 10))).toEqual([{ type: 'digit', digit: '3' }])
   })
 
   it('flushes pending typing before focus moves', () => {

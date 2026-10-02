@@ -1,8 +1,14 @@
+import { CalculationError } from '@/utils/rootSolve'
 import { solveTriangle } from './solver'
+import { validateTriangle } from './validation'
 import type { TriangleInput, TriangleResult } from './types'
 import type { CalculationExplanation, TableData } from '@/calculators/types'
 
 export function calculateTriangle(input: TriangleInput): TriangleResult {
+  const validation = validateTriangle(input)
+  if (!validation.valid) {
+    throw new CalculationError('invalid_domain', Object.values(validation.errors).join('. '))
+  }
   const solutions = solveTriangle(
     input.case,
     input.sideA,

@@ -51,6 +51,9 @@ export default function SavingsGoalPage() {
             <MetricRow label="Time horizon" value={`${Number(r.timeToGoal.toFixed(4))} years`} />
           )}
           <MetricRow label="Total contributions" value={formatResultCurrency(r.totalContributions)} />
+          {r.unmetWithdrawals > 0 && (
+            <MetricRow label="Unmet withdrawals" value={formatResultCurrency(r.unmetWithdrawals)} />
+          )}
         </div>
       </div>
     ),
