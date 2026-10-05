@@ -10,6 +10,10 @@ export function validateCreWaterfall(input: CreWaterfallInput) {
   if (input.lpPromotePercent < 0 || input.lpPromotePercent > 100) {
     errors.lpPromotePercent = 'LP promote share must be between 0 and 100'
   }
+  if (input.preferredReturnPercent < 0) errors.preferredReturnPercent = 'Preferred return cannot be negative'
+  if (input.catchUpPercent < 0 || input.catchUpPercent >= 100) {
+    errors.catchUpPercent = 'GP catch-up must be from 0 up to, but not including, 100'
+  }
   if (Object.keys(errors).length) return { valid: false as const, errors }
   return { valid: true as const, data: input }
 }

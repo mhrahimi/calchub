@@ -23,7 +23,7 @@ vi.mock('@/components/calculator/ChartPanel', () => ({ ChartPanel: ({ data }: { 
 let root: Root
 let container: HTMLDivElement
 const inputById = (id: string) => container.querySelector<HTMLInputElement>(`#${id}`)!
-const amount = () => container.querySelector('.mortgage-hero-amount')?.textContent
+const amount = () => container.querySelector('.calc-hero-amount')?.textContent
 function button(text: string) {
   const found = [...container.querySelectorAll('button')].find(node => node.textContent?.trim() === text)
   if (!found) throw new Error(`Button not found: ${text}`)
@@ -67,11 +67,11 @@ describe('mortgage interactions', () => {
       <Route path="*" element={<p>Left the calculator</p>} />
     </Routes></HashRouter>))
     await type('interest-rate', '5'); await settle()
-    await click(container.querySelector<HTMLElement>('.mortgage-jump')!); await settle()
+    await click(container.querySelector<HTMLElement>('.calc-jump')!); await settle()
     expect(window.location.hash).toBe('#/calculators/mortgage')
     expect(amount()).toContain('$2,147.29')
     expect(inputById('interest-rate').value).toBe('5')
-    expect(document.activeElement?.id).toBe('mortgage-estimate-title')
+    expect(document.activeElement?.id).toBe('estimate-title')
     expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled()
     window.history.replaceState(null, '', '/')
   })
@@ -118,8 +118,8 @@ describe('mortgage interactions', () => {
     settings = { ...DEFAULT_SETTINGS, country: 'CA', currency: 'CAD', numberFormat: 'en-CA' }
     await mount()
     expect(button('Canada').getAttribute('aria-pressed')).toBe('true')
-    expect(container.querySelector('.mortgage-results')?.textContent).not.toMatch(/CAD|USD/)
-    expect(container.querySelector('.mortgage-form')?.textContent).not.toMatch(/CAD|USD/)
+    expect(container.querySelector('.calc-results')?.textContent).not.toMatch(/CAD|USD/)
+    expect(container.querySelector('.calc-form')?.textContent).not.toMatch(/CAD|USD/)
     await click(button('United States')); await settle()
     expect(amount()).toContain('$2,528.27')
     settings = { ...settings, currency: 'EUR' }
@@ -152,7 +152,7 @@ describe('mortgage interactions', () => {
     expect(region.textContent).not.toMatch(/CAD|USD/)
     expect(container.textContent).not.toMatch(/Next rows|Previous rows|Next page/)
     await click(button('By loan year'))
-    expect(container.querySelectorAll('.mortgage-schedule tbody tr')).toHaveLength(30)
+    expect(container.querySelectorAll('.calc-schedule tbody tr')).toHaveLength(30)
   })
 
   it('applies payoff targets, updates extras and keeps navigation on the selected view', async () => {
@@ -162,7 +162,7 @@ describe('mortgage interactions', () => {
     expect(container.textContent).toContain('Your extra payments make a difference')
     expect(button('Pay off sooner').getAttribute('aria-pressed')).toBe('true')
     await click(button('Schedule')); await click(button('By month'))
-    expect(container.querySelectorAll('.mortgage-schedule tbody tr').length).toBeLessThanOrEqual(180)
+    expect(container.querySelectorAll('.calc-schedule tbody tr').length).toBeLessThanOrEqual(180)
   })
 
   it('validates dated extras and toggles costs without including disabled amounts', async () => {
@@ -225,7 +225,7 @@ describe('mortgage interactions', () => {
     setPendingRestore({ mode: 'reopen', record: { id: 'saved-test', name: 'Saved mortgage', calculatorId: 'mortgage', inputs: input, results: { ...raw, metadata }, settingsVersion: 1, createdAt: '2026-01-01', updatedAt: '2026-01-01' } })
     await mount(); await settle(1000)
     expect(inputById('interest-rate').value).toBe('5')
-    expect(container.querySelector('.mortgage-form')?.textContent).toContain('This saved estimate is in CAD; your app is set to USD.')
-    expect(container.querySelector('.mortgage-results')?.textContent).not.toMatch(/CAD|USD/)
+    expect(container.querySelector('.calc-form')?.textContent).toContain('This saved estimate is in CAD; your app is set to USD.')
+    expect(container.querySelector('.calc-results')?.textContent).not.toMatch(/CAD|USD/)
   })
 })

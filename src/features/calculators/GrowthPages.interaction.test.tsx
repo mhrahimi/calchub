@@ -17,14 +17,15 @@ vi.mock('@/components/calculator/ChartPanel', () => ({ ChartPanel: () => <div />
 let root: Root
 let container: HTMLDivElement
 const input = (id: string) => container.querySelector<HTMLInputElement>(`#${id}`)!
-const summary = () => container.querySelector('.result-summary')?.textContent ?? ''
+const summary = () => container.querySelector('.calc-hero-amount')?.textContent ?? container.querySelector('.result-summary')?.textContent ?? ''
 function button(text: string) {
   const node = [...container.querySelectorAll('button')].find(node => node.textContent?.trim() === text)
   if (!node) throw new Error(`Button not found: ${text}`)
   return node
 }
 async function click(node: HTMLElement) { await act(async () => { node.click() }) }
-async function calculate() { await click(button('Calculate')); await act(async () => { await vi.advanceTimersByTimeAsync(20) }) }
+async function settle(ms = 500) { await act(async () => { await vi.advanceTimersByTimeAsync(ms) }) }
+async function persist() { await settle(1700) }
 async function type(id: string, value: string) {
   await act(async () => {
     const node = input(id)
@@ -63,7 +64,7 @@ describe('P1 growth calculator form contracts', () => {
     await mount(Page)
     await type(id, '−5')
     expect(input(id).value).toBe('-5')
-    await calculate()
+    await persist()
     const record = vi.mocked(saveHistoryRecord).mock.calls.at(-1)![0]
     expect(record.inputs).toMatchObject({ [id === 'return-rate' ? 'returnRate' : 'interestRate']: -5 })
     const result = record.results as Record<string, number>
@@ -71,7 +72,7 @@ describe('P1 growth calculator form contracts', () => {
   })
   it('preserves typed/pasted withdrawals and the optional sign toggle', async () => {
     const { saveHistoryRecord } = await import('@/persistence/history')
-    await mount(InvestmentPage); await type('periodic-contribution', '-200'); await calculate()
+    await mount(InvestmentPage); await type('periodic-contribution', '-200'); await persist()
     expect(input('periodic-contribution').value).toBe('-200')
     expect(vi.mocked(saveHistoryRecord).mock.calls.at(-1)![0].inputs).toMatchObject({ periodicContribution: -200 })
     const group = input('periodic-contribution').closest('.space-y-1\\.5')!
@@ -83,23 +84,22 @@ describe('P1 growth calculator form contracts', () => {
     await mount(InvestmentPage); await choose('solve-for', 'pmt')
     expect(input('periodic-contribution')).toBeNull()
     expect(input('target-value').value).toBe('')
-    await calculate()
+    await settle()
     expect(input('target-value').getAttribute('aria-invalid')).toBe('true')
-    expect(document.activeElement).toBe(input('target-value'))
     expect(container.textContent).toContain('highlighted field')
     expect(saveHistoryRecord).not.toHaveBeenCalled()
-    await type('target-value', '300850.72'); await calculate()
-    expect(summary()).toContain('Required contribution per month')
+    await type('target-value', '300850.72'); await persist()
+    expect(container.textContent).toContain('Required contribution per month')
     expect(summary()).toContain('500.00')
-    await type('target-value', ''); await calculate()
+    await type('target-value', ''); await settle()
     expect(saveHistoryRecord).toHaveBeenCalledTimes(1)
     expect(input('target-value').getAttribute('aria-invalid')).toBe('true')
   })
   it('hides each unknown and ignores the inactive duration when solving time', async () => {
     await mount(InvestmentPage); await type('period', '0'); await choose('solve-for', 'periods')
     expect(input('period')).toBeNull()
-    await type('target-value', '20000'); await calculate()
-    expect(summary()).toContain('Time to target')
+    await type('target-value', '20000'); await settle()
+    expect(container.textContent).toContain('Time to target')
     await choose('solve-for', 'rate')
     expect(input('return-rate')).toBeNull()
     expect(input('period')).not.toBeNull()
@@ -108,22 +108,21 @@ describe('P1 growth calculator form contracts', () => {
     const { saveHistoryRecord } = await import('@/persistence/history')
     await mount(InvestmentPage); await choose('contribution-frequency', 'weekly')
     expect(container.querySelector('label[for="periodic-contribution"]')?.textContent).toBe('Contribution per week')
-    await type('return-rate', '0'); await type('period', '1'); await calculate()
+    await type('return-rate', '0'); await type('period', '1'); await persist()
     expect(summary()).toContain('36,000.00')
     const record = vi.mocked(saveHistoryRecord).mock.calls.at(-1)![0]
     expect(record.inputs).toMatchObject({ contributionFrequency: 'weekly', rateConvention: 'nominal-annual' })
   })
   it('shows compound duration errors and recovers without an unexplained empty result', async () => {
-    await mount(CompoundInterestPage); await type('duration', '-1'); await calculate()
+    await mount(CompoundInterestPage); await type('duration', '-1'); await settle()
     expect(input('duration').value).toBe('-1')
     expect(input('duration').getAttribute('aria-invalid')).toBe('true')
-    expect(document.activeElement).toBe(input('duration'))
     expect(container.textContent).toContain('duration greater than zero')
-    await type('duration', '10'); await calculate()
+    await type('duration', '10'); await settle()
     expect(summary()).toContain('54,713.58')
   })
   it('rejects a blank required rate instead of treating it as zero', async () => {
-    await mount(InvestmentPage); await type('return-rate', ''); await calculate()
+    await mount(InvestmentPage); await type('return-rate', ''); await settle()
     expect(input('return-rate').value).toBe('')
     expect(input('return-rate').getAttribute('aria-invalid')).toBe('true')
     expect(summary()).toBe('')
@@ -136,7 +135,7 @@ describe('P1 growth calculator form contracts', () => {
     await click(button('Withdrawal'))
     expect(input('contribution').value).toBe('200')
     await type('contribution', '150')
-    await calculate()
+    await persist()
     expect(vi.mocked(saveHistoryRecord).mock.calls.at(-1)![0].inputs).toMatchObject({ contribution: -150 })
     expect(container.textContent).toContain('Net capital')
     await click(button('Deposit'))
@@ -150,7 +149,7 @@ describe('P1 growth calculator form contracts', () => {
     await type('contribution', '200')
     await type('interest-rate', '0')
     await type('duration', '1')
-    await calculate()
+    await settle()
     expect(container.textContent).toContain('Funds are depleted on 2026-02-01')
     expect(container.textContent).toContain('Net capital')
     expect(container.textContent).toContain('Unmet withdrawals')

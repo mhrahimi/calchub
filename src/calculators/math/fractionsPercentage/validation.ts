@@ -10,8 +10,9 @@ export function validateFractionsPercentage(input: FractionsPercentageInput) {
       if (input.percentValue === undefined) errors.percentValue = 'Enter a percentage'
       if (input.baseValue === undefined) errors.baseValue = 'Enter a base value'
     } else if (input.percentageMode === 'whatPercent') {
-      if (input.percentValue === undefined) errors.baseValue = 'Enter part value'
-      if (input.baseValue === undefined || input.baseValue === 0) errors.baseValue = 'Base value must be non-zero'
+      if (input.percentValue === undefined) errors.percentValue = 'Enter the part'
+      if (input.baseValue === undefined) errors.baseValue = 'Enter the whole'
+      else if (input.baseValue === 0) errors.baseValue = 'Whole must be non-zero'
     } else if (input.percentageMode === 'percentChange') {
       if (input.oldValue === undefined) errors.oldValue = 'Enter the old value'
       if (input.newValue === undefined) errors.newValue = 'Enter the new value'

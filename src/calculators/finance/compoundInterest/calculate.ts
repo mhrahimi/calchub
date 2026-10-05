@@ -70,18 +70,25 @@ export function explainCompoundInterest(
   input: CompoundInterestInput,
   result: CompoundInterestResult,
 ): CalculationExplanation {
+  const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   const continuous = input.continuous || input.compoundingFrequency === 'continuous'
+  const years = input.durationUnit === 'years' ? input.duration : input.duration / 12
+  const m = continuous ? 0 : periodsPerYear(input.compoundingFrequency)
+  const rate = input.interestRate / 100
+  const expression = continuous
+    ? input.contribution !== 0
+      ? `Start ${money(input.principal)}. Between contributions of ${money(input.contribution)}, the balance grows by e^(${rate} × Δt).`
+      : `A = ${money(input.principal)} × e^(${rate} × ${years})`
+    : input.contribution !== 0
+      ? `A = ${money(input.principal)} × (1 + ${rate}/${m})^(${m} × ${years}), plus ${money(input.contribution)} at the ${input.contributionTiming} of each ${input.contributionFrequency} period`
+      : `A = ${money(input.principal)} × (1 + ${rate}/${m})^(${m} × ${years})`
   return {
     title: 'Compound interest',
     assumptions: [`The rate is nominal annual with ${continuous ? 'continuous' : input.compoundingFrequency} compounding.`, 'Withdrawals are capped at available funds; unmet withdrawals do not become debt. Contributions are actual net cash flows including starting principal.', 'Contributions post on actual UTC calendar dates; no contribution prorating.', ...(input.compoundingFrequency === 'daily' && !continuous ? ['The effective annual rate is quoted over 365 days. Daily accrual uses a 365-day denominator and includes actual leap days.'] : []), 'Missing start date defaults to 2026-01-01. Semimonthly dates are the 1st and 16th.', 'Fractional compounding periods use equivalent exponential accrual between calendar anniversaries.'],
     steps: [
       {
         label: continuous ? 'Continuous compounding' : 'Periodic compounding',
-        expression: continuous
-          ? input.contribution !== 0
-            ? 'Between contributions, B grows by e^(R Δt); contributions applied at the selected timing'
-            : 'A = P × e^(R×t)'
-          : `A = P × (1 + R/m)^(m×t) plus contributions (${input.contributionTiming} of period)`,
+        expression,
       },
       ...(result.effectiveAnnualRate === undefined ? [] : [{ label: 'Effective annual rate', result: `${result.effectiveAnnualRate.toFixed(4)}%` }]),
       { label: 'Final balance', result: `$${result.finalBalance.toFixed(2)}` },

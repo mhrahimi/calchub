@@ -22,12 +22,14 @@ export function explainConversion(input: ConversionInput, result: ConversionResu
   const from = getUnit(input.fromUnitId)!
   const to = getUnit(input.toUnitId)!
   if (from.kind === 'affine' && to.kind === 'affine') {
+    const base = from.toBase(input.value)
     return {
       title: 'Unit conversion',
       steps: [
         {
           label: 'Affine path',
-          expression: `${from.symbol} → Celsius → ${to.symbol}`,
+          expression: `${input.value} ${from.symbol} → ${base} °C → ${result.outputValue} ${to.symbol}`,
+          result: `${result.outputValue} ${result.toSymbol}`,
         },
       ],
       assumptions: ['Temperature uses Celsius as the canonical base (affine offset + scale), not a simple multiplier.'],
@@ -40,7 +42,8 @@ export function explainConversion(input: ConversionInput, result: ConversionResu
     steps: [
       {
         label: 'Via base unit',
-        expression: `${result.fromSymbol} × ${fromFactor} / ${toFactor} → ${result.toSymbol}`,
+        expression: `${input.value} ${result.fromSymbol} × ${fromFactor} / ${toFactor} = ${result.outputValue} ${result.toSymbol}`,
+        result: `${result.outputValue} ${result.toSymbol}`,
       },
     ],
     assumptions: ['Each unit has a factor relative to a canonical base for that dimension.'],

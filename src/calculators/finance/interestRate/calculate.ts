@@ -32,11 +32,16 @@ export function calculateInterestRate(input: InterestRateInput): InterestRateRes
   }
 }
 
-export function explainInterestRate(_input: InterestRateInput, result: InterestRateResult): CalculationExplanation {
+export function explainInterestRate(input: InterestRateInput, result: InterestRateResult): CalculationExplanation {
+  const periods = termToPeriods(input.term, input.termUnit, input.paymentFrequency)
+  const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   return {
     title: 'Interest rate solve',
     steps: [
-      { label: 'Objective', expression: 'Find r such that PV = PMT × annuity factor + FV/(1+r)^n' },
+      {
+        label: 'Objective',
+        expression: `Find r such that ${money(input.principal)} = ${money(input.payment)} × annuity(r, ${periods})${input.balloon ? ` + ${money(input.balloon)} / (1+r)^${periods}` : ''}`,
+      },
       { label: 'Periodic rate', result: `${(result.periodicRate * 100).toFixed(4)}%` },
       { label: 'Nominal annual rate', result: `${(result.annualRate * 100).toFixed(4)}%` },
       { label: 'Effective annual rate', result: `${(result.effectiveAnnualRate * 100).toFixed(4)}%` },

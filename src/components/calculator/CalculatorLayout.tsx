@@ -15,6 +15,7 @@ import type { CalculationExplanation, ChartData, TableData } from '@/calculators
 import { DataTable } from '@/components/calculator/DataTable'
 import { ChartPanel } from '@/components/calculator/ChartPanel'
 import { type ShareMenuActions } from '@/components/calculator/ShareMenu'
+import '@/styles/calculatorSkin.css'
 
 interface CalculatorLayoutProps {
   autoCalculate?: boolean
@@ -86,7 +87,7 @@ export function CalculatorLayout({
   useEffect(() => { if (saveOpen) { setName(title); setSaveError(''); dialog.current?.showModal() } else dialog.current?.close() },[saveOpen,title])
 
   return (
-    <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-6 lg:py-8 min-w-0">
+    <div className={cn('max-w-[1440px] mx-auto px-4 sm:px-6 py-6 lg:py-8 min-w-0', resultPresentation === 'inline' && 'calc-page')}>
       <header className="calculator-header mb-8 pb-6 border-b border-border">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -169,12 +170,12 @@ export function CalculatorLayout({
                         <div key={i}>
                           <p className="text-sm font-medium text-text-primary">{step.label}</p>
                           {step.expression && (
-                            <pre className="text-sm text-text-secondary font-mono mt-1 whitespace-pre-wrap break-all [overflow-wrap:anywhere]">
+                            <pre className="text-sm text-text-secondary font-mono mt-1 whitespace-pre-wrap break-words">
                               {displayText(step.expression)}
                             </pre>
                           )}
                           {step.result && (
-                            <p className="text-sm text-primary tabular-nums mt-1 break-all [overflow-wrap:anywhere]">
+                            <p className="text-sm text-primary tabular-nums mt-1 break-words">
                               {displayText(step.result)}
                             </p>
                           )}

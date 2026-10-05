@@ -58,13 +58,22 @@ export function calculateBonds(input: BondsInput): BondsResult {
   }
 }
 
-export function explainBonds(_input: BondsInput, result: BondsResult): CalculationExplanation {
+export function explainBonds(input: BondsInput, result: BondsResult): CalculationExplanation {
+  const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const y = result.chartParams.ytmPerPeriod
   return {
     title: 'Bond analytics',
     steps: [
-      { label: 'YTM (annual)', result: `${result.ytmPercent.toFixed(4)}%` },
-      { label: 'Macaulay duration', result: result.macaulayDuration.toFixed(4) },
-      { label: 'Modified duration', result: result.modifiedDuration.toFixed(4) },
+      {
+        label: 'Yield to maturity',
+        expression: `Price ${money(input.bondPrice)} = Σ ${money(result.couponPayment)}/(1+y)^t + ${money(input.faceValue)}/(1+y)^${input.periodsToMaturity}`,
+        result: `y = ${(y * 100).toFixed(4)}% per period, annual YTM ${result.ytmPercent.toFixed(4)}%`,
+      },
+      {
+        label: 'Duration',
+        expression: `Modified = ${result.macaulayDuration.toFixed(4)} / (1 + ${y.toFixed(6)})`,
+        result: result.modifiedDuration.toFixed(4),
+      },
     ],
     assumptions: [
       'Coupons paid on schedule',

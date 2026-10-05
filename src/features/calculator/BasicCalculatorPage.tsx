@@ -18,6 +18,7 @@ import { loadShortcuts, shortcutHelpRows, subscribeShortcuts } from './shortcuts
 import { ShortcutsDialog } from './ShortcutsDialog'
 import { KeypadGrid, type KeypadCell } from './KeypadGrid'
 import { clearHistoryStore, loadHistory, pushHistory, saveHistory, type CalculatorHistoryEntry } from './historyStore'
+import '@/styles/calculatorSkin.css'
 
 type Key =
   | { kind: 'action'; action: CalculatorAction; label: string; name: string; tone: 'fn' | 'op' | 'digit' }
@@ -277,8 +278,10 @@ export default function BasicCalculatorPage() {
         onClick={() => onAction(key.kind === 'clear' ? { type: 'allClear' } : key.action)} /> }
   }))
 
+  const previewText = preview.status === 'complete' ? formatCalculatorDisplay(preview.value) : preview.status === 'empty' ? '0' : '—'
+
   return (<>
-    <div className={cn('mx-auto px-4 py-8 lg:py-12', scientificOpen ? 'max-w-5xl' : 'max-w-3xl')}
+    <div className="calc-page max-w-[1440px] mx-auto px-4 sm:px-6 py-6 lg:py-8 min-w-0"
       onKeyDownCapture={(event) => {
         if (event.nativeEvent.isComposing) return
         if (helpOpen && event.key === 'Escape') {
@@ -350,9 +353,28 @@ export default function BasicCalculatorPage() {
         })
       }}
     >
-      <h1 className="text-2xl font-bold text-text-primary mb-6">Calculator</h1>
-      <div className={cn('grid gap-4 items-start', scientificOpen ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,16rem)]' : 'lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]')}>
-        <div className="rounded-2xl border border-border bg-white p-4 relative min-w-0">
+      <header className="calculator-header mb-8 pb-6 border-b border-border">
+        <h1 className="text-2xl lg:text-3xl font-bold text-text-primary">Calculator</h1>
+        <p className="text-text-secondary mt-1 max-w-2xl">The result updates as you type. Press Enter or = to keep it in history.</p>
+      </header>
+      <div className={cn('grid gap-8 items-start', scientificOpen ? 'xl:grid-cols-[minmax(0,1.4fr)_minmax(260px,0.6fr)]' : 'lg:grid-cols-[minmax(0,1.15fr)_minmax(260px,0.7fr)]')}>
+        <div className="min-w-0 space-y-6">
+          <section className="calc-results" aria-label="Live result">
+            <section className="calc-hero" aria-labelledby="estimate-title">
+              <div className="calc-eyebrow">
+                <span>{session.committed ? 'SAVED RESULT' : 'LIVE RESULT'}</span>
+                {scientificOpen && <span>{session.angleMode === 'deg' ? 'degrees' : 'radians'}</span>}
+              </div>
+              <h2 id="estimate-title" tabIndex={-1}>{session.committed ? 'Result' : 'Preview'}</h2>
+              <output htmlFor="calculator-expression" aria-label={session.committed ? 'Result' : 'Preview'} aria-live="off" tabIndex={0}
+                className="calc-hero-amount block overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg">
+                <span className="block w-max min-w-full">{previewText}</span>
+              </output>
+              {invalid && issue && <p className="calc-hero-caption" style={{ color: '#9f1239' }}>{issue}</p>}
+            </section>
+          </section>
+        <section className="calculator-inputs" aria-label="Calculator inputs">
+        <div className="relative min-w-0">
           <div className="flex items-start justify-between gap-2 mb-3 flex-wrap">
             <div className="flex items-center gap-2">
               <button type="button" onClick={() => setScientificOpen((open) => { setItem(SCIENTIFIC_OPEN_KEY, !open); return !open })}
@@ -405,12 +427,6 @@ export default function BasicCalculatorPage() {
             <p id="expression-help" className={cn('text-xs mt-2 min-h-8 leading-relaxed', invalid ? 'text-red-700' : 'text-text-muted')}>
               {issue || (session.committed ? 'Saved. Type a number to start again, or an operator to continue.' : session.recall ? 'Recalled from history. ↓ returns toward your draft.' : 'Enter to save · ↑ ↓ to recall history')}
             </p>
-            <div className="text-right mt-2"><span className="text-xs text-text-muted">{session.committed ? 'Result' : 'Preview'}</span>
-              <output htmlFor="calculator-expression" aria-label={session.committed ? 'Result' : 'Preview'} aria-live="off" tabIndex={0}
-                className="block text-4xl leading-tight font-medium tabular-nums overflow-x-auto whitespace-nowrap py-1 px-2 rounded-lg text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-                <span className="block w-max min-w-full">{preview.status === 'complete' ? formatCalculatorDisplay(preview.value) : preview.status === 'empty' ? '0' : '—'}</span>
-              </output>
-            </div>
             <p role="status" aria-live="polite" className="sr-only">{session.committed ? `Result ${session.result}. Saved to history.` : session.showErrors && issue ? issue : ''}</p>
           </div>
           <div className={cn('flex flex-col gap-3', scientificOpen && 'lg:flex-row lg:items-start')}>
@@ -435,7 +451,9 @@ export default function BasicCalculatorPage() {
             <KeypadGrid rows={mainRows} label="Keypad" className="flex-1 min-w-0" />
           </div>
         </div>
-        <section className="rounded-2xl border border-border bg-white p-4 flex flex-col min-h-[16rem] lg:min-h-[28rem] min-w-0" aria-label="Calculation history">
+        </section>
+        </div>
+        <section className="calc-panel rounded-2xl border border-border bg-white p-4 flex flex-col min-h-[16rem] lg:min-h-[28rem] min-w-0" aria-label="Calculation history">
           <div className="flex items-center justify-between gap-3 mb-1"><h2 className="text-sm font-semibold text-text-primary">History</h2>
             {!!history.length && <button type="button" onClick={() => { clearHistoryStore(); setHistory([]); dispatchSession({ type: 'forgetHistory' }); focusExpression() }} className={controlClass}>Clear history</button>}
           </div>

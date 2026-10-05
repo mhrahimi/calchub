@@ -95,21 +95,27 @@ export function calculateSavingsGoal(input: SavingsGoalInput): SavingsGoalResult
 }
 
 export function explainSavingsGoal(input: SavingsGoalInput, result: SavingsGoalResult): CalculationExplanation {
-  const timingNote =
-    'FV = PV(1+r)^n + PMT × ((1+r)^n − 1) / r  (end-of-period contributions)'
+  const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const ppy = periodsPerYear(input.contributionFrequency)
+  const years = input.periodUnit === 'years' ? input.period : input.period / 12
+  const n = input.solveFor === 'time' ? (result.periodsToGoal ?? 0) : Math.round(years * ppy)
+  const r = input.returnRate / 100 / ppy
+  const timingNote = r === 0
+    ? `FV = ${money(input.currentSavings)} + PMT × ${n} = ${money(result.projectedBalance)}`
+    : `FV = ${money(input.currentSavings)}×(1+${r.toFixed(6)})^${n} + PMT×((1+r)^${n} − 1)/r = ${money(result.projectedBalance)}`
   const steps: CalculationExplanation['steps'] =
     input.solveFor === 'contribution'
       ? [
-          { label: 'Solve for contribution', expression: 'Invert the FV formula for PMT given the goal and horizon' },
-          { label: 'Future value', expression: timingNote },
+          { label: 'Solve for contribution', expression: `Invert FV for PMT. Goal ${money(input.goalAmount)}, start ${money(input.currentSavings)}, r = ${r.toFixed(6)}, n = ${n}.`, result: `${money(result.requiredContribution)} per period` },
+          { label: 'Future value', expression: timingNote.replace('PMT', money(result.requiredContribution)) },
         ]
       : input.solveFor === 'time'
         ? [
-            { label: 'Solve for time', expression: 'n = ln((Goal + PMT/r) / (PV + PMT/r)) / ln(1+r)' },
-            { label: 'Future value', expression: timingNote },
+            { label: 'Solve for time', expression: r === 0 ? `With a 0% return, count contributions of ${money(input.periodicContribution ?? 0)} from ${money(input.currentSavings)} until ${money(input.goalAmount)}.` : `n = ln((Goal + PMT/r) / (PV + PMT/r)) / ln(1+r), with PV = ${money(input.currentSavings)}, PMT = ${money(input.periodicContribution ?? 0)}, Goal = ${money(input.goalAmount)}, r = ${r.toFixed(6)}`, result: `${Number(result.timeToGoal.toFixed(4))} years (${result.periodsToGoal} periods)` },
+            { label: 'Future value', expression: timingNote.replace('PMT', money(input.periodicContribution ?? 0)) },
           ]
         : [
-            { label: 'Projected balance', expression: timingNote },
+            { label: 'Projected balance', expression: timingNote.replace('PMT', money(input.periodicContribution ?? 0)) },
           ]
   return {
     title: 'Savings goal',

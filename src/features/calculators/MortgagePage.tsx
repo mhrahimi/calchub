@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useApp } from '@/app/providers'
 import { CurrencyDisplayContext } from '@/components/calculator/SnapshotFormat'
 import { CalculatorLayout } from '@/components/calculator/CalculatorLayout'
+import { CalcSection, JumpToResult, Note, PresetRow, Toggle, UnitSwitch, focusEstimate } from '@/components/calculator/sections'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
@@ -12,7 +13,6 @@ import { calculateMortgage, explainMortgage, buildMortgageCharts, buildMortgageT
 import { convertDownPayment } from '@/calculators/finance/mortgage/insights'
 import { validateMortgage } from '@/calculators/finance/mortgage/validation'
 import type { MortgageInput, OneTimeExtraPayment, PayoffOption } from '@/calculators/finance/mortgage/types'
-import './mortgage.css'
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const monthOptions = MONTHS.map((label, index) => ({ value: String(index + 1), label }))
@@ -35,10 +35,10 @@ const defaultInput: MortgageInput = {
 export default function MortgagePage() {
   const { settings } = useApp()
   const [initialInput] = useState(() => ({ ...defaultInput, country: settings.country }))
-  const { form, setForm, set, errors, result, input, handleCalculate, layoutProps } = useCalculatorPage({
+  const { form, setForm, set, errors, result, input, handleCalculate, charts, layoutProps } = useCalculatorPage({
     calculatorId: 'mortgage', defaultInput: initialInput, validate: validateMortgage, calculate: calculateMortgage,
     explain: explainMortgage, buildCharts: buildMortgageCharts, buildTable: buildMortgageTable,
-    calculateOnLoad: true, autoCalculate: true, csvFilename: 'mortgage-schedule.csv',
+    live: true, ownsCharts: true, csvFilename: 'mortgage-schedule.csv',
     getShareText: (r, _input, money) => `Mortgage: P&I ${money(r.principalAndInterest)}, housing estimate ${money(r.totalMonthlyHousing)}/mo`,
     renderResults: () => null,
   })
@@ -48,15 +48,10 @@ export default function MortgagePage() {
   const downAmount = form.downPaymentIsPercent ? form.homePrice * form.downPayment / 100 : form.downPayment
   const downPercent = form.homePrice > 0 ? downAmount / form.homePrice * 100 : 0
   const updateExtra = (index: number, patch: Partial<OneTimeExtraPayment>) => set('oneTimeExtraPayments', (form.oneTimeExtraPayments ?? []).map((payment, i) => i === index ? { ...payment, ...patch } : payment))
-  const focusEstimate = () => {
-    const heading = document.getElementById('mortgage-estimate-title')
-    heading?.focus({ preventScroll: true })
-    heading?.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })
-  }
   const calculate = () => {
     handleCalculate(form)
     if (validateMortgage(form).valid && window.matchMedia('(max-width: 1023px)').matches) {
-      requestAnimationFrame(focusEstimate)
+      requestAnimationFrame(() => focusEstimate())
     }
   }
   const applyPayoff = (option: PayoffOption) => {
@@ -66,46 +61,51 @@ export default function MortgagePage() {
     handleCalculate(next)
   }
 
-  return <CurrencyDisplayContext.Provider value="symbol"><div className="mortgage-page">
+  return <CurrencyDisplayContext.Provider value="symbol">
     <CalculatorLayout {...layoutProps}
       description="Understand the monthly cost, explore an earlier payoff, and follow your balance over time."
-      resultPresentation="inline"
       onCalculate={calculate}
-      charts={undefined} table={undefined}
-      results={result && input ? <MortgageResults result={result} input={input} charts={layoutProps.charts} disabled={layoutProps.inputsChanged} onApplyPayoff={applyPayoff} /> : null}
-      inputs={<div className="mortgage-form" onKeyDown={event => {
+      results={result && input ? <MortgageResults result={result} input={input} charts={charts} disabled={layoutProps.inputsChanged} onApplyPayoff={applyPayoff} /> : null}
+      inputs={<div className="calc-form" onKeyDown={event => {
         if (event.key === 'Enter' && event.target instanceof HTMLInputElement && event.target.type !== 'checkbox') { event.preventDefault(); calculate() }
       }}>
-        {layoutProps.provenance?.currency && layoutProps.provenance.currency !== currency && <p className="mortgage-note">This saved estimate is in {layoutProps.provenance.currency}; your app is set to {currency}. Editing uses your app currency without converting amounts.</p>}
-        {result && <button type="button" className="mortgage-jump" onClick={focusEstimate}>View your estimate <span aria-hidden="true">↓</span></button>}
-        <fieldset className="mortgage-fieldset">
-          <legend><span>01</span>Your mortgage</legend>
-          <p className="mortgage-note">Starting values are examples. Use your own price and lender quote.</p>
+        {layoutProps.provenance?.currency && layoutProps.provenance.currency !== currency && <p className="calc-note">This saved estimate is in {layoutProps.provenance.currency}; your app is set to {currency}. Editing uses your app currency without converting amounts.</p>}
+        <JumpToResult visible={!!result} />
+        <CalcSection index={1} title="Your mortgage">
+          <Note>Starting values are examples. Use your own price and lender quote.</Note>
           <SegmentedControl options={[{ value: 'US', label: 'United States' }, { value: 'CA', label: 'Canada' }]} value={form.country} onChange={value => set('country', value)} />
           <Input label="Home price" prefix={currencySymbol} grouped value={form.homePrice} onValueChange={n => set('homePrice', n)} error={errors.homePrice} />
-          <div className="mortgage-down-heading"><span>Down payment</span><div className="mortgage-unit-switch" role="group" aria-label="Down payment units">
-            <button type="button" aria-pressed={form.downPaymentIsPercent} onClick={() => setForm(f => ({ ...f, downPayment: convertDownPayment(f, true), downPaymentIsPercent: true }))}>%</button>
-            <button type="button" aria-pressed={!form.downPaymentIsPercent} onClick={() => setForm(f => ({ ...f, downPayment: convertDownPayment(f, false), downPaymentIsPercent: false }))}>{currencySymbol}</button>
-          </div></div>
+          <div className="calc-field-heading"><span>Down payment</span>
+            <UnitSwitch
+              label="Down payment units"
+              value={form.downPaymentIsPercent ? 'percent' : 'amount'}
+              onChange={unit => setForm(f => ({ ...f, downPayment: convertDownPayment(f, unit === 'percent'), downPaymentIsPercent: unit === 'percent' }))}
+              options={[{ value: 'percent', label: '%' }, { value: 'amount', label: currencySymbol }]}
+            />
+          </div>
           <Input id="mortgage-down-payment" aria-label="Down payment" suffix={form.downPaymentIsPercent ? '%' : undefined} prefix={form.downPaymentIsPercent ? undefined : currencySymbol} grouped={!form.downPaymentIsPercent} type="number" value={form.downPayment} onValueChange={n => set('downPayment', n)} error={errors.downPayment} />
-          <div className="mortgage-loan-preview"><span>{form.downPaymentIsPercent ? money(downAmount) : `${downPercent.toFixed(2)}%`} down</span><strong>{money(Math.max(0, form.homePrice - downAmount))} loan</strong></div>
+          <div className="calc-preview"><span>{form.downPaymentIsPercent ? money(downAmount) : `${downPercent.toFixed(2)}%`} down</span><strong>{money(Math.max(0, form.homePrice - downAmount))} loan</strong></div>
           <Input label="Interest rate" suffix="%" type="number" value={form.interestRate} onValueChange={n => set('interestRate', n)} error={errors.interestRate} hint={form.country === 'CA' ? 'Quoted nominal rate; semi-annual compounding.' : 'Annual note rate, excluding loan fees.'} />
           <div className="grid grid-cols-2 gap-3">
             <Input label="Amortization (years)" type="number" value={form.termYears} onValueChange={n => set('termYears', n)} error={errors.termYears} />
             <Input label="Additional months" type="number" value={form.termMonths} onValueChange={n => set('termMonths', n)} error={errors.termMonths} />
           </div>
-          <div className="mortgage-term-presets" role="group" aria-label="Common amortization periods">{[15, 20, 25, 30].map(years => <button key={years} type="button" aria-pressed={form.termYears === years && form.termMonths === 0} onClick={() => setForm(f => ({ ...f, termYears: years, termMonths: 0 }))}>{years} years</button>)}</div>
-          {form.country === 'CA' && <p className="mortgage-note">Amortization is the full repayment period. This model holds your rate constant through future renewals.</p>}
+          <PresetRow
+            label="Common amortization periods"
+            options={[15, 20, 25, 30].map(years => ({ value: years, label: `${years} years` }))}
+            isActive={years => form.termYears === years && form.termMonths === 0}
+            onChange={years => setForm(f => ({ ...f, termYears: years, termMonths: 0 }))}
+          />
+          {form.country === 'CA' && <Note>Amortization is the full repayment period. This model holds your rate constant through future renewals.</Note>}
           <div className="grid grid-cols-2 gap-3">
             <Select label="First payment month" value={String(form.startMonth ?? new Date().getMonth() + 1)} onChange={v => set('startMonth', +v)} options={monthOptions} error={errors.startMonth} />
             <Input label="First payment year" type="number" value={form.startYear ?? new Date().getFullYear()} onValueChange={n => set('startYear', n)} error={errors.startYear} />
           </div>
-        </fieldset>
+        </CalcSection>
 
-        <fieldset className="mortgage-fieldset">
-          <legend><span>02</span>Ownership costs</legend>
-          <label className="mortgage-toggle"><input type="checkbox" checked={form.includeTaxesAndCosts} onChange={event => set('includeTaxesAndCosts', event.target.checked)} /><span>Include taxes, insurance & fees<small>Build a fuller monthly budget.</small></span></label>
-          {form.includeTaxesAndCosts ? <div className="mortgage-optional-fields">
+        <CalcSection index={2} title="Ownership costs">
+          <Toggle checked={form.includeTaxesAndCosts} onChange={checked => set('includeTaxesAndCosts', checked)} label="Include taxes, insurance & fees" description="Build a fuller monthly budget." />
+          {form.includeTaxesAndCosts ? <div className="calc-optional-fields">
             <div className="grid grid-cols-2 gap-3">
               <Input label="Property tax" prefix={currencySymbol} grouped value={form.propertyTax} onValueChange={n => set('propertyTax', n)} error={errors.propertyTax} />
               <Select label="Tax frequency" value={form.propertyTaxPeriod} onChange={value => setForm(current => ({ ...current, propertyTaxPeriod: value as 'annual' | 'monthly', propertyTax: value === current.propertyTaxPeriod ? current.propertyTax : value === 'monthly' ? current.propertyTax / 12 : current.propertyTax * 12 }))} options={[{ value: 'annual', label: 'Per year' }, { value: 'monthly', label: 'Per month' }]} />
@@ -114,17 +114,16 @@ export default function MortgagePage() {
             <Input label="HOA / strata fees" prefix={currencySymbol} suffix="/mo" grouped value={form.hoa} onValueChange={n => set('hoa', n)} error={errors.hoa} />
             <Input label={form.country === 'US' ? 'Mortgage insurance (PMI)' : 'Monthly mortgage insurance'} prefix={currencySymbol} suffix="/mo" grouped value={form.pmi} onValueChange={n => set('pmi', n)} error={errors.pmi} hint={form.country === 'CA' ? 'Monthly charges only. Upfront or financed insurance premiums are not modeled.' : 'Use your lender’s quote. Automatic cancellation is not modeled.'} />
             <Input label="Other ownership costs" prefix={currencySymbol} suffix="/mo" grouped value={form.otherCosts} onValueChange={n => set('otherCosts', n)} error={errors.otherCosts} hint="For example, maintenance, utilities or flood insurance." />
-          </div> : <p className="mortgage-note">Your estimate includes principal and interest only.</p>}
-        </fieldset>
+          </div> : <Note>Your estimate includes principal and interest only.</Note>}
+        </CalcSection>
 
-        <fieldset className="mortgage-fieldset">
-          <legend><span>03</span>Pay off sooner</legend>
-          <label className="mortgage-toggle"><input type="checkbox" checked={form.includeExtraPayments} onChange={event => set('includeExtraPayments', event.target.checked)} /><span>Add extra payments<small>See the interest and time you could save.</small></span></label>
-          {form.includeExtraPayments && <div className="mortgage-optional-fields">
+        <CalcSection index={3} title="Pay off sooner">
+          <Toggle checked={form.includeExtraPayments} onChange={checked => set('includeExtraPayments', checked)} label="Add extra payments" description="See the interest and time you could save." />
+          {form.includeExtraPayments && <div className="calc-optional-fields">
             <Input label="Monthly extra payment" prefix={currencySymbol} grouped value={form.monthlyExtraPayment ?? ((form.extraFrequency ?? 'every') === 'every' ? form.extraPayment ?? 0 : 0)} onValueChange={n => set('monthlyExtraPayment', n)} error={errors.monthlyExtraPayment} />
             <Input label="Yearly extra payment" prefix={currencySymbol} grouped value={form.yearlyExtraPayment ?? (form.extraFrequency === 'yearly' ? form.extraPayment ?? 0 : 0)} onValueChange={n => set('yearlyExtraPayment', n)} error={errors.yearlyExtraPayment} hint="Applied with payments 12, 24, 36, and so on." />
             <div className="space-y-3"><p className="text-sm font-medium">One-time extra payments</p>
-              {(form.oneTimeExtraPayments ?? []).map((payment, index) => <div key={index} className="mortgage-extra-row">
+              {(form.oneTimeExtraPayments ?? []).map((payment, index) => <div key={index} className="calc-extra-row">
                 <Input label={`Extra payment ${index + 1}`} prefix={currencySymbol} grouped value={payment.amount} onValueChange={amount => updateExtra(index, { amount })} error={errors[`oneTimeExtraPayments.${index}.amount`]} />
                 <div className="grid grid-cols-2 gap-3">
                   <Select id={`extra-month-${index}`} label="Month" value={String(payment.month)} onChange={v => updateExtra(index, { month: +v })} options={monthOptions} error={errors[`oneTimeExtraPayments.${index}.month`]} />
@@ -135,9 +134,9 @@ export default function MortgagePage() {
               <Button type="button" variant="secondary" size="sm" onClick={() => set('oneTimeExtraPayments', [...(form.oneTimeExtraPayments ?? []), { amount: 0, year: form.startYear ?? new Date().getFullYear(), month: form.startMonth ?? new Date().getMonth() + 1 }])}>+ Add one-time payment</Button>
             </div>
           </div>}
-        </fieldset>
-        <p className="mortgage-note">Your estimate updates automatically as you edit.</p>
+        </CalcSection>
+        <Note>Your estimate updates automatically as you edit.</Note>
       </div>}
     />
-  </div></CurrencyDisplayContext.Provider>
+  </CurrencyDisplayContext.Provider>
 }

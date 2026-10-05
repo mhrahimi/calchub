@@ -59,25 +59,32 @@ export function calculateLoan(input: LoanInput): LoanResult {
   }
 }
 
-export function explainLoan(input: LoanInput, _result: LoanResult): CalculationExplanation {
+export function explainLoan(input: LoanInput, result: LoanResult): CalculationExplanation {
   const steps: CalculationExplanation['steps'] = []
+  const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const ppy = periodsPerYear(input.paymentFrequency)
+  const periods = termToPeriods(input.term, input.termUnit, input.paymentFrequency)
+  const rate = annualToPeriodic(input.interestRate / 100, ppy)
   if (input.mode === 'auto') {
+    const price = input.vehiclePrice ?? 0
     steps.push({
       label: 'Amount financed',
-      expression: 'Price + sales tax(on price) + financed fees − down − trade-in − rebates',
+      expression: `${money(price)} + tax ${money(price * ((input.salesTaxRate ?? 0) / 100))} + fees ${money(input.taxableFees ?? 0)} − down ${money(input.cashDown ?? 0)} − trade-in ${money(input.tradeIn ?? 0)} − rebates ${money(input.rebates ?? 0)}`,
+      result: money(result.financedAmount),
     })
   }
   steps.push(
-    { label: 'Periodic rate', expression: 'r = APR / payments per year' },
+    { label: 'Periodic rate', expression: `r = ${input.interestRate}% / ${ppy} = ${(rate * 100).toFixed(4)}%` },
     {
       label: 'Payment',
-      expression: 'PMT = P × r(1+r)^n / ((1+r)^n − 1)',
+      expression: `PMT = ${money(result.financedAmount)} × r(1+r)^${periods} / ((1+r)^${periods} − 1), r = ${rate.toFixed(6)}`,
+      result: `${money(result.payment)} per period`,
     },
   )
   if (input.balloon) {
     steps.push({
       label: 'Balloon',
-      expression: 'The last period pays remaining principal as a lump sum.',
+      expression: `The last period pays the remaining principal, including a balloon of ${money(input.balloon)}.`,
     })
   }
   return {

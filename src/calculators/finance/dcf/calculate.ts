@@ -47,28 +47,36 @@ export function calculateDcf(input: DcfInput): DcfResult {
   return { ...base, sensitivity }
 }
 
-export function explainDcf(input: DcfInput, _result: DcfResult): CalculationExplanation {
+export function explainDcf(input: DcfInput, result: DcfResult): CalculationExplanation {
+  const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const last = result.fcfByYear[result.fcfByYear.length - 1]
+  const terminal = input.terminalMethod === 'gordon'
+    ? `TV = ${money(last.fcf)} × (1 + ${input.terminalGrowth}%) / (${input.wacc}% − ${input.terminalGrowth}%) = ${money(result.terminalValue)}`
+    : `TV = ${money(last.ebitda)} × ${input.exitMultiple} = ${money(result.terminalValue)}`
+  const equity = input.grossDebt === undefined
+    ? `Equity = ${money(result.enterpriseValue)} − net debt ${money(input.netDebt)} = ${money(result.equityValue)}`
+    : `Equity = ${money(result.enterpriseValue)} − gross debt ${money(input.grossDebt)} + cash ${money(input.cash)} = ${money(result.equityValue)}`
   return {
     title: 'DCF valuation',
     steps: [
       {
         label: 'Unlevered FCF',
         expression: 'UFCF = EBIT − cash taxes + D&A − capex − ΔNWC',
+        result: result.fcfByYear.map((year) => `Y${year.year} ${money(year.fcf)}`).join(', '),
       },
       {
         label: 'Discounting',
-        expression: 'PV_t = FCF_t / (1 + WACC)^t',
+        expression: `PV_t = FCF_t / (1 + ${input.wacc}%)^t`,
+        result: `PV of FCF ${money(result.pvFcf)}`,
       },
       {
         label: 'Terminal value',
-        expression:
-          input.terminalMethod === 'gordon'
-            ? `TV = FCF_n (1 + g) / (WACC − g)  with g = ${input.terminalGrowth}%`
-            : `TV = EBITDA_n × ${input.exitMultiple}`,
+        expression: terminal,
+        result: `PV of terminal value ${money(result.pvTerminalValue)}`,
       },
       {
         label: 'Equity value',
-        expression: 'Equity = EV − net debt (or EV − gross debt + cash),  EV = Σ PV(FCF) + PV(TV)',
+        expression: `EV = ${money(result.pvFcf)} + ${money(result.pvTerminalValue)} = ${money(result.enterpriseValue)}. ${equity}`,
       },
     ],
     assumptions: [

@@ -343,7 +343,11 @@ export function explainMortgage(input: MortgageInput, result: MortgageResult): C
       { label: 'Down payment', result: `$${result.downPaymentAmount.toFixed(2)}` },
       { label: 'Loan amount', result: `$${result.loanAmount.toFixed(2)}` },
       { label: 'Periodic rate', expression: rateNote },
-      { label: 'Principal & interest', result: `$${result.principalAndInterest.toFixed(2)}/month` },
+      {
+        label: 'Principal & interest',
+        expression: `PMT = $${result.loanAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} × r / (1 − (1+r)^−${input.termYears * 12 + input.termMonths}), r = ${(result.monthlyRate * 100).toFixed(4)}%`,
+        result: `$${result.principalAndInterest.toFixed(2)}/month`,
+      },
       {
         label: 'First payment mix',
         result: `Principal $${result.firstPaymentPrincipal.toFixed(2)} · Interest $${result.firstPaymentInterest.toFixed(2)}`,

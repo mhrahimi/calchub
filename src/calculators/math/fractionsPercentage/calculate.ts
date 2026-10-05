@@ -65,30 +65,34 @@ export function calculateFractionsPercentage(input: FractionsPercentageInput): F
 
 export function explainFractionsPercentage(
   input: FractionsPercentageInput,
-  _result: FractionsPercentageResult,
+  result: FractionsPercentageResult,
 ): CalculationExplanation {
   if (input.mode === 'fraction') {
     const op = input.fractionOperation ?? 'add'
+    const a = Fraction.parse(input.fractionA!)
+    const b = Fraction.parse(input.fractionB!)
+    const left = a.toImproperString()
+    const right = b.toImproperString()
     const expressions: Record<typeof op, string> = {
-      add: 'a/b + c/d = (ad + bc) / bd, then reduce',
-      subtract: 'a/b − c/d = (ad − bc) / bd, then reduce',
-      multiply: 'a/b × c/d = (a × c) / (b × d), then reduce',
-      divide: 'a/b ÷ c/d = (a × d) / (b × c), then reduce',
+      add: `${left} + ${right} = (${a.num}×${b.den} + ${b.num}×${a.den}) / (${a.den}×${b.den}) = ${result.primary}`,
+      subtract: `${left} − ${right} = (${a.num}×${b.den} − ${b.num}×${a.den}) / (${a.den}×${b.den}) = ${result.primary}`,
+      multiply: `${left} × ${right} = (${a.num}×${b.num}) / (${a.den}×${b.den}) = ${result.primary}`,
+      divide: `${left} ÷ ${right} = (${a.num}×${b.den}) / (${a.den}×${b.num}) = ${result.primary}`,
     }
     return {
       title: 'Fraction arithmetic',
-      steps: [{ label: op[0].toUpperCase() + op.slice(1), expression: expressions[op] }],
+      steps: [{ label: op[0].toUpperCase() + op.slice(1), expression: expressions[op], result: result.primary }],
     }
   }
   const mode = input.percentageMode ?? 'percentOf'
   const expressions = {
-    percentOf: 'value = (percent / 100) × base',
-    whatPercent: 'percent = 100 × part / whole',
-    percentChange: 'change = 100 × (new − old) / |old|',
+    percentOf: `${input.percentValue}% of ${input.baseValue} = (${input.percentValue} / 100) × ${input.baseValue} = ${result.primary}`,
+    whatPercent: `${input.percentValue} is what % of ${input.baseValue} = 100 × ${input.percentValue} / ${input.baseValue} = ${result.primary}`,
+    percentChange: `Change from ${input.oldValue} to ${input.newValue} = 100 × (${input.newValue} − ${input.oldValue}) / |${input.oldValue}| = ${result.primary}`,
   }
   return {
     title: 'Percentage calculation',
-    steps: [{ label: mode, expression: expressions[mode] }],
+    steps: [{ label: mode, expression: expressions[mode], result: result.primary }],
     assumptions: ['Percent change from zero is undefined.'],
   }
 }

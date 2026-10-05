@@ -41,6 +41,7 @@ export function calculateIncomeTax(input: IncomeTaxInput): IncomeTaxResult {
 }
 
 export function explainIncomeTax(input: IncomeTaxInput, result: IncomeTaxResult): CalculationExplanation {
+  const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   return {
     title: 'Rough headline income-tax estimate',
     steps: [
@@ -48,9 +49,9 @@ export function explainIncomeTax(input: IncomeTaxInput, result: IncomeTaxResult)
         label: 'Taxable income',
         expression:
           input.country === 'US'
-            ? 'Taxable = max(0, Gross − pretax − standard deduction)'
-            : 'Taxable = max(0, Gross − pretax deductions)',
-        result: `$${result.taxableIncome.toFixed(2)}`,
+            ? `Taxable = max(0, ${money(input.grossIncome)} − ${money(input.pretaxDeductions)} − ${money(result.standardDeduction)})`
+            : `Taxable = max(0, ${money(input.grossIncome)} − ${money(input.pretaxDeductions)})`,
+        result: money(result.taxableIncome),
       },
       {
         label: 'Federal tax (marginal brackets)',

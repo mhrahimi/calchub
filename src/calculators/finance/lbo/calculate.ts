@@ -73,25 +73,26 @@ export function calculateLbo(input: LboInput): LboResult {
   }
 }
 
-export function explainLbo(_input: LboInput, _result: LboResult): CalculationExplanation {
+export function explainLbo(input: LboInput, result: LboResult): CalculationExplanation {
+  const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const exitDebt = result.exitEv - result.exitEquity + (result.exitCash ?? 0)
   return {
     title: 'LBO returns',
     steps: [
       {
-        label: 'Cash sweep',
-        expression: 'Cash pays interest, cash taxes, mandatory amortization, then optional sweep in tranche order',
-      },
-      {
         label: 'Exit',
-        expression: 'Exit EV = exit EBITDA × exit multiple;  exit equity = exit EV − remaining debt + retained cash',
+        expression: `Exit EV = exit EBITDA × ${input.exitMultiple}. Exit equity = ${money(result.exitEv)} − ${money(exitDebt)} + ${money(result.exitCash ?? 0)}`,
+        result: money(result.exitEquity),
       },
       {
         label: 'MOIC',
-        expression: 'MOIC = exit equity / sponsor equity',
+        expression: `MOIC = ${money(result.exitEquity)} / ${money(input.sponsorEquity)}`,
+        result: `${result.moic.toFixed(2)}x`,
       },
       {
         label: 'IRR',
-        expression: 'IRR solves NPV(−equity, …, exit equity) = 0 over the hold period',
+        expression: `IRR solves NPV(−${money(input.sponsorEquity)}, …, ${money(result.exitEquity)}) = 0 over ${input.exitYear} years`,
+        result: result.irr === null ? 'Not defined while a funding shortfall remains' : `${(result.irr * 100).toFixed(2)}%`,
       },
     ],
     assumptions: [
@@ -99,7 +100,7 @@ export function explainLbo(_input: LboInput, _result: LboResult): CalculationExp
       'Cash sweep applies excess cash to debt paydown after interest',
       'Tranches repay in input order; interest uses opening balances. No automatic refinancing or revolver.',
       'Taxes and D&A default to zero if omitted. No loss carryforwards or interest deduction limits.',
-      ..._result.warnings,
+      ...result.warnings,
     ],
   }
 }

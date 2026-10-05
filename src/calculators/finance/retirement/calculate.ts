@@ -121,27 +121,23 @@ export function calculateRetirement(input: RetirementInput): RetirementResult {
 }
 
 export function explainRetirement(input: RetirementInput, result: RetirementResult): CalculationExplanation {
+  const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   return {
     title: 'Retirement projection',
     steps: [
       {
         label: 'Accumulation',
-        expression: 'B_t = (B_{t-1} + Contribution_t) × (1 + r)',
-        result: `Projected at retirement: $${result.projectedBalance.toFixed(2)}`,
-      },
-      {
-        label: 'Real return',
-        expression: 'r_real = (1 + r_nominal) / (1 + inflation) - 1',
-        result: `${((((1 + input.expectedReturn / 100) / (1 + input.inflation / 100) - 1) * 100)).toFixed(2)}%`,
+        expression: `B_t = (B_{t-1} + contribution) × (1 + ${input.expectedReturn / 100}), from age ${input.currentAge} to ${input.retirementAge}. Contributions start at ${money(input.annualContribution)} and grow ${input.contributionGrowth}%.`,
+        result: `Projected at retirement: ${money(result.projectedBalance)}`,
       },
       {
         label: 'Required nest egg',
-        expression: 'Sum of each planned net withdrawal discounted at the nominal return to the retirement date',
-        result: `$${result.requiredBalance.toFixed(2)}`,
+        expression: `Each planned withdrawal grows with inflation ${input.inflation}% and is discounted at the nominal return ${input.expectedReturn}%. Real return is not the discount rate.`,
+        result: money(result.requiredBalance),
       },
       {
         label: 'Shortfall / surplus',
-        result: `$${result.shortfallOrSurplus.toFixed(2)}`,
+        result: money(result.shortfallOrSurplus),
       },
     ],
     assumptions: [

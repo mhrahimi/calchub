@@ -7,6 +7,8 @@ export function validateNumberBase(input: NumberBaseInput) {
   if (input.toBase < 2 || input.toBase > 36) errors.toBase = 'Base must be between 2 and 36'
   if (input.fractionalPrecision < 0 || input.fractionalPrecision > 32) {
     errors.fractionalPrecision = 'Precision must be between 0 and 32'
+  } else if (input.value.includes('.') && input.fractionalPrecision < 1) {
+    errors.fractionalPrecision = 'Use at least 1 digit of precision when the value has a fractional part'
   }
   if (Object.keys(errors).length) return { valid: false as const, errors }
   return { valid: true as const, data: input }

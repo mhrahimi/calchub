@@ -23,25 +23,33 @@ export function calculateBlackScholes(input: BlackScholesInput): BlackScholesCal
   }
 }
 
-export function explainBlackScholes(_input: BlackScholesInput, _result: BlackScholesCalcResult): CalculationExplanation {
+export function explainBlackScholes(input: BlackScholesInput, result: BlackScholesCalcResult): CalculationExplanation {
+  const r = input.riskFreeRate / 100
+  const q = input.dividendYield / 100
+  const sigma = input.volatility / 100
+  const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`
   return {
     title: 'Black-Scholes-Merton',
     steps: [
       {
         label: 'd1',
-        expression: 'd1 = [ln(S/K) + (r − q + σ²/2)T] / (σ√T)',
+        expression: `d1 = [ln(${input.spot}/${input.strike}) + (${r} − ${q} + ${sigma}²/2)×${input.timeYears}] / (${sigma}√${input.timeYears})`,
+        result: result.d1.toFixed(4),
       },
       {
         label: 'd2',
-        expression: 'd2 = d1 − σ√T',
+        expression: `d2 = ${result.d1.toFixed(4)} − ${sigma}√${input.timeYears}`,
+        result: result.d2.toFixed(4),
       },
       {
         label: 'Call',
-        expression: 'C = S e^{−qT} N(d1) − K e^{−rT} N(d2)',
+        expression: `C = ${input.spot} e^{−${q}×${input.timeYears}} N(${result.d1.toFixed(4)}) − ${input.strike} e^{−${r}×${input.timeYears}} N(${result.d2.toFixed(4)})`,
+        result: money(result.callPrice),
       },
       {
         label: 'Put',
-        expression: 'P = K e^{−rT} N(−d2) − S e^{−qT} N(−d1)',
+        expression: `P = ${input.strike} e^{−${r}×${input.timeYears}} N(−${result.d2.toFixed(4)}) − ${input.spot} e^{−${q}×${input.timeYears}} N(−${result.d1.toFixed(4)})`,
+        result: money(result.putPrice),
       },
     ],
     assumptions: [

@@ -18,12 +18,13 @@ export function calculateDti(input: DtiInput): DtiResult {
   }
 }
 
-export function explainDti(_input: DtiInput, result: DtiResult): CalculationExplanation {
+export function explainDti(input: DtiInput, result: DtiResult): CalculationExplanation {
+  const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   return {
     title: 'Debt-to-income ratios',
     steps: [
-      { label: 'Front-end DTI', expression: 'Housing / Gross income', result: `${result.frontEndDti.toFixed(2)}%` },
-      { label: 'Back-end DTI', expression: '(Housing + Debt) / Gross income', result: `${result.backEndDti.toFixed(2)}%` },
+      { label: 'Front-end DTI', expression: `${money(input.housingCost)} / ${money(input.grossMonthlyIncome)}`, result: `${result.frontEndDti.toFixed(2)}%` },
+      { label: 'Back-end DTI', expression: `(${money(input.housingCost)} + ${money(input.debtPayments)}) / ${money(input.grossMonthlyIncome)}`, result: `${result.backEndDti.toFixed(2)}%` },
     ],
     assumptions: ['Lender guidelines vary by program.'],
   }

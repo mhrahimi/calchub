@@ -65,14 +65,15 @@ export function calculateInflation(input: InflationInput): InflationResult {
 }
 
 export function explainInflation(input: InflationInput, result: InflationResult): CalculationExplanation {
+  const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   if (input.mode === 'historical') {
     return {
       title: 'Historical purchasing power',
       steps: [
         {
           label: 'Index ratio',
-          expression: 'Equivalent = Amount × CPI_target / CPI_base',
-          result: `$${result.primaryAmount.toFixed(2)}`,
+          expression: `Equivalent = ${money(input.amount)} × ${result.targetCpi} / ${result.baseCpi}`,
+          result: money(result.primaryAmount),
         },
         {
           label: 'CPI values',
@@ -94,13 +95,13 @@ export function explainInflation(input: InflationInput, result: InflationResult)
     steps: [
       {
         label: 'Future price',
-        expression: 'FuturePrice = Amount × (1 + π)^t',
-        result: `$${result.futurePrice!.toFixed(2)}`,
+        expression: `Future price = ${money(input.amount)} × (1 + ${(input.inflationRate ?? 0) / 100})^${input.durationYears}`,
+        result: money(result.futurePrice!),
       },
       {
         label: 'Purchasing power',
-        expression: 'RealValue = Amount / (1 + π)^t',
-        result: `$${result.realValue!.toFixed(2)}`,
+        expression: `Real value = ${money(input.amount)} / (1 + ${(input.inflationRate ?? 0) / 100})^${input.durationYears}`,
+        result: money(result.realValue!),
       },
     ],
     assumptions: [

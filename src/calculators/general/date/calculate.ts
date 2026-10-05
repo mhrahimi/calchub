@@ -31,14 +31,31 @@ export function calculateDate(input: DateInput): DateResult {
   }
 }
 
-export function explainDate(_input: DateInput, _result: DateResult): CalculationExplanation {
+export function explainDate(input: DateInput, result: DateResult): CalculationExplanation {
+  if (result.mode === 'difference') {
+    return {
+      title: 'Date arithmetic',
+      steps: [
+        {
+          label: 'Difference',
+          expression: `${result.startDate} → ${result.endDate}`,
+          result: `${result.years} years, ${result.months} months, ${result.days} days (${result.totalDays} total days)`,
+        },
+      ],
+      assumptions: ['Pure calendar dates; no timezone offset applied.', 'Differences count whole months from the earlier date, clamping month ends, then remaining days. Reversed dates negate those components.'],
+    }
+  }
   return {
     title: 'Date arithmetic',
     steps: [
-      { label: 'Calendar', result: 'Gregorian' },
-      { label: 'Month-end policy', result: 'Clamp to last day of month (e.g. Jan 31 + 1 month → Feb 28/29)' },
+      {
+        label: 'Add or subtract',
+        expression: `${input.startDate} + ${input.years ?? 0} years, ${input.months ?? 0} months, ${input.weeks ?? 0} weeks, ${input.days ?? 0} days`,
+        result: result.resultDate,
+      },
+      { label: 'Month-end policy', result: 'Clamp to the last day of the month (Jan 31 + 1 month → Feb 28/29)' },
     ],
-    assumptions: ['Pure calendar dates; no timezone offset applied.', 'Differences count whole months from the earlier date, clamping month ends, then remaining days. Reversed dates negate those components.'],
+    assumptions: ['Pure calendar dates; no timezone offset applied.'],
   }
 }
 

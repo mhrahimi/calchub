@@ -168,16 +168,44 @@ export function explainPValue(input: PValueInput, result: PValueResult): Calcula
   const assumptions = [result.caveat]
   if (input.mode === 'proportionCi') assumptions.push('Wilson score interval used for proportions.')
   if (input.mode === 'tTest' || input.mode === 'meanCi') assumptions.push('Student-t reference distribution.')
+  const n = input.sampleSize
+  const steps: CalculationExplanation['steps'] = []
+  if (input.mode === 'zTest' || input.mode === 'tTest') {
+    const sd = input.mode === 'zTest' ? input.populationSd : input.sampleSd
+    const stat = input.mode === 'zTest' ? 'z' : 't'
+    steps.push({
+      label: 'Test statistic',
+      expression: `${stat} = (${input.sampleMean} − ${input.hypothesizedMean}) / (${sd} / √${n})`,
+      result: result.testStatistic!.toFixed(4),
+    })
+    const tail = input.tail ?? 'two'
+    const pFormula = tail === 'two'
+      ? `p = 2 × (1 − F(|${stat}|))`
+      : tail === 'oneLower'
+        ? `p = F(${stat})`
+        : `p = 1 − F(${stat})`
+    steps.push({ label: 'p-value', expression: pFormula, result: result.pValue!.toFixed(6) })
+  } else if (input.mode === 'meanCi') {
+    steps.push({
+      label: 'Standard error',
+      expression: `SE = ${input.sampleSd} / √${n}`,
+      result: result.standardError!.toFixed(4),
+    })
+    steps.push({
+      label: 'Confidence interval',
+      expression: `[${input.sampleMean} − margin, ${input.sampleMean} + margin], margin = ${result.marginOfError!.toFixed(4)}`,
+      result: `[${result.ciLower!.toFixed(4)}, ${result.ciUpper!.toFixed(4)}]`,
+    })
+  } else {
+    steps.push({
+      label: 'Wilson interval',
+      expression: `Proportion ${input.proportion}, n = ${n}, confidence ${input.confidenceLevel ?? 95}%`,
+      result: `[${result.ciLower!.toFixed(4)}, ${result.ciUpper!.toFixed(4)}]`,
+    })
+  }
   return {
     title: 'Statistical inference',
-    steps: [
-      result.pValue !== undefined
-        ? { label: 'p-value', result: result.pValue.toFixed(6) }
-        : { label: 'Confidence interval', result: `[${result.ciLower!.toFixed(4)}, ${result.ciUpper!.toFixed(4)}]` },
-      result.testStatistic !== undefined
-        ? { label: 'Test statistic', result: result.testStatistic.toFixed(4) }
-        : { label: 'Margin of error', result: result.marginOfError!.toFixed(4) },
-    ],
+    steps,
     assumptions,
   }
 }

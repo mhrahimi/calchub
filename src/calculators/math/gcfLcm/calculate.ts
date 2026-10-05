@@ -1,4 +1,4 @@
-import { gcdMultiple, lcmMultiple, euclideanSteps, primeFactors, formatPrimeFactors, FactorizationLimitError } from '@/utils/gcd'
+import { gcdMultiple, lcmMultiple, euclideanSteps, primeFactors, formatPrimeFactors, FactorizationLimitError, gcdBigInt, lcmBigInt } from '@/utils/gcd'
 import { validateGcfLcm } from './validation'
 import type { GcfLcmInput, GcfLcmResult } from './types'
 import type { CalculationExplanation, TableData } from '@/calculators/types'
@@ -9,7 +9,10 @@ export function calculateGcfLcm(input: GcfLcmInput): GcfLcmResult {
   const inputs = input.values.split(/[\s,;]+/).filter(Boolean).map((v) => BigInt(v.trim()))
   const gcf = gcdMultiple(inputs)
   const lcm = lcmMultiple(inputs)
-  const steps = inputs.length >= 2 ? euclideanSteps(inputs[0], inputs[1]) : []
+  const euclid = inputs.length < 2 ? [] : inputs.slice(1).reduce<{ running: bigint; steps: ReturnType<typeof euclideanSteps> }>((state, value) => {
+    const nextSteps = euclideanSteps(state.running, value).map((step, index) => ({ ...step, step: state.steps.length + index + 1 }))
+    return { running: gcdBigInt(state.running, value), steps: [...state.steps, ...nextSteps] }
+  }, { running: inputs[0], steps: [] }).steps
   const warnings: string[] = []
   const factors = inputs.map((n) => {
     try {
@@ -20,25 +23,28 @@ export function calculateGcfLcm(input: GcfLcmInput): GcfLcmResult {
       return { value: n.toString(), factors: 'Not expanded: calculation limit reached' }
     }
   })
-  return { inputs, gcf, lcm, euclideanSteps: steps, primeFactors: factors, warnings }
+  return { inputs, gcf, lcm, euclideanSteps: euclid, primeFactors: factors, warnings }
 }
 
 export function explainGcfLcm(_input: GcfLcmInput, result: GcfLcmResult): CalculationExplanation {
+  const fold = (op: (a: bigint, b: bigint) => bigint, symbol: string) => {
+    if (result.inputs.length < 2) return `${symbol}(${result.inputs[0] ?? 0}) = ${result.inputs[0] ?? 0}`
+    let acc = result.inputs[0]
+    const lines = result.inputs.slice(1).map((value) => {
+      const next = op(acc, value)
+      const line = `${symbol}(${acc}, ${value}) = ${next}`
+      acc = next
+      return line
+    })
+    return lines.join('; ')
+  }
   return {
     title: 'GCF and LCM',
     steps: [
-      {
-        label: 'GCF',
-        expression: result.inputs.length >= 2
-          ? 'gcd via the Euclidean algorithm (steps in the table below)'
-          : 'gcd of a single value is the value itself',
-      },
-      {
-        label: 'LCM',
-        expression: 'lcm(a, b) = |a × b| / gcd(a, b); extend pairwise for more than two numbers',
-      },
+      { label: 'GCF', expression: fold(gcdBigInt, 'gcd'), result: result.gcf.toString() },
+      { label: 'LCM', expression: fold(lcmBigInt, 'lcm'), result: result.lcm.toString() },
     ],
-    assumptions: ['gcd(0, a) = |a|; lcm(0, a) = 0'],
+    assumptions: ['gcd(0, a) = |a|; lcm(0, a) = 0', 'The Euclidean table shows each pairwise reduction, including every number after the first pair.'],
   }
 }
 

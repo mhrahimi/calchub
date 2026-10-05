@@ -128,25 +128,38 @@ export function calculateInvestment(input: InvestmentInput): InvestmentResult {
 }
 
 export function explainInvestment(input: InvestmentInput, result: InvestmentResult): CalculationExplanation {
-  const fv =
-    input.contributionTiming === 'begin'
-      ? 'FV = PV(1+r)^n + PMT × (1+r) × ((1+r)^n − 1) / r  (contributions at start of period)'
-      : 'FV = PV(1+r)^n + PMT × ((1+r)^n − 1) / r'
+  const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const ppy = periodsPerYear(input.contributionFrequency)
+  const years = input.periodUnit === 'years' ? input.period : input.period / 12
+  const n = input.solveFor === 'periods' ? (result.elapsedPeriods ?? 0) : Math.round(years * ppy)
+  const r = input.returnRate / 100 / ppy
+  const pv = money(input.startingInvestment)
+  const pmt = money(input.periodicContribution)
+  const solved = input.solveFor === 'rate'
+    ? `${result.solvedValue.toFixed(4)}%`
+    : input.solveFor === 'periods'
+      ? (result.elapsedTime ?? `${result.solvedValue}`)
+      : money(result.solvedValue)
+  const fv = r === 0
+    ? `FV = ${pv} + ${pmt} × ${n} = ${money(result.endingBalance)}`
+    : input.contributionTiming === 'begin'
+      ? `FV = ${pv}×(1+${r.toFixed(6)})^${n} + ${pmt}×(1+r)×((1+r)^${n} − 1)/r = ${money(result.endingBalance)}`
+      : `FV = ${pv}×(1+${r.toFixed(6)})^${n} + ${pmt}×((1+r)^${n} − 1)/r = ${money(result.endingBalance)}`
   const bySolve: Record<InvestmentInput['solveFor'], CalculationExplanation['steps']> = {
-    fv: [{ label: 'Ending balance', expression: fv }],
+    fv: [{ label: 'Ending balance', expression: fv, result: solved }],
     pv: [
-      { label: 'Required starting amount', expression: 'Invert FV for PV given a target value and contributions' },
+      { label: 'Required starting amount', expression: `Invert the future-value formula for PV. Target ${money(input.targetValue ?? 0)}, contribution ${pmt}, periods ${n}.`, result: solved },
       { label: 'Future value', expression: fv },
     ],
     pmt: [
-      { label: 'Required contribution', expression: 'Invert FV for PMT given a target value' },
+      { label: 'Required contribution', expression: `Invert the future-value formula for PMT. Start ${pv}, target ${money(input.targetValue ?? 0)}, periods ${n}.`, result: solved },
       { label: 'Future value', expression: fv },
     ],
     rate: [
-      { label: 'Required return', expression: 'Solve r numerically so FV matches the target' },
+      { label: 'Required return', expression: `Solve r so the balance reaches ${money(input.targetValue ?? 0)} from ${pv} with ${pmt} over ${n} periods.`, result: solved },
     ],
     periods: [
-      { label: 'Required time', expression: 'Step the balance forward until it reaches the target' },
+      { label: 'Required time', expression: `Step ${pv} forward at r = ${r.toFixed(6)} with ${pmt} until the balance reaches ${money(input.targetValue ?? 0)}.`, result: solved },
     ],
   }
   return {

@@ -50,25 +50,30 @@ export function calculateCapTable(input: CapTableInput): CapTableResult {
   }
 }
 
-export function explainCapTable(input: CapTableInput, _result: CapTableResult): CalculationExplanation {
+export function explainCapTable(input: CapTableInput, result: CapTableResult): CalculationExplanation {
+  const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const shares = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 2 })
+  const poolLine = result.optionPoolShares > 0
+    ? `Add ${shares(result.optionPoolShares)} unallocated shares before the round. Available pool afterward: ${result.availablePoolPercent.toFixed(2)}% (target ${input.optionPoolTopUpPercent}%).`
+    : `The existing unallocated pool is already at least the ${input.optionPoolTopUpPercent}% target, so no shares are added. Available pool afterward: ${result.availablePoolPercent.toFixed(2)}%.`
   return {
     title: 'Cap table round',
     steps: [
-      {
-        label: 'Option pool',
-        expression: `Pool top-up is added pre-money so the post-round pool is about ${input.optionPoolTopUpPercent}%`,
-      },
+      { label: 'Option pool', expression: poolLine },
       {
         label: 'Price per share',
-        expression: 'PPS = pre-money / (fully diluted shares + pool top-up)',
+        expression: `PPS = ${money(input.preMoneyValuation)} / ${shares(result.preMoneyFds + result.optionPoolShares)}`,
+        result: money(result.pricePerShare),
       },
       {
         label: 'New shares',
-        expression: 'New investor shares = investment / PPS',
+        expression: `New investor shares = ${money(input.investmentAmount)} / ${money(result.pricePerShare)}`,
+        result: shares(result.newInvestorShares),
       },
       {
         label: 'Post-money',
-        expression: 'Post-money = pre-money + investment',
+        expression: `Post-money = ${money(input.preMoneyValuation)} + ${money(input.investmentAmount)}`,
+        result: money(result.postMoneyValuation),
       },
     ],
     assumptions: [

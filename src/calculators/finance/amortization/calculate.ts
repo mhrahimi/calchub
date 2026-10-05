@@ -60,25 +60,25 @@ export function explainAmortization(
   result: AmortizationResult,
 ): CalculationExplanation {
   const ppy = periodsPerYear(input.paymentFrequency)
-  const ratePct = ((input.interestRate / 100 / ppy) * 100).toFixed(4)
+  const periods = termToPeriods(input.term, input.termUnit, input.paymentFrequency)
+  const rate = annualToPeriodic(input.interestRate / 100, ppy)
+  const ratePct = (rate * 100).toFixed(4)
+  const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   return {
     title: 'Amortization calculation',
     steps: [
       {
         label: 'Periodic rate',
-        expression: `Rate = ${input.interestRate}% / ${ppy}\n     = ${ratePct}% per period`,
+        expression: `r = ${input.interestRate}% / ${ppy} = ${ratePct}%`,
       },
       {
-        label: 'Payment formula',
-        expression: 'PMT = P × r / (1 - (1+r)^(-n))',
-      },
-      {
-        label: 'Scheduled payment',
-        result: `Payment = $${result.payment.toFixed(2)}`,
+        label: 'Payment',
+        expression: `PMT = ${money(input.principal)} × ${rate.toFixed(6)} / (1 − (1+${rate.toFixed(6)})^−${periods})`,
+        result: `${money(result.payment)} per period`,
       },
       {
         label: 'Total interest',
-        result: `$${result.totalInterest.toFixed(2)} over ${result.payoffPeriod} periods`,
+        result: `${money(result.totalInterest)} over ${result.payoffPeriod} periods`,
       },
     ],
     assumptions: input.extraPayment

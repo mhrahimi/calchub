@@ -62,11 +62,20 @@ export function calculateCreWaterfall(input: CreWaterfallInput): CreWaterfallRes
   }
 }
 
-export function explainCreWaterfall(_input: CreWaterfallInput, _result: CreWaterfallResult): CalculationExplanation {
+export function explainCreWaterfall(input: CreWaterfallInput, result: CreWaterfallResult): CalculationExplanation {
+  const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   return {
     title: 'Simplified one-year CRE distribution illustration',
     steps: [
-      { label: 'Tier order', result: 'ROC → Pref → Catch-up → Promote' },
+      {
+        label: 'Distribution',
+        expression: `Split ${money(input.totalDistribution)} from LP ${money(input.lpContribution)} and GP ${money(input.gpContribution)}. Pref ${input.preferredReturnPercent}%, catch-up ${input.catchUpPercent}%, LP residual ${input.lpPromotePercent}%.`,
+      },
+      ...result.tiers.map((tier) => ({
+        label: tier.tier,
+        result: `LP ${money(tier.lpAmount)} · GP ${money(tier.gpAmount)}`,
+      })),
+      { label: 'Totals', result: `LP ${money(result.lpTotal)} · GP ${money(result.gpTotal)}` },
     ],
     assumptions: [
       'Assumes initial contributions and a single distribution exactly one year later. IRR is a one-year return, not XIRR.',

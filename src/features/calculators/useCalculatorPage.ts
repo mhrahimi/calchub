@@ -35,6 +35,12 @@ interface UseCalculatorPageOptions<TInput extends object, TResult> {
   calculateOnLoad?: boolean
   /** Refresh a valid estimate after editing without taking focus or filling history. */
   autoCalculate?: boolean
+  /** Estimate on load, refresh while editing, and present results inline. */
+  live?: boolean
+  /** Settle time before an edit recalculates. Raise it for parse-heavy or expensive models. */
+  autoCalculateDelay?: number
+  /** The page places charts and tables inside its own results, so the layout should not repeat them. */
+  ownsCharts?: boolean
   /** External form state when page manages multiple forms */
   externalForm?: TInput
   externalSetForm?: Dispatch<SetStateAction<TInput>>
@@ -52,11 +58,16 @@ export function useCalculatorPage<TInput extends object, TResult>({
   getShareText,
   csvFilename,
   skipRestore = false,
-  calculateOnLoad = false,
-  autoCalculate = false,
+  calculateOnLoad: calculateOnLoadOption = false,
+  autoCalculate: autoCalculateOption = false,
+  live = false,
+  autoCalculateDelay = 250,
+  ownsCharts = false,
   externalForm,
   externalSetForm,
 }: UseCalculatorPageOptions<TInput, TResult>) {
+  const calculateOnLoad = calculateOnLoadOption || live
+  const autoCalculate = autoCalculateOption || live
   const calc = getCalculatorById(calculatorId)!
   const { favorites, toggleFavorite, settings } = useApp()
   const [internalForm, internalSetForm] = useState(defaultInput)
@@ -183,9 +194,9 @@ export function useCalculatorPage<TInput extends object, TResult>({
   const dirty = !!input && inputsDiffer(form,input)
   useEffect(() => {
     if (!autoCalculate || (input && !inputsDiffer(form, input))) return
-    const timer = window.setTimeout(() => handleCalculate(form, { deferHistory: true, focusErrors: false }), 250)
+    const timer = window.setTimeout(() => handleCalculate(form, { deferHistory: true, focusErrors: false }), autoCalculateDelay)
     return () => window.clearTimeout(timer)
-  }, [autoCalculate, form, input, handleCalculate])
+  }, [autoCalculate, autoCalculateDelay, form, input, handleCalculate])
 
   const fields = result && input ? resultFields(calculatorId,input,result,provenance ?? legacyProvenance('legacy'),savedMetadata?.primaryResult??null) : []
   const summaryText = `${calc.title}
@@ -276,6 +287,7 @@ ${provenance?.calculatedAt ? `Calculated ${provenance.calculatedAt}` : ''}`
 
   const layoutProps = {
     autoCalculate,
+    resultPresentation: (live ? 'inline' : 'details') as 'inline' | 'details',
     resultFields: fields,
     currentPayload,
     baseline,
@@ -299,8 +311,8 @@ ${provenance?.calculatedAt ? `Calculated ${provenance.calculatedAt}` : ''}`
       ...(['income-tax','salary','retirement','cre-waterfall','lbo'].includes(calculatorId) ? (explanation?.assumptions??[]).map((w,i)=>createElement('p',{key:`assumption-${i}`,className:'text-sm'},w)) : []),
       renderResults(result,input,money)) : null,
     explanation,
-    charts: comparedCharts,
-    table: result && buildTable ? buildTable(result) : null,
+    charts: ownsCharts ? undefined : comparedCharts,
+    table: ownsCharts || !result || !buildTable ? null : buildTable(result),
     onExportCsv: buildTable ? handleExportCsv : undefined,
     onExportPdf: handleExportPdf,
     onSave: () => setSaveOpen(true),
@@ -325,6 +337,9 @@ ${provenance?.calculatedAt ? `Calculated ${provenance.calculatedAt}` : ''}`
     errors,
     setErrors,
     pdfLoading,
+    /** Presented charts and export table, for pages that place them inside their own results. */
+    charts: comparedCharts,
+    table: result && buildTable ? buildTable(result) : null,
     handleCalculate,
     handleExportCsv,
     handleExportPdf,

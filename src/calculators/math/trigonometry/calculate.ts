@@ -67,10 +67,21 @@ export function calculateTrigonometry(input: TrigonometryInput): TrigonometryRes
 }
 
 export function explainTrigonometry(_input: TrigonometryInput, result: TrigonometryResult): CalculationExplanation {
+  const opposite = result.opposite.toFixed(4)
+  const adjacent = result.adjacent.toFixed(4)
   return {
     title: 'Right triangle trigonometry',
     steps: [
-      { label: 'Pythagorean theorem', expression: 'c² = a² + b²', result: result.hypotenuse.toFixed(4) },
+      {
+        label: 'Pythagorean theorem',
+        expression: `c = √(${opposite}² + ${adjacent}²)`,
+        result: result.hypotenuse.toFixed(4),
+      },
+      {
+        label: 'Angle A',
+        expression: `A = arctan(${opposite} / ${adjacent})`,
+        result: `${result.angleA.toFixed(2)} ${result.angleUnit}`,
+      },
       { label: 'Complementary angle', result: `${result.angleB.toFixed(2)} ${result.angleUnit}` },
     ],
   }

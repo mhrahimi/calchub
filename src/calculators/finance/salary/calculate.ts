@@ -132,17 +132,21 @@ export function calculateSalary(input: SalaryInput): SalaryResult {
 
 export function explainSalary(input: SalaryInput, result: SalaryResult): CalculationExplanation {
   if (input.mode === 'conversion') {
+    const fromPeriods = periodsPerYear(input.fromFrequency, input.hoursPerWeek, input.weeksPerYear)
+    const toPeriods = periodsPerYear(input.toFrequency, input.hoursPerWeek, input.weeksPerYear)
+    const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     return {
       title: 'Salary conversion',
       steps: [
         {
           label: 'Annualize',
-          expression: `Annual = amount × periods per year`,
-          result: `$${result.annualGross.toFixed(2)}`,
+          expression: `Annual = ${money(input.amount)} × ${fromPeriods}`,
+          result: money(result.annualGross),
         },
         {
           label: 'Convert',
-          result: `$${result.convertedAmount.toFixed(2)} per ${input.toFrequency}`,
+          expression: `${money(result.annualGross)} / ${toPeriods}`,
+          result: `${money(result.convertedAmount)} per ${input.toFrequency}`,
         },
       ],
     }

@@ -32,11 +32,21 @@ export function explainTriangle(input: TriangleInput, result: TriangleResult): C
   ].filter(Boolean) as string[]
   return {
     title: 'Triangle solution',
-    steps: result.solutions.flatMap((s, i) => [
-      { label: `Solution ${i + 1} — side a`, result: s.sideA.toFixed(4) },
-      { label: `Solution ${i + 1} — angle A`, result: `${s.angleA.toFixed(2)}°` },
-      { label: `Solution ${i + 1} — area`, result: s.area.toFixed(4) },
-    ]),
+    steps: result.solutions.flatMap((s, i) => {
+      const prefix = result.solutions.length > 1 ? `Solution ${i + 1} — ` : ''
+      const semi = (s.sideA + s.sideB + s.sideC) / 2
+      return [
+        {
+          label: `${prefix}Area`,
+          expression: `s = (${s.sideA.toFixed(4)} + ${s.sideB.toFixed(4)} + ${s.sideC.toFixed(4)}) / 2 = ${semi.toFixed(4)}; area = √[s(s−a)(s−b)(s−c)]`,
+          result: s.area.toFixed(4),
+        },
+        {
+          label: `${prefix}Angles`,
+          result: `A ${s.angleA.toFixed(2)}°, B ${s.angleB.toFixed(2)}°, C ${s.angleC.toFixed(2)}°`,
+        },
+      ]
+    }),
     assumptions,
   }
 }

@@ -15,8 +15,8 @@ export function explainStandardDeviation(
   return {
     title: 'Standard deviation',
     steps: [
-      { label: 'Population SD (σ)', expression: '√(Σ(x−μ)²/N)', result: result.populationSd.toFixed(6) },
-      { label: 'Sample SD (s)', expression: '√(Σ(x − mean)²/(n − 1))', result: (result.sampleSd == null || !Number.isFinite(result.sampleSd) ? "Not defined for one observation" : result.sampleSd.toFixed(6)) },
+      { label: 'Population SD (σ)', expression: `σ = √(Σ(x − ${result.mean})² / ${result.count})`, result: result.populationSd.toFixed(6) },
+      { label: 'Sample SD (s)', expression: `s = √(Σ(x − ${result.mean})² / (${result.count} − 1))`, result: (result.sampleSd == null || !Number.isFinite(result.sampleSd) ? "Not defined for one observation" : result.sampleSd.toFixed(6)) },
     ],
     assumptions: ['Sample SD requires at least two values.', 'Computed with Welford’s method.'],
   }
