@@ -43,13 +43,13 @@ export function AppLayout() {
         Skip to main content
       </a>
       <Sidebar />
-      <div className="relative flex-1 flex flex-col min-w-0">
+      <div className="relative flex-1 flex flex-col min-w-0 min-h-0">
         <MobileHeader />
         <main
           id="main-content"
           tabIndex={-1}
           className={cn(
-            'flex-1 min-w-0 overflow-y-auto overflow-x-hidden lg:pb-0',
+            'flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden lg:pb-0',
             !keyboardOpen && 'pb-[calc(5rem+env(safe-area-inset-bottom,0px))]',
           )}
           style={keyboardOpen ? { paddingBottom: inset } : undefined}

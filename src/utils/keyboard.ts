@@ -3,82 +3,220 @@ import { useEffect, useState } from 'react'
 const KEYBOARD_THRESHOLD_PX = 120
 const HEADER_OFFSET_PX = 72
 const FIELD_MARGIN_PX = 16
+const VIEWPORT_SETTLE_MS = 180
+const STALE_OFFSET_PX = 1
 
-export function getKeyboardInset(threshold = KEYBOARD_THRESHOLD_PX) {
-  const viewport = window.visualViewport
-  if (!viewport) return 0
-  const covered = window.innerHeight - viewport.height - viewport.offsetTop
-  return covered > threshold ? covered : 0
+export interface KeyboardViewportMetrics {
+  open: boolean
+  inset: number
 }
 
-/** Bind the locked app shell to the live visual viewport height. */
-export function syncAppHeight() {
+function getVisualViewportHeight() {
   const viewport = window.visualViewport
-  const height = Math.round(viewport?.height ?? window.innerHeight)
-  document.documentElement.style.setProperty('--app-height', `${height}px`)
-  return height
+  return Math.round(viewport?.height ?? window.innerHeight)
 }
 
 /**
- * Clear leftover document / visual-viewport pan after the keyboard dismisses.
- * iOS Safari/PWA often leaves offsetTop or scrollY stuck non-zero.
+ * Measure the keyboard against the stable height captured before it opened.
+ * This intentionally does not use live innerHeight: iOS Chrome shrinks it
+ * alongside visualViewport.height, which otherwise makes an open keyboard
+ * look closed.
  */
-export function resetStuckViewportOffset() {
+export function getKeyboardMetrics(
+  baselineHeight: number,
+  threshold = KEYBOARD_THRESHOLD_PX,
+): KeyboardViewportMetrics {
   const viewport = window.visualViewport
-  const offsetTop = viewport?.offsetTop ?? 0
-  if (window.scrollY === 0 && offsetTop <= 0) return false
+  if (!viewport) return { open: false, inset: 0 }
+
+  const heightLoss = Math.max(0, baselineHeight - viewport.height)
+  const open = heightLoss > threshold
+  const inset = open
+    ? Math.max(0, baselineHeight - viewport.height - viewport.offsetTop)
+    : 0
+  return { open, inset }
+}
+
+/** Keep the shell at its pre-keyboard height. */
+export function setAppHeight(height: number) {
+  const rounded = Math.round(height)
+  activeBaselineHeight = rounded
+  document.documentElement.style.setProperty('--app-height', `${rounded}px`)
+  return rounded
+}
+
+let activeBaselineHeight = 0
+
+export function getKeyboardInset(threshold = KEYBOARD_THRESHOLD_PX) {
+  const baseline = activeBaselineHeight || getVisualViewportHeight()
+  return getKeyboardMetrics(baseline, threshold).inset
+}
+
+function resetDocumentScroll() {
   window.scrollTo(0, 0)
   document.documentElement.scrollTop = 0
   document.body.scrollTop = 0
+}
+
+function hasStaleViewport(
+  baselineHeight: number,
+  threshold = KEYBOARD_THRESHOLD_PX,
+) {
+  const viewport = window.visualViewport
+  const heightDeficit = viewport
+    ? baselineHeight - viewport.height
+    : baselineHeight - window.innerHeight
+  return (
+    heightDeficit > threshold ||
+    (viewport?.offsetTop ?? 0) > STALE_OFFSET_PX ||
+    window.scrollY !== 0
+  )
+}
+
+/**
+ * Force WebKit to remeasure a full-height root only when keyboard metrics are
+ * still stale. The synchronous display flip is a targeted workaround for the
+ * iOS standalone-PWA viewport bug.
+ */
+export function recoverStuckViewport(
+  baselineHeight: number,
+  threshold = KEYBOARD_THRESHOLD_PX,
+) {
+  if (!hasStaleViewport(baselineHeight, threshold)) return false
+
+  const main = document.getElementById('main-content')
+  const scrollTop = main?.scrollTop ?? 0
+  const root = document.getElementById('root')
+
+  resetDocumentScroll()
+  if (root) {
+    const display = root.style.display
+    root.style.display = 'none'
+    void root.offsetHeight
+    root.style.display = display
+  }
+
+  // A one-pixel jiggle prompts WebKit to discard a stale visual offset.
+  window.scrollBy(0, 1)
+  window.scrollBy(0, -1)
+  resetDocumentScroll()
+  if (main) main.scrollTop = scrollTop
   return true
 }
 
-/** Sync shell height and, when the keyboard is closed, reset a stuck iOS pan. */
-export function syncViewportFrame(threshold = KEYBOARD_THRESHOLD_PX) {
-  const inset = getKeyboardInset(threshold)
-  syncAppHeight()
-  if (inset === 0) resetStuckViewportOffset()
-  return inset
+function clearAppHeight() {
+  activeBaselineHeight = 0
+  document.documentElement.style.removeProperty('--app-height')
 }
 
 export function useKeyboardInset(threshold = KEYBOARD_THRESHOLD_PX) {
-  const [inset, setInset] = useState(0)
+  const [metrics, setMetrics] = useState<KeyboardViewportMetrics>({
+    open: false,
+    inset: 0,
+  })
 
   useEffect(() => {
     const viewport = window.visualViewport
-    let wasOpen = false
+    let baselineHeight = setAppHeight(getVisualViewportHeight())
+    let keyboardWasOpen = false
+    let settleTimer = 0
     let raf = 0
 
-    const update = () => {
-      const next = syncViewportFrame(threshold)
-      const open = next > 0
-      if (wasOpen && !open) {
-        // iOS often settles the visual viewport one frame after dismiss.
-        resetStuckViewportOffset()
-        window.cancelAnimationFrame(raf)
-        raf = window.requestAnimationFrame(() => {
-          syncAppHeight()
-          resetStuckViewportOffset()
-        })
-      }
-      wasOpen = open
-      setInset(next)
+    const cancelRecovery = () => {
+      window.clearTimeout(settleTimer)
+      window.cancelAnimationFrame(raf)
     }
 
-    update()
+    const refreshStableBaseline = () => {
+      baselineHeight = setAppHeight(getVisualViewportHeight())
+    }
+
+    const finishRecovery = () => {
+      recoverStuckViewport(baselineHeight, threshold)
+      setAppHeight(baselineHeight)
+      // Do not accept a delayed, still-short viewport as a new baseline.
+      keyboardWasOpen = hasStaleViewport(baselineHeight, threshold)
+    }
+
+    const scheduleRecovery = () => {
+      cancelRecovery()
+      resetDocumentScroll()
+      raf = window.requestAnimationFrame(() => {
+        resetDocumentScroll()
+        settleTimer = window.setTimeout(finishRecovery, VIEWPORT_SETTLE_MS)
+      })
+    }
+
+    const update = () => {
+      const next = getKeyboardMetrics(baselineHeight, threshold)
+      const fieldActive = isFormField(document.activeElement)
+
+      if (fieldActive && next.open) {
+        keyboardWasOpen = true
+        setAppHeight(baselineHeight)
+        setMetrics(next)
+        return
+      }
+
+      setMetrics({ open: false, inset: 0 })
+
+      if (keyboardWasOpen) {
+        scheduleRecovery()
+      } else if (!fieldActive) {
+        refreshStableBaseline()
+      }
+    }
+
+    const onFocusIn = (event: FocusEvent) => {
+      if (!isFormField(event.target)) return
+      cancelRecovery()
+
+      const currentHeight = getVisualViewportHeight()
+      // Focus arrives before keyboard animation. Do not accept a suspiciously
+      // short value left behind by a previous WebKit keyboard session.
+      if (
+        currentHeight >= baselineHeight - threshold ||
+        currentHeight > baselineHeight
+      ) {
+        baselineHeight = setAppHeight(currentHeight)
+      }
+      update()
+    }
+
+    const onFocusOut = (event: FocusEvent) => {
+      if (!isFormField(event.target)) return
+      setMetrics({ open: false, inset: 0 })
+      if (keyboardWasOpen || hasStaleViewport(baselineHeight, threshold)) {
+        scheduleRecovery()
+      }
+    }
+
+    const onWindowResize = () => {
+      if (!keyboardWasOpen && !isFormField(document.activeElement)) {
+        refreshStableBaseline()
+        setMetrics({ open: false, inset: 0 })
+        return
+      }
+      update()
+    }
+
+    document.addEventListener('focusin', onFocusIn)
+    document.addEventListener('focusout', onFocusOut)
     viewport?.addEventListener('resize', update)
     viewport?.addEventListener('scroll', update)
-    window.addEventListener('resize', update)
+    window.addEventListener('resize', onWindowResize)
     return () => {
-      window.cancelAnimationFrame(raf)
+      cancelRecovery()
+      document.removeEventListener('focusin', onFocusIn)
+      document.removeEventListener('focusout', onFocusOut)
       viewport?.removeEventListener('resize', update)
       viewport?.removeEventListener('scroll', update)
-      window.removeEventListener('resize', update)
-      document.documentElement.style.removeProperty('--app-height')
+      window.removeEventListener('resize', onWindowResize)
+      clearAppHeight()
     }
   }, [threshold])
 
-  return { open: inset > 0, inset }
+  return metrics
 }
 
 export function useKeyboardOpen(threshold = KEYBOARD_THRESHOLD_PX) {
