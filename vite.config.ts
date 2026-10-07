@@ -15,15 +15,20 @@ export default defineConfig({
       registerType: 'autoUpdate',
       // Claim clients immediately so offline works without a second visit/reload race
       strategies: 'generateSW',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      includeAssets: [
+        'favicon.svg',
+        'favicon-16x16.png',
+        'favicon-32x32.png',
+        'apple-touch-icon.png',
+      ],
       manifest: {
         id: BASE,
         name: 'CalcHub: All-in-One Calculator',
         short_name: 'CalcHub',
         description:
           'Financial, tax, investment, math, statistics, date and conversion calculators in one fast, private calculator hub.',
-        theme_color: '#163B8C',
-        background_color: '#ffffff',
+        theme_color: '#0577EE',
+        background_color: '#0577EE',
         display: 'standalone',
         orientation: 'any',
         start_url: BASE,
