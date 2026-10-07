@@ -10,13 +10,6 @@ export function AppLayout() {
   const { open: keyboardOpen, inset } = useKeyboardInset()
 
   useEffect(() => {
-    document.documentElement.style.setProperty('--keyboard-inset', `${inset}px`)
-    return () => {
-      document.documentElement.style.removeProperty('--keyboard-inset')
-    }
-  }, [inset])
-
-  useEffect(() => {
     const main = document.getElementById('main-content')
     if (!main) return
 
@@ -41,7 +34,7 @@ export function AppLayout() {
   }, [])
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden">
+    <div className="relative flex h-[var(--app-height,100dvh)] overflow-hidden">
       <a
         href="#main-content"
         onClick={e => { e.preventDefault(); document.getElementById("main-content")?.focus() }}
@@ -50,7 +43,7 @@ export function AppLayout() {
         Skip to main content
       </a>
       <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="relative flex-1 flex flex-col min-w-0">
         <MobileHeader />
         <main
           id="main-content"

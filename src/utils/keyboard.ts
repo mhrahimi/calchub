@@ -11,25 +11,70 @@ export function getKeyboardInset(threshold = KEYBOARD_THRESHOLD_PX) {
   return covered > threshold ? covered : 0
 }
 
+/** Bind the locked app shell to the live visual viewport height. */
+export function syncAppHeight() {
+  const viewport = window.visualViewport
+  const height = Math.round(viewport?.height ?? window.innerHeight)
+  document.documentElement.style.setProperty('--app-height', `${height}px`)
+  return height
+}
+
+/**
+ * Clear leftover document / visual-viewport pan after the keyboard dismisses.
+ * iOS Safari/PWA often leaves offsetTop or scrollY stuck non-zero.
+ */
+export function resetStuckViewportOffset() {
+  const viewport = window.visualViewport
+  const offsetTop = viewport?.offsetTop ?? 0
+  if (window.scrollY === 0 && offsetTop <= 0) return false
+  window.scrollTo(0, 0)
+  document.documentElement.scrollTop = 0
+  document.body.scrollTop = 0
+  return true
+}
+
+/** Sync shell height and, when the keyboard is closed, reset a stuck iOS pan. */
+export function syncViewportFrame(threshold = KEYBOARD_THRESHOLD_PX) {
+  const inset = getKeyboardInset(threshold)
+  syncAppHeight()
+  if (inset === 0) resetStuckViewportOffset()
+  return inset
+}
+
 export function useKeyboardInset(threshold = KEYBOARD_THRESHOLD_PX) {
   const [inset, setInset] = useState(0)
 
   useEffect(() => {
     const viewport = window.visualViewport
-    if (!viewport) return
+    let wasOpen = false
+    let raf = 0
 
     const update = () => {
-      setInset(getKeyboardInset(threshold))
+      const next = syncViewportFrame(threshold)
+      const open = next > 0
+      if (wasOpen && !open) {
+        // iOS often settles the visual viewport one frame after dismiss.
+        resetStuckViewportOffset()
+        window.cancelAnimationFrame(raf)
+        raf = window.requestAnimationFrame(() => {
+          syncAppHeight()
+          resetStuckViewportOffset()
+        })
+      }
+      wasOpen = open
+      setInset(next)
     }
 
     update()
-    viewport.addEventListener('resize', update)
-    viewport.addEventListener('scroll', update)
+    viewport?.addEventListener('resize', update)
+    viewport?.addEventListener('scroll', update)
     window.addEventListener('resize', update)
     return () => {
-      viewport.removeEventListener('resize', update)
-      viewport.removeEventListener('scroll', update)
+      window.cancelAnimationFrame(raf)
+      viewport?.removeEventListener('resize', update)
+      viewport?.removeEventListener('scroll', update)
       window.removeEventListener('resize', update)
+      document.documentElement.style.removeProperty('--app-height')
     }
   }, [threshold])
 
@@ -52,6 +97,9 @@ let alignTimer = 0
 
 export function scrollFieldIntoView(el: HTMLElement) {
   const align = () => {
+    // Avoid fighting the dismiss reset while the keyboard is closed.
+    if (getKeyboardInset() === 0) return
+
     const main = document.getElementById('main-content')
     const vv = window.visualViewport
     const visibleTop = vv?.offsetTop ?? 0

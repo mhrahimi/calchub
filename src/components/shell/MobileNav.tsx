@@ -46,7 +46,7 @@ export function MobileNav({ hidden = false }: { hidden?: boolean }) {
   return (
     <nav
       className={cn(
-        'lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-border safe-area-pb transition-transform duration-200',
+        'lg:hidden absolute bottom-0 left-0 right-0 z-40 bg-white border-t border-border safe-area-pb transition-transform duration-200',
         hidden && 'translate-y-full pointer-events-none',
       )}
       aria-label="Main navigation"
