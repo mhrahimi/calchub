@@ -101,7 +101,7 @@ function KeyButton({ label, name, tone, onClick, className }: {
   label: string; name: string; tone: 'fn' | 'op' | 'digit'; onClick: () => void; className?: string
 }) {
   return <button type="button" aria-label={name} onClick={onClick} onMouseDown={(event) => event.preventDefault()}
-    className={cn('w-full h-12 lg:h-14 rounded-2xl text-sm lg:text-xl font-medium transition-transform active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+    className={cn('w-full h-11 lg:h-12 rounded-xl text-sm lg:text-lg font-medium transition-transform active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
       tone === 'op' && 'bg-primary text-white hover:bg-primary-dark',
       tone === 'fn' && 'bg-surface-light text-primary hover:bg-surface-lighter',
       tone === 'digit' && 'bg-background-secondary text-text-primary border border-border hover:border-primary', className)}>{label}</button>
@@ -130,8 +130,20 @@ export default function BasicCalculatorPage() {
   const chordRef = useRef(createKeyChordController(shortcuts))
   const helpRows = useMemo(() => [...staticHelpRows, ...shortcutHelpRows(shortcuts)], [shortcuts])
   const preview = useMemo(() => evaluateExpression(session.source, session.angleMode), [session.source, session.angleMode])
+  const lastValidPreviewRef = useRef('0')
+  const previewUnavailable = preview.status === 'error' || preview.status === 'incomplete'
+  const previewText = preview.status === 'complete'
+    ? formatCalculatorDisplay(preview.value)
+    : preview.status === 'empty'
+      ? '0'
+      : lastValidPreviewRef.current
   const invalid = !!session.inputError || preview.status === 'error' || (session.showErrors && preview.status === 'incomplete')
   const issue = session.inputError || ((preview.status === 'error' || preview.status === 'incomplete') ? preview.message : null)
+
+  useEffect(() => {
+    if (preview.status === 'complete') lastValidPreviewRef.current = formatCalculatorDisplay(preview.value)
+    else if (preview.status === 'empty') lastValidPreviewRef.current = '0'
+  }, [preview])
 
   const dispatchSession = useCallback((action: SessionAction) => {
     const previous = sessionRef.current
@@ -278,10 +290,8 @@ export default function BasicCalculatorPage() {
         onClick={() => onAction(key.kind === 'clear' ? { type: 'allClear' } : key.action)} /> }
   }))
 
-  const previewText = preview.status === 'complete' ? formatCalculatorDisplay(preview.value) : preview.status === 'empty' ? '0' : '—'
-
   return (<>
-    <div className="calc-page max-w-[1440px] mx-auto px-4 sm:px-6 py-6 lg:py-8 min-w-0"
+    <div className="calc-page basic-calculator max-w-[1440px] mx-auto px-3 sm:px-5 py-3 sm:py-4 lg:py-5 min-w-0"
       onKeyDownCapture={(event) => {
         if (event.nativeEvent.isComposing) return
         if (helpOpen && event.key === 'Escape') {
@@ -353,12 +363,8 @@ export default function BasicCalculatorPage() {
         })
       }}
     >
-      <header className="calculator-header mb-8 pb-6 border-b border-border">
-        <h1 className="text-2xl lg:text-3xl font-bold text-text-primary">Calculator</h1>
-        <p className="text-text-secondary mt-1 max-w-2xl">The result updates as you type. Press Enter or = to keep it in history.</p>
-      </header>
-      <div className={cn('grid gap-8 items-start', scientificOpen ? 'xl:grid-cols-[minmax(0,1.4fr)_minmax(260px,0.6fr)]' : 'lg:grid-cols-[minmax(0,1.15fr)_minmax(260px,0.7fr)]')}>
-        <div className="min-w-0 space-y-6">
+      <div className={cn('grid gap-4 lg:gap-5 items-start', scientificOpen ? 'xl:grid-cols-[minmax(0,1.4fr)_minmax(260px,0.6fr)]' : 'lg:grid-cols-[minmax(0,1.15fr)_minmax(260px,0.7fr)]')}>
+        <div className="min-w-0 space-y-4">
           <section className="calc-results" aria-label="Live result">
             <section className="calc-hero" aria-labelledby="estimate-title">
               <div className="calc-eyebrow">
@@ -366,8 +372,8 @@ export default function BasicCalculatorPage() {
                 {scientificOpen && <span>{session.angleMode === 'deg' ? 'degrees' : 'radians'}</span>}
               </div>
               <h2 id="estimate-title" tabIndex={-1}>{session.committed ? 'Result' : 'Preview'}</h2>
-              <output htmlFor="calculator-expression" aria-label={session.committed ? 'Result' : 'Preview'} aria-live="off" tabIndex={0}
-                className="calc-hero-amount block overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg">
+              <output htmlFor="calculator-expression" aria-label={`${session.committed ? 'Result' : 'Preview'}${previewUnavailable ? ', unavailable for the current expression' : ''}`} aria-live="off" tabIndex={0}
+                className={cn('calc-hero-amount block overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg', previewUnavailable && 'is-unavailable')}>
                 <span className="block w-max min-w-full">{previewText}</span>
               </output>
               {invalid && issue && <p className="calc-hero-caption" style={{ color: '#9f1239' }}>{issue}</p>}
@@ -375,11 +381,11 @@ export default function BasicCalculatorPage() {
           </section>
         <section className="calculator-inputs" aria-label="Calculator inputs">
         <div className="relative min-w-0">
-          <div className="flex items-start justify-between gap-2 mb-3 flex-wrap">
+          <div className="flex items-start justify-between gap-2 mb-2 flex-wrap">
             <div className="flex items-center gap-2">
               <button type="button" onClick={() => setScientificOpen((open) => { setItem(SCIENTIFIC_OPEN_KEY, !open); return !open })}
                 aria-expanded={scientificOpen} aria-controls="scientific-pad" aria-label={scientificOpen ? 'Hide scientific keypad' : 'Show scientific keypad'}
-                className={cn('inline-flex items-center gap-1.5 h-11 px-3 rounded-xl text-white bg-primary hover:bg-primary-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2', scientificOpen && 'bg-primary-dark')}>
+                className={cn('inline-flex items-center gap-1.5 h-10 px-3 rounded-xl text-white bg-primary hover:bg-primary-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2', scientificOpen && 'bg-primary-dark')}>
                 <FxIcon className="w-9 h-6" />
                 <ChevronUp className={cn('w-4 h-4 lg:hidden transition-transform', scientificOpen && 'rotate-180')} aria-hidden />
                 <ChevronLeft className={cn('w-4 h-4 hidden lg:block transition-transform', scientificOpen && 'rotate-180')} aria-hidden />
@@ -391,7 +397,7 @@ export default function BasicCalculatorPage() {
                   <div className="flex items-center justify-between mb-2"><p className="text-xs font-semibold text-text-primary">Keyboard shortcuts</p>
                     <button type="button" autoFocus aria-label="Close keyboard shortcuts" className={controlClass} onClick={() => { setHelpOpen(false); helpButtonRef.current?.focus() }}><X className="w-3.5 h-3.5" aria-hidden /></button></div>
                   <ul className="space-y-1.5">{helpRows.map((row) => <li key={row.keys} className="flex items-baseline justify-between gap-3 text-xs"><span className="font-medium text-text-secondary shrink-0">{row.keys}</span><span className="text-text-muted text-right">{row.meaning}</span></li>)}</ul>
-                  <p className="text-xs text-text-muted mt-3">Numbers are grouped as 123٬456. A regular comma separates function arguments, as in logx(2, 8). Use a decimal point. For percentages, 200 + 10% = 220.</p>
+                  <p className="text-xs text-text-muted mt-3">Numbers are grouped as 123 456. A regular comma separates function arguments, as in logx(2, 8). Use a decimal point. For percentages, 200 + 10% = 220.</p>
                   <button type="button" onClick={() => { flushPending(); setHelpOpen(false); setShortcutsOpen(true) }}
                     className="mt-3 w-full h-9 rounded-lg bg-primary text-xs font-medium text-white hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">Set your shortcuts</button>
                 </div>}
@@ -402,8 +408,8 @@ export default function BasicCalculatorPage() {
                 className={cn(controlClass, 'h-9 px-3 font-semibold', session.angleMode === mode ? 'bg-primary text-white hover:bg-primary-dark' : 'text-primary')}>{mode.toUpperCase()}</button>)}
             </div>}
           </div>
-          <div className="mb-4 min-w-0">
-            <div className="flex items-center justify-between gap-2 mb-1">
+          <div className="mb-3 min-w-0">
+            <div className="flex items-center justify-between gap-2">
               <label htmlFor="calculator-expression" className="text-xs font-medium text-text-secondary">Expression</label>
               <div className="flex items-center gap-1">
                 <button type="button" disabled={!session.past.length} onMouseDown={(event) => event.preventDefault()} onClick={() => { flushPending(); dispatchSession({ type: 'undo' }) }} className={controlClass} title="Undo (⌘/Ctrl+Z)"><Undo2 className="h-3.5 w-3.5" aria-hidden />Undo</button>
@@ -422,23 +428,23 @@ export default function BasicCalculatorPage() {
               }}
               onPointerDown={() => { flushPending(); dispatchSession({ type: 'resume' }) }}
               onBlur={flushPending} onKeyDown={inputKey}
-              className={cn('w-full min-w-0 h-12 rounded-lg border bg-background-secondary px-3 text-base tabular-nums text-text-primary outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1', invalid ? 'border-red-500' : 'border-border')}
+              className={cn('w-full min-w-0 h-11 rounded-lg border bg-background-secondary px-3 text-base tabular-nums text-text-primary outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1', invalid ? 'border-red-500' : 'border-border')}
             />
-            <p id="expression-help" className={cn('text-xs mt-2 min-h-8 leading-relaxed', invalid ? 'text-red-700' : 'text-text-muted')}>
+            <p id="expression-help" className={cn('text-xs mt-1 min-h-6 leading-relaxed', invalid ? 'text-red-700' : 'text-text-muted')}>
               {issue || (session.committed ? 'Saved. Type a number to start again, or an operator to continue.' : session.recall ? 'Recalled from history. ↓ returns toward your draft.' : 'Enter to save · ↑ ↓ to recall history')}
             </p>
             <p role="status" aria-live="polite" className="sr-only">{session.committed ? `Result ${session.result}. Saved to history.` : session.showErrors && issue ? issue : ''}</p>
           </div>
-          <div className={cn('flex flex-col gap-3', scientificOpen && 'lg:flex-row lg:items-start')}>
+          <div className={cn('flex flex-col gap-2', scientificOpen && 'lg:flex-row lg:items-start')}>
             <AnimatePresence initial={false}>{scientificOpen && <motion.div id="scientific-pad" key="scientific-pad" role="group" aria-label="Scientific keypad"
-              className="space-y-3 w-full lg:w-[17rem] lg:shrink-0 overflow-hidden"
+              className="space-y-2 w-full lg:w-[16rem] lg:shrink-0 overflow-hidden"
               initial={reduceMotion ? { opacity: 0 } : { opacity: 0, height: 0, y: -8 }} animate={reduceMotion ? { opacity: 1 } : { opacity: 1, height: 'auto', y: 0 }} exit={reduceMotion ? { opacity: 0 } : { opacity: 0, height: 0, y: -8 }} transition={{ duration: 0.2, ease: 'easeOut' }}>
               {sciGroups.map((group) => {
                 const cells: KeypadCell[] = group.keys.map((key, index) => ({ id: key.name, span: group.title === 'Logarithms' && index > 3 ? 2 : 1,
                   content: <KeyButton label={key.label} name={key.name} tone="fn" onClick={() => onAction(key.action)} className="text-xs lg:text-sm" /> }))
-                if (group.title === 'Trigonometry') cells.push({ id: 'inverse', content: <button type="button" aria-label="Inverse trigonometric functions" aria-pressed={inverse} onClick={() => setInverse((active) => !active)} className={cn(controlClass, 'h-12 lg:h-14 rounded-2xl text-sm font-medium', inverse ? 'bg-primary text-white hover:bg-primary-dark' : 'bg-surface-light text-primary')}>Inv</button> })
+                if (group.title === 'Trigonometry') cells.push({ id: 'inverse', content: <button type="button" aria-label="Inverse trigonometric functions" aria-pressed={inverse} onClick={() => setInverse((active) => !active)} className={cn(controlClass, 'h-11 lg:h-12 rounded-xl text-sm font-medium', inverse ? 'bg-primary text-white hover:bg-primary-dark' : 'bg-surface-light text-primary')}>Inv</button> })
                 return <div key={group.title}>
-                  <div className="flex items-center justify-between gap-2 mb-1.5 min-h-5"><span className="text-xs font-medium text-text-muted">{group.title}</span>
+                  <div className="flex items-center justify-between gap-2 mb-1 min-h-5"><span className="text-xs font-medium text-text-muted">{group.title}</span>
                     {group.title === 'Trigonometry' && <button type="button" aria-expanded={hyperbolicOpen} aria-controls="hyperbolic-functions" onClick={() => setHyperbolicOpen((open) => !open)} className={cn(controlClass, 'text-primary px-1 py-1')}>Hyperbolic<ChevronDown className={cn('w-3 h-3', hyperbolicOpen && 'rotate-180')} aria-hidden /></button>}
                   </div>
                   <KeypadGrid label={group.title} rows={cells.length > 4 ? [cells.slice(0, 4), cells.slice(4)] : [cells]} />
@@ -453,13 +459,13 @@ export default function BasicCalculatorPage() {
         </div>
         </section>
         </div>
-        <section className="calc-panel rounded-2xl border border-border bg-white p-4 flex flex-col min-h-[16rem] lg:min-h-[28rem] min-w-0" aria-label="Calculation history">
+        <section className="calc-panel rounded-2xl border border-border bg-white p-3 lg:p-4 flex flex-col min-h-[14rem] lg:min-h-[24rem] min-w-0" aria-label="Calculation history">
           <div className="flex items-center justify-between gap-3 mb-1"><h2 className="text-sm font-semibold text-text-primary">History</h2>
             {!!history.length && <button type="button" onClick={() => { clearHistoryStore(); setHistory([]); dispatchSession({ type: 'forgetHistory' }); focusExpression() }} className={controlClass}>Clear history</button>}
           </div>
           <p className="text-xs text-text-muted mb-3">Calculations are saved when you press Enter or =.</p>
           {!history.length ? <p className="text-sm text-text-muted py-8 text-center">No calculations yet</p>
-            : <ul className="flex-1 overflow-y-auto max-h-[28rem] lg:max-h-[36rem] divide-y divide-border -mx-1">{history.map((item) => <li key={item.id} className="px-2 py-3">
+            : <ul className="flex-1 overflow-y-auto max-h-[28rem] lg:max-h-[34rem] divide-y divide-border -mx-1">{history.map((item) => <li key={item.id} className="px-2 py-2.5">
               <p className="text-xs text-text-muted tabular-nums break-all leading-snug text-right">{item.expression}</p>
               <p className="text-base font-medium text-text-primary tabular-nums mt-1 text-right break-all">{formatCalculatorDisplay(item.result)}</p>
               <div className="flex justify-end gap-1 mt-2 flex-wrap">

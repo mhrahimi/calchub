@@ -1,5 +1,5 @@
-/** U+066C is a thousands separator, distinct from the argument comma U+002C. */
-export const INPUT_GROUP_SEPARATOR = '\u066c'
+/** U+202F keeps digit groups together while remaining distinct from argument commas. */
+export const INPUT_GROUP_SEPARATOR = '\u202f'
 
 export function stripInputGrouping(text: string): string {
   return text.replaceAll(INPUT_GROUP_SEPARATOR, '')

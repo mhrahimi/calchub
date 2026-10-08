@@ -1,3 +1,5 @@
+import { INPUT_GROUP_SEPARATOR } from './inputFormatting'
+
 /**
  * Display-only thousand grouping for calculator strings.
  * Engine state stays ungrouped; never feed this output back into evaluate.
@@ -12,7 +14,7 @@ function groupInteger(digits: string): string {
     parts.unshift(digits.slice(start, i))
     i = start
   }
-  return parts.join(',')
+  return parts.join(INPUT_GROUP_SEPARATOR)
 }
 
 /** Group a single numeric token (`-1234.5`, `1234.`, `0.5`). */

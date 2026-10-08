@@ -65,7 +65,7 @@ describe('shared expression evaluation', () => {
   })
 
   it('bounds expression length and nesting', () => {
-    expect(evaluateExpression('1'.repeat(2001))).toMatchObject({ status: 'error', message: 'Keep the expression under 2,000 characters.' })
+    expect(evaluateExpression('1'.repeat(2001))).toMatchObject({ status: 'error', message: 'Keep the expression under 2 000 characters.' })
     expect(evaluateExpression('('.repeat(150) + '1' + ')'.repeat(150))).toMatchObject({ status: 'error', message: 'Use fewer nested operations.' })
   })
 })

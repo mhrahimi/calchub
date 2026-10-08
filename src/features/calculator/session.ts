@@ -49,7 +49,7 @@ function remember(state: CalculatorSession, next: Snapshot): CalculatorSession {
 
 function replace(state: CalculatorSession, text: string, start = state.start, end = state.end): CalculatorSession {
   const source = state.source.slice(0, start) + text + state.source.slice(end)
-  if (source.length > MAX_EXPRESSION_LENGTH) return { ...state, inputError: 'Keep the expression under 2,000 characters.' }
+  if (source.length > MAX_EXPRESSION_LENGTH) return { ...state, inputError: 'Keep the expression under 2 000 characters.' }
   return remember(state, { ...snapshot(state), source, start: start + text.length, end: start + text.length, committed: false, showErrors: false, inputError: null })
 }
 
@@ -62,7 +62,7 @@ function insert(state: CalculatorSession, text: string): CalculatorSession {
     const continuing = /^[+\-−*×/÷^%!²]/.test(text)
     const base = continuing ? state.result ?? '' : ''
     const source = base + text
-    if (source.length > MAX_EXPRESSION_LENGTH) return { ...state, inputError: 'Keep the expression under 2,000 characters.' }
+    if (source.length > MAX_EXPRESSION_LENGTH) return { ...state, inputError: 'Keep the expression under 2 000 characters.' }
     return remember(state, { ...snapshot(state), source, start: source.length, end: source.length, committed: false, showErrors: false, inputError: null })
   }
   return replace(state, text)
@@ -116,7 +116,7 @@ export function reduceSession(state: CalculatorSession, action: SessionAction): 
   if (action.type === 'insert') return insert(state, action.text)
   if (action.type === 'edit') {
     const edit = readExpressionInput(action.source, action.start, action.end)
-    if (edit.source.length > MAX_EXPRESSION_LENGTH) return { ...state, inputError: 'Keep the expression under 2,000 characters.' }
+    if (edit.source.length > MAX_EXPRESSION_LENGTH) return { ...state, inputError: 'Keep the expression under 2 000 characters.' }
     return remember(state, { ...snapshot(state), ...edit, committed: false, showErrors: false, inputError: null })
   }
   if (action.type === 'loadExpression') return remember(state, fromHistory(state, action.entry))

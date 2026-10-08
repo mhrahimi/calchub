@@ -91,6 +91,20 @@
 .calc-page button { transition: background-color .18s ease, color .18s ease, border-color .18s ease; }
 .calc-presets button:hover, .calc-unit-switch button:hover, .calc-view-nav button:hover { background: #e8eff7; }
 .calc-page button:active { transform: translateY(1px); }
+.basic-calculator .calculator-inputs > div { padding: 1rem; }
+.basic-calculator .calc-hero { padding: clamp(.9rem, 2vw, 1.25rem); }
+.basic-calculator .calc-eyebrow { margin-bottom: .75rem; }
+.basic-calculator .calc-hero h2 { font-size: .8rem; }
+.basic-calculator .calc-hero-amount {
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  margin: .3rem 0;
+  transition: color .18s ease, opacity .18s ease;
+}
+.basic-calculator .calc-hero-amount.is-unavailable {
+  color: var(--color-text-muted);
+  opacity: .48;
+}
+.basic-calculator .calc-hero-caption { line-height: 1.45; }
 @media (min-width: 1024px) {
   .calc-page .calculator-grid { grid-template-columns: minmax(310px, .78fr) minmax(0, 1.4fr); gap: 2.5rem; }
 }

@@ -68,7 +68,7 @@ function tokenize(source: string): Token[] {
 /** Shared by live preview, Enter, keypad input, clipboard input, and history replay. */
 export function evaluateExpression(source: string, angleMode: AngleMode = 'deg'): ExpressionResult {
   if (!source.trim()) return { status: 'empty' }
-  if (source.length > MAX_EXPRESSION_LENGTH) return { status: 'error', message: 'Keep the expression under 2,000 characters.', start: 2000, end: source.length }
+  if (source.length > MAX_EXPRESSION_LENGTH) return { status: 'error', message: 'Keep the expression under 2 000 characters.', start: 2000, end: source.length }
   try {
     const tokens = tokenize(source)
     let at = 0

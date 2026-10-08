@@ -77,7 +77,7 @@ describe('always-editable calculator session', () => {
     expect(state.past).toHaveLength(200)
     const rejected = insert(state, '2'.repeat(2000))
     expect(rejected.source).toBe(state.source)
-    expect(rejected.inputError).toMatch(/2,000/)
+    expect(rejected.inputError).toMatch(/2 000/)
   })
 
   it('inserts functions around a selection or leaves the caret inside parentheses', () => {

@@ -19,7 +19,7 @@ export function KeypadGrid({ rows, label, columns = 4, className }: {
     if (active) activate(active)
   }, [rows])
   return (
-    <div ref={root} role="grid" aria-label={label} aria-colcount={columns} aria-rowcount={rows.length} className={cn('space-y-2', className)}
+    <div ref={root} role="grid" aria-label={label} aria-colcount={columns} aria-rowcount={rows.length} className={cn('space-y-1.5', className)}
       onFocusCapture={(event) => { if (event.target instanceof HTMLButtonElement) activate(event.target) }}
       onKeyDown={(event) => {
         if (event.altKey || event.metaKey || event.shiftKey) return
@@ -45,7 +45,7 @@ export function KeypadGrid({ rows, label, columns = 4, className }: {
     >
       {rows.map((cells, row) => {
         let column = 0
-        return <div key={row} role="row" className={cn('grid gap-2', columns === 4 ? 'grid-cols-4' : 'grid-cols-3')}>
+        return <div key={row} role="row" className={cn('grid gap-1.5', columns === 4 ? 'grid-cols-4' : 'grid-cols-3')}>
           {cells.map((cell) => {
             const start = column
             column += cell.span ?? 1
