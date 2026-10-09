@@ -11,5 +11,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['**/tests.ts', '**/*.tests.ts', '**/*.{test,spec}.?(c|m)[jt]s?(x)'],
+    // Interaction suites recalculate heavy schedules; CI needs more than Vitest's 5s default.
+    testTimeout: 15_000,
   },
 })

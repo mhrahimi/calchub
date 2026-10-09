@@ -22,7 +22,11 @@ vi.mock('@/components/calculator/ChartPanel', () => ({ ChartPanel: ({ data }: { 
 
 let root: Root
 let container: HTMLDivElement
-const inputById = (id: string) => container.querySelector<HTMLInputElement>(`#${id}`)!
+const inputById = (id: string) => {
+  const input = container.querySelector<HTMLInputElement>(`#${id}`)
+  if (!input) throw new Error(`Input not found: #${id}`)
+  return input
+}
 const amount = () => container.querySelector('.calc-hero-amount')?.textContent
 function button(text: string) {
   const found = [...container.querySelectorAll('button')].find(node => node.textContent?.trim() === text)
@@ -39,7 +43,17 @@ async function type(id: string, value: string) {
   })
 }
 async function settle(ms = 300) { await act(async () => { await vi.advanceTimersByTimeAsync(ms) }) }
-async function mount() { await act(async () => { root.render(<MortgagePage />) }) }
+async function ready() {
+  for (let attempt = 0; attempt < 40; attempt++) {
+    if (container.querySelector('#interest-rate') && amount()) return
+    await settle(50)
+  }
+  throw new Error('Mortgage page did not finish mounting')
+}
+async function mount() {
+  await act(async () => { root.render(<MortgagePage />) })
+  await ready()
+}
 
 beforeEach(() => {
   vi.useFakeTimers()
@@ -49,23 +63,27 @@ beforeEach(() => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
   vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }))
+  vi.stubGlobal('requestAnimationFrame', (fn: FrameRequestCallback) => setTimeout(() => fn(0), 0) as unknown as number)
+  vi.stubGlobal('cancelAnimationFrame', (id: number) => clearTimeout(id))
   HTMLElement.prototype.scrollIntoView = vi.fn()
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }
   HTMLDialogElement.prototype.close = function () { this.removeAttribute('open') }
   container = document.createElement('div'); document.body.append(container); root = createRoot(container)
 })
 afterEach(async () => {
-  await act(async () => root.unmount())
+  try { await act(async () => root.unmount()) } catch { /* ignore teardown races after timed-out tests */ }
   container.remove(); vi.useRealTimers(); vi.unstubAllGlobals()
 })
 
-describe('mortgage interactions', () => {
+// Mortgage recalculation is CPU-heavy; CI runners regularly exceed Vitest's 5s default.
+describe('mortgage interactions', { timeout: 20_000 }, () => {
   it('jumps to the estimate without leaving the calculator or losing edited inputs', async () => {
     window.history.replaceState(null, '', '#/calculators/mortgage')
     await act(async () => root.render(<HashRouter><Routes>
       <Route path="/calculators/mortgage" element={<MortgagePage />} />
       <Route path="*" element={<p>Left the calculator</p>} />
     </Routes></HashRouter>))
+    await ready()
     await type('interest-rate', '5'); await settle()
     await click(container.querySelector<HTMLElement>('.calc-jump')!); await settle()
     expect(window.location.hash).toBe('#/calculators/mortgage')
