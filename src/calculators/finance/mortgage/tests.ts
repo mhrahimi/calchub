@@ -163,6 +163,62 @@ describe('mortgage', () => {
     expect(combined.interestSaved).toBeGreaterThan(monthlyOnly.interestSaved ?? 0)
   })
 
+  it('starts monthly and yearly extras on the chosen months', () => {
+    const start = { startYear: 2026, startMonth: 1 }
+    const deferred = calculateMortgage({
+      ...base,
+      ...start,
+      includeExtraPayments: true,
+      monthlyExtraPayment: 100,
+      monthlyExtraStartYear: 2027,
+      monthlyExtraStartMonth: 3,
+      yearlyExtraPayment: 1000,
+      yearlyExtraStartYear: 2028,
+      yearlyExtraStartMonth: 6,
+    })
+    const extraOn = (date: string) =>
+      deferred.schedule
+        .filter((row) => (row as { date?: string }).date === date)
+        .reduce((sum, row) => sum + (row.extraPrincipal ?? 0), 0)
+    expect(extraOn('2027-02-01')).toBe(0)
+    expect(extraOn('2027-03-01')).toBe(100)
+    expect(extraOn('2027-12-01')).toBe(100)
+    expect(extraOn('2028-06-01')).toBe(1100)
+    expect(extraOn('2029-06-01')).toBe(1100)
+    expect(extraOn('2028-12-01')).toBe(100)
+  })
+
+  it('keeps the original extra schedule when the chosen start matches the default', () => {
+    const shared = { ...base, startYear: 2026, startMonth: 1, includeExtraPayments: true, monthlyExtraPayment: 100, yearlyExtraPayment: 1000 }
+    const omitted = calculateMortgage(shared)
+    const explicit = calculateMortgage({
+      ...shared,
+      monthlyExtraStartYear: 2026,
+      monthlyExtraStartMonth: 1,
+      yearlyExtraStartYear: 2026,
+      yearlyExtraStartMonth: 12,
+    })
+    expect(explicit.totalInterest).toBe(omitted.totalInterest)
+    expect(explicit.payoffPeriod).toBe(omitted.payoffPeriod)
+    expect(explicit.schedule.map((row) => row.extraPrincipal)).toEqual(omitted.schedule.map((row) => row.extraPrincipal))
+  })
+
+  it('rejects extra starts outside the loan term', () => {
+    const start = { startYear: 2026, startMonth: 1, termYears: 2, termMonths: 0, includeExtraPayments: true }
+    const before = validateMortgage({ ...base, ...start, monthlyExtraPayment: 100, monthlyExtraStartYear: 2025, monthlyExtraStartMonth: 12 })
+    const after = validateMortgage({ ...base, ...start, yearlyExtraPayment: 1000, yearlyExtraStartYear: 2029, yearlyExtraStartMonth: 1 })
+    const incomplete = validateMortgage({ ...base, ...start, monthlyExtraPayment: 100, monthlyExtraStartYear: 2027 })
+    const short = validateMortgage({ ...base, startYear: 2026, startMonth: 1, termYears: 0, termMonths: 6, includeExtraPayments: true, yearlyExtraPayment: 500 })
+    expect(before.valid).toBe(false)
+    expect(after.valid).toBe(false)
+    expect(incomplete.valid).toBe(false)
+    expect(short.valid).toBe(false)
+    if (!before.valid) expect(before.errors.monthlyExtraStartMonth).toMatch(/loan term/)
+    if (!after.valid) expect(after.errors.yearlyExtraStartMonth).toMatch(/loan term/)
+    if (!incomplete.valid) expect(incomplete.errors.monthlyExtraStartMonth).toMatch(/month and a year/)
+    if (!short.valid) expect(short.errors.yearlyExtraStartMonth).toMatch(/loan term/)
+  })
+
   it('rejects one-time extras outside the loan term', () => {
     const result = validateMortgage({
       ...base,

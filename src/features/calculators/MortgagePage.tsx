@@ -9,7 +9,7 @@ import { Select } from '@/components/ui/Select'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { MortgageResults } from './MortgageResults'
 import { useCalculatorPage } from './useCalculatorPage'
-import { calculateMortgage, explainMortgage, buildMortgageCharts, buildMortgageTable } from '@/calculators/finance/mortgage/calculate'
+import { calculateMortgage, explainMortgage, buildMortgageCharts, buildMortgageTable, resolvedMonthlyExtraStart, resolvedYearlyExtraStart } from '@/calculators/finance/mortgage/calculate'
 import { convertDownPayment } from '@/calculators/finance/mortgage/insights'
 import { validateMortgage } from '@/calculators/finance/mortgage/validation'
 import type { MortgageInput, OneTimeExtraPayment, PayoffOption } from '@/calculators/finance/mortgage/types'
@@ -48,6 +48,14 @@ export default function MortgagePage() {
   const downAmount = form.downPaymentIsPercent ? form.homePrice * form.downPayment / 100 : form.downPayment
   const downPercent = form.homePrice > 0 ? downAmount / form.homePrice * 100 : 0
   const updateExtra = (index: number, patch: Partial<OneTimeExtraPayment>) => set('oneTimeExtraPayments', (form.oneTimeExtraPayments ?? []).map((payment, i) => i === index ? { ...payment, ...patch } : payment))
+  const monthlyStart = resolvedMonthlyExtraStart(form)
+  const yearlyStart = resolvedYearlyExtraStart(form)
+  const setExtraStart = (kind: 'monthly' | 'yearly', patch: { month?: number; year?: number }) => setForm(current => {
+    const start = kind === 'monthly' ? resolvedMonthlyExtraStart(current) : resolvedYearlyExtraStart(current)
+    const monthKey = kind === 'monthly' ? 'monthlyExtraStartMonth' : 'yearlyExtraStartMonth'
+    const yearKey = kind === 'monthly' ? 'monthlyExtraStartYear' : 'yearlyExtraStartYear'
+    return { ...current, [monthKey]: patch.month ?? start.month, [yearKey]: patch.year ?? start.year }
+  })
   const calculate = () => {
     handleCalculate(form)
     if (validateMortgage(form).valid && window.matchMedia('(max-width: 1023px)').matches) {
@@ -56,7 +64,7 @@ export default function MortgagePage() {
   }
   const applyPayoff = (option: PayoffOption) => {
     if (!input || layoutProps.inputsChanged) return
-    const next = { ...input, includeExtraPayments: true, monthlyExtraPayment: option.monthlyExtra, yearlyExtraPayment: 0, oneTimeExtraPayments: [], extraPayment: 0, extraFrequency: 'every' as const }
+    const next = { ...input, includeExtraPayments: true, monthlyExtraPayment: option.monthlyExtra, yearlyExtraPayment: 0, oneTimeExtraPayments: [], extraPayment: 0, extraFrequency: 'every' as const, monthlyExtraStartYear: undefined, monthlyExtraStartMonth: undefined, yearlyExtraStartYear: undefined, yearlyExtraStartMonth: undefined }
     setForm(next)
     handleCalculate(next)
   }
@@ -120,8 +128,20 @@ export default function MortgagePage() {
         <CalcSection index={3} title="Pay off sooner">
           <Toggle checked={form.includeExtraPayments} onChange={checked => set('includeExtraPayments', checked)} label="Add extra payments" description="See the interest and time you could save." />
           {form.includeExtraPayments && <div className="calc-optional-fields">
-            <Input label="Monthly extra payment" prefix={currencySymbol} grouped value={form.monthlyExtraPayment ?? ((form.extraFrequency ?? 'every') === 'every' ? form.extraPayment ?? 0 : 0)} onValueChange={n => set('monthlyExtraPayment', n)} error={errors.monthlyExtraPayment} />
-            <Input label="Yearly extra payment" prefix={currencySymbol} grouped value={form.yearlyExtraPayment ?? (form.extraFrequency === 'yearly' ? form.extraPayment ?? 0 : 0)} onValueChange={n => set('yearlyExtraPayment', n)} error={errors.yearlyExtraPayment} hint="Applied with payments 12, 24, 36, and so on." />
+            <div className="calc-extra-row">
+              <Input label="Monthly extra payment" prefix={currencySymbol} grouped value={form.monthlyExtraPayment ?? ((form.extraFrequency ?? 'every') === 'every' ? form.extraPayment ?? 0 : 0)} onValueChange={n => set('monthlyExtraPayment', n)} error={errors.monthlyExtraPayment} hint="Added to every payment from the start month through payoff." />
+              <div className="grid grid-cols-2 gap-3">
+                <Select id="monthly-extra-start-month" label="Monthly start month" value={String(monthlyStart.month)} onChange={v => setExtraStart('monthly', { month: +v })} options={monthOptions} error={errors.monthlyExtraStartMonth} />
+                <Select id="monthly-extra-start-year" label="Monthly start year" value={String(monthlyStart.year)} onChange={v => setExtraStart('monthly', { year: +v })} options={yearOptions(monthlyStart.year)} />
+              </div>
+            </div>
+            <div className="calc-extra-row">
+              <Input label="Yearly extra payment" prefix={currencySymbol} grouped value={form.yearlyExtraPayment ?? (form.extraFrequency === 'yearly' ? form.extraPayment ?? 0 : 0)} onValueChange={n => set('yearlyExtraPayment', n)} error={errors.yearlyExtraPayment} hint="Paid once a year, beginning in the start month. The suggested start is payment 12." />
+              <div className="grid grid-cols-2 gap-3">
+                <Select id="yearly-extra-start-month" label="Yearly start month" value={String(yearlyStart.month)} onChange={v => setExtraStart('yearly', { month: +v })} options={monthOptions} error={errors.yearlyExtraStartMonth} />
+                <Select id="yearly-extra-start-year" label="Yearly start year" value={String(yearlyStart.year)} onChange={v => setExtraStart('yearly', { year: +v })} options={yearOptions(yearlyStart.year)} />
+              </div>
+            </div>
             <div className="space-y-3"><p className="text-sm font-medium">One-time extra payments</p>
               {(form.oneTimeExtraPayments ?? []).map((payment, index) => <div key={index} className="calc-extra-row">
                 <Input label={`Extra payment ${index + 1}`} prefix={currencySymbol} grouped value={payment.amount} onValueChange={amount => updateExtra(index, { amount })} error={errors[`oneTimeExtraPayments.${index}.amount`]} />

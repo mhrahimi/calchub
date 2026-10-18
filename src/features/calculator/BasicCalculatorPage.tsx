@@ -101,7 +101,7 @@ function KeyButton({ label, name, tone, onClick, className }: {
   label: string; name: string; tone: 'fn' | 'op' | 'digit'; onClick: () => void; className?: string
 }) {
   return <button type="button" aria-label={name} onClick={onClick} onMouseDown={(event) => event.preventDefault()}
-    className={cn('w-full h-11 lg:h-12 rounded-xl text-sm lg:text-lg font-medium transition-transform active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+    className={cn('calc-key w-full rounded-xl text-sm lg:text-base font-medium transition-transform active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
       tone === 'op' && 'bg-primary text-white hover:bg-primary-dark',
       tone === 'fn' && 'bg-surface-light text-primary hover:bg-surface-lighter',
       tone === 'digit' && 'bg-background-secondary text-text-primary border border-border hover:border-primary', className)}>{label}</button>
@@ -442,7 +442,7 @@ export default function BasicCalculatorPage() {
               {sciGroups.map((group) => {
                 const cells: KeypadCell[] = group.keys.map((key, index) => ({ id: key.name, span: group.title === 'Logarithms' && index > 3 ? 2 : 1,
                   content: <KeyButton label={key.label} name={key.name} tone="fn" onClick={() => onAction(key.action)} className="text-xs lg:text-sm" /> }))
-                if (group.title === 'Trigonometry') cells.push({ id: 'inverse', content: <button type="button" aria-label="Inverse trigonometric functions" aria-pressed={inverse} onClick={() => setInverse((active) => !active)} className={cn(controlClass, 'h-11 lg:h-12 rounded-xl text-sm font-medium', inverse ? 'bg-primary text-white hover:bg-primary-dark' : 'bg-surface-light text-primary')}>Inv</button> })
+                if (group.title === 'Trigonometry') cells.push({ id: 'inverse', content: <button type="button" aria-label="Inverse trigonometric functions" aria-pressed={inverse} onClick={() => setInverse((active) => !active)} className={cn(controlClass, 'calc-key rounded-xl text-sm font-medium', inverse ? 'bg-primary text-white hover:bg-primary-dark' : 'bg-surface-light text-primary')}>Inv</button> })
                 return <div key={group.title}>
                   <div className="flex items-center justify-between gap-2 mb-1 min-h-5"><span className="text-xs font-medium text-text-muted">{group.title}</span>
                     {group.title === 'Trigonometry' && <button type="button" aria-expanded={hyperbolicOpen} aria-controls="hyperbolic-functions" onClick={() => setHyperbolicOpen((open) => !open)} className={cn(controlClass, 'text-primary px-1 py-1')}>Hyperbolic<ChevronDown className={cn('w-3 h-3', hyperbolicOpen && 'rotate-180')} aria-hidden /></button>}
@@ -454,18 +454,19 @@ export default function BasicCalculatorPage() {
                 </div>
               })}
             </motion.div>}</AnimatePresence>
-            <KeypadGrid rows={mainRows} label="Keypad" className="flex-1 min-w-0" />
+            <KeypadGrid rows={mainRows} label="Keypad" className="flex-1 min-w-0 max-w-[22rem]" />
           </div>
         </div>
         </section>
         </div>
-        <section className="calc-panel rounded-2xl border border-border bg-white p-3 lg:p-4 flex flex-col min-h-[14rem] lg:min-h-[24rem] min-w-0" aria-label="Calculation history">
-          <div className="flex items-center justify-between gap-3 mb-1"><h2 className="text-sm font-semibold text-text-primary">History</h2>
-            {!!history.length && <button type="button" onClick={() => { clearHistoryStore(); setHistory([]); dispatchSession({ type: 'forgetHistory' }); focusExpression() }} className={controlClass}>Clear history</button>}
+        <section className="calc-history-panel rounded-2xl border border-border bg-white flex flex-col min-h-[14rem] lg:min-h-[24rem] min-w-0" aria-label="Calculation history">
+          <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-2">
+            <h2 className="text-sm font-semibold text-text-primary">History</h2>
+            {!!history.length && <button type="button" onClick={() => { clearHistoryStore(); setHistory([]); dispatchSession({ type: 'forgetHistory' }); focusExpression() }} className={cn(controlClass, 'shrink-0')}>Clear history</button>}
           </div>
-          <p className="text-xs text-text-muted mb-3">Calculations are saved when you press Enter or =.</p>
-          {!history.length ? <p className="text-sm text-text-muted py-8 text-center">No calculations yet</p>
-            : <ul className="flex-1 overflow-y-auto max-h-[28rem] lg:max-h-[34rem] divide-y divide-border -mx-1">{history.map((item) => <li key={item.id} className="px-2 py-2.5">
+          <p className="text-xs text-text-muted px-4 mb-3">Calculations are saved when you press Enter or =.</p>
+          {!history.length ? <p className="text-sm text-text-muted py-8 text-center px-4">No calculations yet</p>
+            : <ul className="flex-1 overflow-y-auto max-h-[28rem] lg:max-h-[34rem] divide-y divide-border px-3">{history.map((item) => <li key={item.id} className="px-1 py-2.5">
               <p className="text-xs text-text-muted tabular-nums break-all leading-snug text-right">{item.expression}</p>
               <p className="text-base font-medium text-text-primary tabular-nums mt-1 text-right break-all">{formatCalculatorDisplay(item.result)}</p>
               <div className="flex justify-end gap-1 mt-2 flex-wrap">
@@ -474,7 +475,7 @@ export default function BasicCalculatorPage() {
                 <button type="button" className={controlClass} aria-label={`Copy calculation ${item.expression}`} onClick={() => void copyHistory(item)}><Copy className="w-3 h-3" aria-hidden />Copy</button>
               </div>
             </li>)}</ul>}
-          <p role="status" className="text-xs text-text-muted min-h-4 mt-2">{copyMessage}</p>
+          <p role="status" className="text-xs text-text-muted min-h-4 mt-2 px-4 pb-4">{copyMessage}</p>
         </section>
       </div>
     </div>

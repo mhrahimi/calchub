@@ -31,8 +31,16 @@ export interface MortgageInput {
   extraFrequency?: ExtraPaymentFrequency
   /** Extra principal paid with every monthly installment. */
   monthlyExtraPayment?: number
+  /** First month the monthly extra is paid. Omitted means the first loan payment. */
+  monthlyExtraStartYear?: number
+  /** 1–12. Pair with monthlyExtraStartYear. */
+  monthlyExtraStartMonth?: number
   /** Extra principal paid once each year. */
   yearlyExtraPayment?: number
+  /** First month the yearly extra is paid. Omitted means payment 12, then every 12 months. */
+  yearlyExtraStartYear?: number
+  /** 1–12. Pair with yearlyExtraStartYear. */
+  yearlyExtraStartMonth?: number
   /** First payment year. Falls back to the current year when omitted. */
   startYear?: number
   /** First payment month, 1–12. Falls back to the current month when omitted. */

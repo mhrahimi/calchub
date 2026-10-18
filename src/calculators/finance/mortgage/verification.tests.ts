@@ -33,7 +33,17 @@ function reference(input: MortgageInput) {
     balance = round(due.minus(installment))
     const index = (input.startYear ?? 2026) * 12 + (input.startMonth ?? 1) - 1 + period - 1
     const oneTime = (input.oneTimeExtraPayments ?? []).filter(extra => extra.year * 12 + extra.month - 1 === index).reduce((sum, extra) => sum + extra.amount, 0)
-    const requestedExtra = input.includeExtraPayments ? (input.monthlyExtraPayment ?? 0) + (period % 12 === 0 ? input.yearlyExtraPayment ?? 0 : 0) + oneTime : 0
+    const repeatsFrom = (year: number | undefined, month: number | undefined, fallback: boolean, step: number) => {
+      if (year == null && month == null) return fallback
+      if (year == null || month == null) return false
+      const start = year * 12 + month - 1
+      return index >= start && (index - start) % step === 0
+    }
+    const requestedExtra = input.includeExtraPayments
+      ? (repeatsFrom(input.monthlyExtraStartYear, input.monthlyExtraStartMonth, true, 1) ? input.monthlyExtraPayment ?? 0 : 0)
+        + (repeatsFrom(input.yearlyExtraStartYear, input.yearlyExtraStartMonth, period % 12 === 0, 12) ? input.yearlyExtraPayment ?? 0 : 0)
+        + oneTime
+      : 0
     const extra = round(D.min(balance, requestedExtra))
     balance = round(balance.minus(extra))
     totalInterest = totalInterest.add(interest)
@@ -52,7 +62,9 @@ const cases: [string, Partial<MortgageInput>][] = [
   ['partial year', { termYears: 7, termMonths: 5, interestRate: 4.29 }],
   ['fractional price and percentage', { homePrice: 687432.17, downPayment: 17.37, interestRate: 5.73 }],
   ['monthly extra', { includeExtraPayments: true, monthlyExtraPayment: 350 }],
+  ['delayed monthly extra', { includeExtraPayments: true, monthlyExtraPayment: 350, monthlyExtraStartYear: 2028, monthlyExtraStartMonth: 3 }],
   ['annual extra', { includeExtraPayments: true, yearlyExtraPayment: 10000 }],
+  ['delayed annual extra', { includeExtraPayments: true, yearlyExtraPayment: 10000, yearlyExtraStartYear: 2029, yearlyExtraStartMonth: 1 }],
   ['combined extras', { includeExtraPayments: true, monthlyExtraPayment: 237, yearlyExtraPayment: 3521, oneTimeExtraPayments: [{ amount: 8213.42, year: 2027, month: 2 }, { amount: 7200, year: 2028, month: 9 }] }],
   ['same-month extras capped at balance', { includeExtraPayments: true, monthlyExtraPayment: 200000, oneTimeExtraPayments: [{ amount: 900000, year: 2026, month: 9 }, { amount: 500, year: 2026, month: 9 }] }],
   ['last-month lump sum', { termYears: 1, includeExtraPayments: true, oneTimeExtraPayments: [{ amount: 10000, year: 2027, month: 8 }] }],

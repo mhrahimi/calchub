@@ -90,6 +90,7 @@ export function resultFields(id:string,inputs:unknown,results:unknown,p:Calculat
 }
 
 const currencyInputs=new Set('principal loanAmount homePrice downPayment propertyTax homeInsurance hoa pmi otherCosts extraPayment monthlyExtraPayment yearlyExtraPayment amount startingInvestment periodicContribution targetValue contribution currentSavings goalAmount annualContribution retirementSpending otherRetirementIncome grossMonthlyIncome housingCost debtPayments grossIncome pretaxDeductions faceValue bondPrice spot strike preMoneyValuation newInvestment investmentAmount purchaseEv sponsorEquity initialDebt transactionFees minimumCash cash grossDebt baseNwc lpContribution gpContribution totalDistribution fees vehiclePrice cashDown tradeIn rebates taxableFees payment netDebt initialEquity exitCash capex nwcChange ebitda depreciation revenue balance fee balloon'.split(' '))
+const plainIntegerInputs=new Set('taxYear startYear year monthlyExtraStartYear monthlyExtraStartMonth yearlyExtraStartYear yearlyExtraStartMonth'.split(' '))
 const enumLabels:Record<string,Record<string,string>> = {
   solveFor:{fv:'Ending balance',pv:'Starting investment',pmt:'Contribution',rate:'Required return',periods:'Time horizon',time:'Time to goal',contribution:'Required contribution',balance:'Projected balance'},
   terminalMethod:{gordon:'Perpetual growth',exitMultiple:'Exit multiple'},
@@ -113,10 +114,10 @@ export function inputFields(inputs:unknown,p:CalculationProvenance):ReportField[
     if(typeof value==='number'&&currencyInputs.has(key))kind='currency'
     if(typeof value==='number'&&(percentInputs.has(key)||key==='downPayment'&&root.downPaymentIsPercent))kind='percent'
     if(typeof value==='number'&&key.endsWith('Percent'))kind='percent'
-    if(typeof value==='number'&&['taxYear','startYear','year'].includes(key))kind='integer'
+    if(typeof value==='number'&&plainIntegerInputs.has(key))kind='integer'
     const unit=key==='exitMultiple'?'x':key.endsWith('Years')||key==='retirementDuration'?'years':key.endsWith('Months')?'months':key==='shares'?'shares':''
     const field=makeField([path,label,kind,unit],value,p)
-    if(typeof value==='number'&&['taxYear','startYear','year'].includes(key))field.display=String(value)
+    if(typeof value==='number'&&plainIntegerInputs.has(key))field.display=String(value)
     if(typeof value==='string'&&enumLabels[key]?.[value])field.display=enumLabels[key][value]
     out.push(field)
   }

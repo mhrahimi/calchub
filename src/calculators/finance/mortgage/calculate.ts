@@ -24,8 +24,64 @@ export function mortgageStartParts(input: Pick<MortgageInput, 'startYear' | 'sta
   return { startYear, startMonth }
 }
 
+export function readExtraStart(year?: number, month?: number): { year: number; month: number } | 'incomplete' | null {
+  if (year == null && month == null) return null
+  if (year == null || month == null) return 'incomplete'
+  return { year, month }
+}
+
+/** Payment 12, then every 12 months. */
+export function defaultYearlyExtraStart(start: { startYear: number; startMonth: number }) {
+  const index = start.startYear * 12 + (start.startMonth - 1) + 11
+  return { year: Math.floor(index / 12), month: (index % 12) + 1 }
+}
+
+export function resolvedMonthlyExtraStart(input: MortgageInput) {
+  const loan = mortgageStartParts(input)
+  const explicit = readExtraStart(input.monthlyExtraStartYear, input.monthlyExtraStartMonth)
+  return explicit && explicit !== 'incomplete' ? explicit : { year: loan.startYear, month: loan.startMonth }
+}
+
+export function resolvedYearlyExtraStart(input: MortgageInput) {
+  const loan = mortgageStartParts(input)
+  const explicit = readExtraStart(input.yearlyExtraStartYear, input.yearlyExtraStartMonth)
+  return explicit && explicit !== 'incomplete' ? explicit : defaultYearlyExtraStart(loan)
+}
+
+export function monthlyExtraIsDeferred(input: MortgageInput) {
+  const loan = mortgageStartParts(input)
+  const start = resolvedMonthlyExtraStart(input)
+  return start.year * 12 + start.month > loan.startYear * 12 + loan.startMonth
+}
+
 function positiveAmount(value?: number) {
   return value && value > 0 ? value : 0
+}
+
+export function mortgageExtraAmounts(input: MortgageInput) {
+  const frequency = input.extraFrequency ?? 'every'
+  const legacy = positiveAmount(input.extraPayment)
+  return {
+    monthly: input.monthlyExtraPayment != null ? positiveAmount(input.monthlyExtraPayment) : frequency === 'every' ? legacy : 0,
+    yearly: input.yearlyExtraPayment != null ? positiveAmount(input.yearlyExtraPayment) : frequency === 'yearly' ? legacy : 0,
+  }
+}
+
+function recurringPaymentDates(
+  loan: { startYear: number; startMonth: number },
+  periods: number,
+  from: { year: number; month: number },
+  step: number,
+) {
+  const first = loan.startYear * 12 + (loan.startMonth - 1)
+  const last = first + periods - 1
+  let at = from.year * 12 + (from.month - 1)
+  if (at < first) at += Math.ceil((first - at) / step) * step
+  const dates: string[] = []
+  for (; at <= last; at += step) {
+    dates.push(isoMonth(Math.floor(at / 12), (at % 12) + 1))
+  }
+  return dates
 }
 
 function yearlyExtraDates(startDate: Date, periods: number) {
@@ -46,20 +102,17 @@ function mortgageExtras(input: MortgageInput, periods: number, startDate: Date) 
   }
   const frequency = input.extraFrequency ?? 'every'
   const legacy = positiveAmount(input.extraPayment)
-  const monthly =
-    input.monthlyExtraPayment != null
-      ? positiveAmount(input.monthlyExtraPayment)
-      : frequency === 'every'
-        ? legacy
-        : 0
-  const yearly =
-    input.yearlyExtraPayment != null
-      ? positiveAmount(input.yearlyExtraPayment)
-      : frequency === 'yearly'
-        ? legacy
-        : 0
+  const { monthly, yearly } = mortgageExtraAmounts(input)
+  const loan = mortgageStartParts(input)
+  const monthlyFrom = resolvedMonthlyExtraStart(input)
+  const monthlyImmediate = monthlyFrom.year * 12 + monthlyFrom.month <= loan.startYear * 12 + loan.startMonth
   const dated = [
-    ...(yearly > 0 ? yearlyExtraDates(startDate, periods).map((date) => ({ date, amount: yearly })) : []),
+    ...(monthly > 0 && !monthlyImmediate
+      ? recurringPaymentDates(loan, periods, monthlyFrom, 1).map((date) => ({ date, amount: monthly }))
+      : []),
+    ...(yearly > 0
+      ? recurringPaymentDates(loan, periods, resolvedYearlyExtraStart(input), 12).map((date) => ({ date, amount: yearly }))
+      : []),
     ...(input.oneTimeExtraPayments ?? [])
       .filter((payment) => payment.amount > 0)
       .map((payment) => ({
@@ -79,7 +132,7 @@ function mortgageExtras(input: MortgageInput, periods: number, startDate: Date) 
     dated.push({ date: dateText(startDate), amount: legacy })
   }
 
-  return { monthly, dated }
+  return { monthly: monthly > 0 && monthlyImmediate ? monthly : 0, dated }
 }
 
 const PAYOFF_MONTHS = [
@@ -361,6 +414,7 @@ export function explainMortgage(input: MortgageInput, result: MortgageResult): C
     assumptions: [
       'Taxes, insurance, and fees are estimates held constant each month.',
       'The first-month breakdown includes all extra principal actually paid in that month. The regular housing estimate excludes extra payments.',
+      'Monthly extras begin on the chosen month and continue every month. Annual extras begin on the chosen month and repeat once a year. With no start chosen, monthly extras begin at the first payment and annual extras begin on payment 12.',
       'The quoted rate is held constant for the full amortization period; future renewals or rate changes are not modeled.',
       'Mortgage insurance is entered manually and held constant; cancellation, upfront premiums, eligibility rules, and prepayment penalties are not modeled.',
       'Interest and payments are rounded to cents at payment dates; the final fixed-rate installment settles the remaining balance.',

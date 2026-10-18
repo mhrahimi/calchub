@@ -105,6 +105,27 @@
   opacity: .48;
 }
 .basic-calculator .calc-hero-caption { line-height: 1.45; }
+.basic-calculator .calc-key {
+  aspect-ratio: 1.15 / 1;
+  min-height: 2.75rem;
+  max-height: 4.25rem;
+  height: auto;
+}
+.basic-calculator .calc-key.col-span-2,
+.basic-calculator [data-span="2"] > .calc-key {
+  aspect-ratio: 2.35 / 1;
+  max-height: 4.25rem;
+}
+.basic-calculator .calc-history-panel {
+  padding: 0;
+}
+@media (max-width: 640px) {
+  .basic-calculator .calc-key {
+    aspect-ratio: 1.35 / 1;
+    max-height: 3.75rem;
+  }
+}
+
 @media (min-width: 1024px) {
   .calc-page .calculator-grid { grid-template-columns: minmax(310px, .78fr) minmax(0, 1.4fr); gap: 2.5rem; }
 }

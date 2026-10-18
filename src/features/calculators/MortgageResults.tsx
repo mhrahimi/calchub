@@ -7,6 +7,7 @@ import { useSnapshotCurrency } from '@/components/calculator/SnapshotFormat'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Button } from '@/components/ui/Button'
 import { FormattedAmount } from '@/components/ui/FormattedAmount'
+import { monthlyExtraIsDeferred, resolvedMonthlyExtraStart } from '@/calculators/finance/mortgage/calculate'
 import { durationLabel, monthlyExtra, mortgageScheduleTable, rateScenarios } from '@/calculators/finance/mortgage/insights'
 import type { MortgageInput, MortgageResult, PayoffOption } from '@/calculators/finance/mortgage/types'
 import type { ChartData } from '@/calculators/types'
@@ -49,6 +50,8 @@ export function MortgageResults({ result: r, input, charts, disabled, onApplyPay
   const firstYearInterest = firstYear.reduce((sum, row) => sum + row.interest, 0)
   const housingExtras = r.totalMonthlyHousing - r.principalAndInterest
   const extra = monthlyExtra(input)
+  const deferredMonthlyStart = extra > 0 && monthlyExtraIsDeferred(input) ? resolvedMonthlyExtraStart(input) : null
+  const deferredMonthlyLabel = deferredMonthlyStart ? new Date(Date.UTC(deferredMonthlyStart.year, deferredMonthlyStart.month - 1, 1)).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : ''
   const scenarios = useMemo(() => rateScenarios(input, r.loanAmount), [input, r.loanAmount])
   const activeChart = charts?.find(chart => chartView === 'balance' ? chart.title?.startsWith('Remaining balance') : chart.title?.startsWith('Principal vs interest'))
   const firstMonthExtra = r.schedule.filter(row => row.period === 1).reduce((sum, row) => sum + (row.extraPrincipal ?? 0), 0)
@@ -72,7 +75,7 @@ export function MortgageResults({ result: r, input, charts, disabled, onApplyPay
         <div><dt>Loan payment</dt><dd><Amount value={r.principalAndInterest} /></dd></div>
         <div><dt>Taxes, insurance & fees</dt><dd><Amount value={housingExtras} /></dd></div>
       </dl>}
-      {extra > 0 && <p className="calc-budget-note">With your planned monthly extra: <strong><Amount value={r.totalMonthlyHousing + extra} />/mo</strong>. Annual and one-time extras are separate; the final payment is capped at the balance due.</p>}
+      {extra > 0 && <p className="calc-budget-note">{deferredMonthlyLabel ? `From ${deferredMonthlyLabel}, your monthly extra brings the payment to` : 'With your planned monthly extra:'} <strong><Amount value={r.totalMonthlyHousing + extra} />/mo</strong>. Annual and one-time extras are separate; the final payment is capped at the balance due.</p>}
     </HeroResult>
 
     <KeyMetrics items={[
@@ -147,7 +150,7 @@ export function MortgageResults({ result: r, input, charts, disabled, onApplyPay
       <>Monthly payments at a constant rate. {input.country === 'CA' ? 'Canadian quotes use semi-annual compounding. The amortization is the full repayment period, not your mortgage contract term; renewals are not modeled.' : 'The US note rate is divided by 12. This is not an APR including loan fees.'}</>,
       <>Taxes, insurance and other costs stay constant if enabled. Maintenance and utilities are included only if entered as other ownership costs. The down payment, closing costs and costs after payoff are excluded from housing totals.</>,
       <>Mortgage insurance is a manual monthly estimate. Automatic cancellation, upfront or financed insurance premiums and qualification rules are not calculated.</>,
-      <>Extra payments reduce principal; lender limits and penalties are not modeled. Home-price appreciation is not assumed.</>,
+      <>Extra payments reduce principal. Monthly extras continue every month after the start you choose, and annual extras repeat once a year. With no start chosen, monthly extras begin at the first payment and annual extras begin on payment 12. Lender limits and penalties are not modeled. Home-price appreciation is not assumed.</>,
     ]} source={{
       href: input.country === 'CA' ? 'https://www.canada.ca/en/financial-consumer-agency/services/mortgages/mortgage-terms-amortization.html' : 'https://www.consumerfinance.gov/ask-cfpb/on-a-mortgage-whats-the-difference-between-my-principal-and-interest-payment-and-my-total-monthly-payment-en-1941/',
       label: input.country === 'CA' ? 'Understand mortgage terms and amortization · FCAC' : 'Understand your mortgage payment · CFPB',

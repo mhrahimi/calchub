@@ -44,6 +44,11 @@ describe('mortgage result presentation', () => {
     expect(html).toContain('Extra principal')
     expect(html).toContain('Annual and one-time extras are separate')
   })
+  it('says when a monthly extra begins after the first payment', () => {
+    const html = render({ ...base, includeExtraPayments: true, monthlyExtraPayment: 200, monthlyExtraStartYear: 2027, monthlyExtraStartMonth: 4 })
+    expect(html).toContain('From April 2027, your monthly extra brings the payment to')
+    expect(html).not.toContain('With your planned monthly extra:')
+  })
   it('marks old mortgage snapshots outdated without rewriting their saved numbers', () => {
     const result = { principalAndInterest: 1234, metadata: { primaryResult: 'principalAndInterest', modelVersion: 'mortgage/2.2.0', status: 'success', warnings: [], assumptions: [], sources: [] } }
     const metadata = resultMetadata('mortgage', result)

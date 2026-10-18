@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { mortgageStartParts } from './calculate'
+import { defaultYearlyExtraStart, mortgageExtraAmounts, mortgageStartParts, readExtraStart } from './calculate'
 import type { MortgageInput } from './types'
 
 const money = z.number().finite('Enter a finite amount').min(0, 'Amount cannot be negative').max(1e12, 'Enter an amount of 1 trillion or less')
@@ -29,7 +29,11 @@ export const mortgageSchema = z.object({
   extraPayment: money.optional(),
   extraFrequency: z.enum(['every', 'yearly', 'once']).optional(),
   monthlyExtraPayment: money.optional(),
+  monthlyExtraStartYear: z.number().int().min(1900).max(2200).optional(),
+  monthlyExtraStartMonth: z.number().int().min(1).max(12).optional(),
   yearlyExtraPayment: money.optional(),
+  yearlyExtraStartYear: z.number().int().min(1900).max(2200).optional(),
+  yearlyExtraStartMonth: z.number().int().min(1).max(12).optional(),
   startYear: z.number().int().min(1900).max(2200).optional(),
   startMonth: z.number().int().min(1).max(12).optional(),
   oneTimeExtraPayments: z.array(oneTimeExtraSchema).optional(),
@@ -37,6 +41,25 @@ export const mortgageSchema = z.object({
 
 function monthIndex(year: number, month: number) {
   return year * 12 + (month - 1)
+}
+
+function checkExtraStart(
+  amount: number,
+  explicit: ReturnType<typeof readExtraStart>,
+  fallback: { year: number; month: number },
+  first: number,
+  last: number,
+  errors: Record<string, string>,
+  key: string,
+) {
+  if (amount <= 0) return
+  if (explicit === 'incomplete') {
+    errors[key] = 'Choose both a start month and a year'
+    return
+  }
+  const start = explicit ?? fallback
+  const at = monthIndex(start.year, start.month)
+  if (at < first || at > last) errors[key] = 'Extra payments must start during the loan term'
 }
 
 export function validateMortgage(input: MortgageInput) {
@@ -78,6 +101,10 @@ export function validateMortgage(input: MortgageInput) {
           'Extra payment must fall within the loan term'
       }
     })
+    const amounts = mortgageExtraAmounts(input)
+    const loan = { startYear, startMonth }
+    checkExtraStart(amounts.monthly, readExtraStart(input.monthlyExtraStartYear, input.monthlyExtraStartMonth), { year: startYear, month: startMonth }, first, last, rangeErrors, 'monthlyExtraStartMonth')
+    checkExtraStart(amounts.yearly, readExtraStart(input.yearlyExtraStartYear, input.yearlyExtraStartMonth), defaultYearlyExtraStart(loan), first, last, rangeErrors, 'yearlyExtraStartMonth')
     if (Object.keys(rangeErrors).length > 0) {
       return { valid: false as const, errors: rangeErrors }
     }
