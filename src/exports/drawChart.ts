@@ -1,4 +1,4 @@
-import { seriesColor as semanticColor } from '@/utils/chartPresentation'
+import { sliceColors } from '@/utils/chartPresentation'
 import type { CalculationProvenance } from './provenance'
 import type { jsPDF } from 'jspdf'
 import type { ChartData, ChartSeries } from '@/calculators/types'
@@ -256,10 +256,11 @@ function drawPie(doc: jsPDF, chart: ChartData, plotX: number, plotY: number, plo
     doc.text('No chart data', cx, cy, { align: 'center' })
     return
   }
+  const colors = sliceColors(slices.map((slice) => String(slice.x)))
   let angle = -Math.PI / 2
-  slices.forEach((slice) => {
+  slices.forEach((slice, index) => {
     const sweep = (slice.y / total) * Math.PI * 2
-    const rgb = hexToRgb(semanticColor(String(slice.x)))
+    const rgb = hexToRgb(colors[index])
     doc.setFillColor(...rgb)
     const steps = Math.max(6, Math.ceil((Math.abs(sweep) / Math.PI) * 24))
     const points: Array<[number,number]> = [[r*Math.cos(angle),r*Math.sin(angle)]]
@@ -281,8 +282,11 @@ function drawLegend(
   width: number,
   pie: boolean,
 ) {
+  const pieSlices = pie ? (chart.series[0]?.data ?? []).filter((d) => d.y > 0) : []
+  const pieTotal = pieSlices.reduce((sum, slice) => sum + slice.y, 0)
+  const piePalette = sliceColors(pieSlices.map((slice) => String(slice.x)))
   const items = pie
-    ? (chart.series[0]?.data ?? []).map((d) => ({ name: String(d.x), color: semanticColor(String(d.x)),dashed:false }))
+    ? pieSlices.map((d, index) => ({ name: `${String(d.x)} (${pieTotal > 0 ? Math.round(d.y / pieTotal * 1000) / 10 : 0}%)`, color: piePalette[index], dashed: false }))
     : chart.series.map((s, i) => ({ name: s.name, color: seriesColor(s, i),dashed:s.dashed??false }))
   doc.setFont('Report', 'normal')
   doc.setFontSize(8)

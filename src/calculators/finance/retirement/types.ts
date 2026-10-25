@@ -39,6 +39,11 @@ export interface RetirementInput {
   employerMatchCapPercent?: number
 }
 
+export interface MoneySlice {
+  label: string
+  amount: number
+}
+
 export interface RetirementResult {
   contributionPath: ContributionPath
   yearsToRetirement: number
@@ -56,6 +61,9 @@ export interface RetirementResult {
   investedThisYear?: number
   projectedBalanceToday?: number
   taxConfigVersion?: string
+  paycheckSlices?: MoneySlice[]
+  investmentSlices?: MoneySlice[]
+  balanceSlices?: MoneySlice[]
   accumulation: Array<{ age: number; balance: number; contributions: number }>
   drawdown: Array<{ age: number; balance: number; withdrawal: number; plannedWithdrawal: number; unmetSpending: number }>
   annualSchedule: Array<{

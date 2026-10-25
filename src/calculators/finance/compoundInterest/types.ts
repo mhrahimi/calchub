@@ -23,6 +23,8 @@ export interface CompoundInterestResult {
   unmetWithdrawals: number
   finalBalance: number
   realValue: number
+  /** Starting principal, rounded the same way as other money results. */
+  startingPrincipal: number
   totalContributions: number
   interestEarned: number
   schedule: Array<{ period: number; date?: string; balance: number; contributions: number; interest: number; unmetWithdrawals?: number }>

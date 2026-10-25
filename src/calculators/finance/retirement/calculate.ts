@@ -50,6 +50,17 @@ export function calculateRetirement(input: RetirementInput): RetirementResult {
   const projectedBalanceToday = income
     ? round2(projectedBalance / Math.pow(1 + inflation, yearsToRetirement))
     : undefined
+  const savingsGrown = round2(input.currentSavings * Math.pow(1 + rNom, yearsToRetirement))
+  const added = round2(totalContributions - input.currentSavings)
+  let growth = round2(projectedBalance - savingsGrown - added)
+  growth = round2(growth + round2(projectedBalance - savingsGrown - added - growth))
+  const balanceParts = [
+    { label: "Today's investments, grown", amount: savingsGrown },
+    { label: 'Contributions', amount: added },
+    { label: 'Investment growth', amount: growth },
+  ].filter((slice) => slice.amount > 0.005)
+  const balanceSum = round2(balanceParts.reduce((sum, slice) => sum + slice.amount, 0))
+  const balanceSlices = balanceParts.length >= 2 && Math.abs(balanceSum - projectedBalance) <= 0.05 ? balanceParts : undefined
   // First withdrawal is at the end of the first retirement year, in retirement-date
   // dollars. Later withdrawals increase with inflation. Discount these same flows.
   const spendingAtRetirement = input.retirementSpending * Math.pow(1 + inflation, yearsToRetirement)
@@ -128,7 +139,10 @@ export function calculateRetirement(input: RetirementInput): RetirementResult {
       investedThisYear: income.investedThisYear,
       projectedBalanceToday,
       taxConfigVersion: income.taxConfigVersion,
+      paycheckSlices: income.paycheckSlices,
+      investmentSlices: income.investmentSlices,
     } : {}),
+    ...(balanceSlices ? { balanceSlices } : {}),
     accumulation,
     drawdown,
     annualSchedule,
@@ -171,8 +185,22 @@ export function explainRetirement(input: RetirementInput, result: RetirementResu
   }
 }
 
+function pieChart(title: string, slices: Array<{ label: string; amount: number }> | undefined): ChartData | null {
+  const data = (slices ?? []).filter((slice) => slice.amount > 0.005)
+  if (data.length < 2) return null
+  return {
+    type: 'pie',
+    title,
+    valueFormat: 'currency',
+    series: [{ name: 'Amount', data: data.map((slice) => ({ x: slice.label, y: slice.amount })) }],
+  }
+}
+
 export function buildRetirementCharts(result: RetirementResult): ChartData[] {
   return [
+    pieChart("This year's pay", result.paycheckSlices),
+    pieChart('Invested this year', result.investmentSlices),
+    pieChart('Balance at retirement', result.balanceSlices),
     {
       type: 'line',
       title: 'Accumulation',
@@ -197,7 +225,7 @@ export function buildRetirementCharts(result: RetirementResult): ChartData[] {
         },
       ],
     },
-  ]
+  ].filter((chart): chart is ChartData => chart !== null)
 }
 
 export function buildRetirementTable(result: RetirementResult): TableData {

@@ -32,6 +32,7 @@ export function HeroResult({
   amount,
   unit,
   caption,
+  companion,
   children,
 }: {
   eyebrow: string
@@ -41,17 +42,24 @@ export function HeroResult({
   amount: ReactNode
   unit?: string
   caption?: ReactNode
+  /** A second headline figure, shown beside the main amount when there is room. */
+  companion?: ReactNode
   children?: ReactNode
 }) {
+  const primary = (
+    <>
+      <h2 id={titleId} tabIndex={-1}>{title}</h2>
+      <p className="calc-hero-amount">{amount}{unit && <span className="calc-hero-unit">{unit}</span>}</p>
+      {caption}
+    </>
+  )
   return (
-    <section className="calc-hero" aria-labelledby={titleId}>
+    <section className={cn('calc-hero', companion && 'has-companion')} aria-labelledby={titleId}>
       <div className="calc-eyebrow">
         <span>{eyebrow}</span>
         {eyebrowRight && <span>{eyebrowRight}</span>}
       </div>
-      <h2 id={titleId} tabIndex={-1}>{title}</h2>
-      <p className="calc-hero-amount">{amount}{unit && <span className="calc-hero-unit">{unit}</span>}</p>
-      {caption}
+      {companion ? <div className="calc-hero-figures"><div className="calc-hero-primary">{primary}</div>{companion}</div> : primary}
       {children}
     </section>
   )

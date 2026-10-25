@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { calculateCompoundInterest } from './calculate'
+import { buildCompoundInterestCharts, calculateCompoundInterest } from './calculate'
 
 describe('compound interest', () => {
   it('compounds with end contributions', () => {
@@ -129,5 +129,55 @@ describe('compound interest', () => {
     expect(withdraw.finalBalance).toBeLessThan(none.finalBalance)
     expect(withdraw.totalContributions).toBeLessThan(none.totalContributions)
     expect(withdraw.totalContributions).toBeCloseTo(10000 - 200 * 12, 0)
+  })
+
+  it('splits the final balance into principal, deposits, and interest', () => {
+    const result = calculateCompoundInterest({
+      ...base,
+      compoundingFrequency: 'monthly',
+      contribution: 200,
+      contributionFrequency: 'monthly',
+    })
+    const pie = buildCompoundInterestCharts(result).find((chart) => chart.type === 'pie')
+    expect(pie?.title).toBe('Where your balance comes from')
+    const slices = pie?.series[0]?.data ?? []
+    expect(slices.map((slice) => slice.x)).toEqual(['Principal', 'Deposits', 'Interest'])
+    expect(slices[0]?.y).toBe(10000)
+    expect(slices[1]?.y).toBeCloseTo(result.totalContributions - result.startingPrincipal, 2)
+    expect(slices.reduce((sum, slice) => sum + slice.y, 0)).toBeCloseTo(result.finalBalance, 2)
+  })
+
+  it('shows net capital when withdrawals reduce the balance', () => {
+    const result = calculateCompoundInterest({
+      ...base,
+      compoundingFrequency: 'monthly',
+      contribution: -200,
+      duration: 1,
+      contributionFrequency: 'monthly',
+    })
+    const pie = buildCompoundInterestCharts(result).find((chart) => chart.type === 'pie')
+    expect(pie?.series[0]?.data.map((slice) => slice.x)).toEqual(['Net capital', 'Interest'])
+    expect(pie?.series[0]?.data.reduce((sum, slice) => sum + slice.y, 0)).toBeCloseTo(result.finalBalance, 2)
+    expect(pie?.annotations?.[0]?.label).toMatch(/Withdrawals/)
+  })
+
+  it('attributes a loss to the principal that remains', () => {
+    const result = calculateCompoundInterest({ ...base, compoundingFrequency: 'monthly', interestRate: -5, contribution: 0 })
+    const pie = buildCompoundInterestCharts(result).find((chart) => chart.type === 'pie')
+    expect(pie?.series[0]?.data).toEqual([{ x: 'Principal', y: result.finalBalance }])
+    expect(pie?.annotations?.[0]?.label).toMatch(/Interest reduced/)
+  })
+
+  it('omits the source chart when the balance is depleted', () => {
+    const result = calculateCompoundInterest({
+      ...base,
+      principal: 100,
+      contribution: -200,
+      interestRate: 0,
+      duration: 1,
+      compoundingFrequency: 'monthly',
+    })
+    expect(result.finalBalance).toBe(0)
+    expect(buildCompoundInterestCharts(result).some((chart) => chart.type === 'pie')).toBe(false)
   })
 })

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { calculateSalary } from '@/calculators/finance/salary/calculate'
-import { calculateRetirement, explainRetirement } from './calculate'
+import { buildRetirementCharts, calculateRetirement, explainRetirement } from './calculate'
 import { validateRetirement } from './validation'
 import type { RetirementInput } from './types'
 
@@ -107,6 +107,7 @@ describe('retirement', () => {
     expect(validateRetirement({ ...simple, contributionPath: 'direct', country: 'US', jurisdictionId: 'not-a-place' }).valid).toBe(true)
     expect(decorated.annualSchedule).toEqual(plain.annualSchedule)
     expect(decorated.projectedBalance).toBe(plain.projectedBalance)
+    expect(buildRetirementCharts(plain).some((chart) => chart.type === 'pie')).toBe(false)
     expect(explainRetirement(simple, plain).assumptions?.join(' ')).not.toMatch(/tax brackets/)
   })
 
@@ -146,6 +147,14 @@ describe('retirement', () => {
     expect(result.requiredBalance).toBe(direct.requiredBalance)
     expect(result.accumulation).toEqual(direct.accumulation)
     expect(result.projectedBalanceToday).toBe(Math.round(result.projectedBalance / Math.pow(1.025, 5) * 100) / 100)
+    expect(result.paycheckSlices?.reduce((sum, slice) => sum + slice.amount, 0)).toBeCloseTo(100000, 1)
+    expect(result.investmentSlices).toEqual([
+      { label: 'You invest', amount: 10000 },
+      { label: 'Employer match', amount: 3000 },
+    ])
+    expect(result.balanceSlices?.reduce((sum, slice) => sum + slice.amount, 0)).toBeCloseTo(result.projectedBalance, 1)
+    const charts = buildRetirementCharts(result).filter((chart) => chart.type === 'pie').map((chart) => chart.title)
+    expect(charts).toEqual(["This year's pay", 'Invested this year', 'Balance at retirement'])
     expect(explainRetirement(incomeBase, result).assumptions?.join(' ')).toMatch(/do not recalculate tax brackets/)
     expect(validateRetirement({ ...incomeBase, annualContribution: Number.POSITIVE_INFINITY }).valid).toBe(true)
   })

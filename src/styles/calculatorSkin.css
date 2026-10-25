@@ -40,6 +40,17 @@
 .calc-hero-amount { font-size: clamp(2.3rem, 4.5vw, 3.8rem); line-height: 1.2; letter-spacing: -.05em; font-weight: 600; color: var(--calc-ink); font-variant-numeric: tabular-nums; margin: .6rem 0; overflow-wrap: anywhere; }
 .calc-hero-unit { font-size: 1rem; letter-spacing: 0; color: var(--color-text-muted); font-weight: 400; margin-left: .5rem; }
 .calc-hero-caption { color: var(--color-text-secondary); font-size: .8rem; line-height: 1.7; }
+.calc-hero-figures { display: grid; gap: 1.15rem; }
+.calc-hero-primary { min-width: 0; }
+.calc-real-value { min-width: 0; border-top: 1px solid #d5e0e8; padding-top: 1rem; }
+.calc-real-kicker { font-size: .95rem; font-weight: 500; color: var(--calc-ink); }
+.calc-real-amount { font-size: clamp(2rem, 4vw, 3.15rem); line-height: 1.2; letter-spacing: -.05em; font-weight: 600; color: var(--calc-ink); font-variant-numeric: tabular-nums; margin: .6rem 0 .35rem; overflow-wrap: anywhere; }
+.calc-real-amount .formatted-amount { letter-spacing: -.05em; white-space: normal; overflow-wrap: anywhere; }
+.calc-real-amount .amount-decimals { font-size: .56em; color: var(--color-text-secondary); letter-spacing: -.025em; }
+@media (min-width: 640px) {
+  .calc-hero-figures { grid-template-columns: minmax(0, 1.25fr) minmax(11.5rem, .9fr); gap: 1.5rem; align-items: start; }
+  .calc-real-value { border-top: 0; border-left: 1px solid #d5e0e8; padding: 0 0 0 1.35rem; }
+}
 .calc-budget-note { font-size: .8rem; line-height: 1.6; margin-top: .8rem; color: var(--calc-ink); }
 .calc-key-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; padding: 1.5rem .25rem; }
 .calc-key-metrics dt { display: flex; align-items: center; gap: .45rem; font-size: .75rem; color: var(--color-text-secondary); }

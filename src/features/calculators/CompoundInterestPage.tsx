@@ -3,6 +3,7 @@ import { TrendingUp, Wallet } from 'lucide-react'
 import { ValidationSummary } from '@/components/calculator/ValidationSummary'
 import { CalculatorLayout } from '@/components/calculator/CalculatorLayout'
 import { CalcSection, HeroResult, KeyMetrics, Note, Panel, Toggle } from '@/components/calculator/sections'
+import { FormattedAmount } from '@/components/ui/FormattedAmount'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
@@ -34,6 +35,22 @@ function signedContribution(kind: CashFlowKind, magnitude: number): number {
   return kind === 'withdrawal' ? -amount : amount
 }
 
+function horizonPhrase(input: CompoundInterestInput): string {
+  const count = input.duration
+  const unit = input.durationUnit === 'months' ? 'month' : 'year'
+  const amount = Number.isInteger(count) ? String(count) : String(Math.round(count * 100) / 100)
+  return `${amount} ${unit}${count === 1 ? '' : 's'}`
+}
+
+function realValueCaption(input: CompoundInterestInput, finalBalance: number, realValue: number): string {
+  const horizon = horizonPhrase(input)
+  const rate = `${input.inflationRate}%`
+  if (!(finalBalance > 0)) return `Purchasing power after ${horizon} at ${rate} inflation.`
+  const share = realValue / finalBalance * 100
+  if (Math.abs(share - 100) < 0.05) return `Purchasing power matches the final balance after ${horizon} at ${rate} inflation.`
+  return `Purchasing power is ${share.toFixed(1)}% of the final balance after ${horizon} at ${rate} inflation.`
+}
+
 export default function CompoundInterestPage() {
   const [cashFlow, setCashFlow] = useState<CashFlowKind>(
     defaultInput.contribution < 0 ? 'withdrawal' : 'deposit',
@@ -51,24 +68,36 @@ export default function CompoundInterestPage() {
     autoCalculateDelay: 500,
     csvFilename: 'compound-interest.csv',
     getShareText: (r, _input, formatResultCurrency) => `Compound interest final balance: ${formatResultCurrency(r.finalBalance)}`,
-    renderResults: (r, input, formatResultCurrency) => (
+    renderResults: (r, input, formatResultCurrency) => {
+      const netDeposits = r.totalContributions - r.startingPrincipal
+      return (
       <div className="calc-results">
         <HeroResult
           eyebrow="YOUR BALANCE"
-          eyebrowRight={input.adjustForInflation ? 'nominal' : undefined}
           title="Final balance"
-          amount={formatResultCurrency(r.finalBalance)}
-          caption={input.adjustForInflation ? <p className="calc-hero-caption">Inflation-adjusted value {formatResultCurrency(r.realValue)}.</p> : undefined}
+          amount={<FormattedAmount value={formatResultCurrency(r.finalBalance)} />}
+          companion={input.adjustForInflation ? (
+            <div className="calc-real-value">
+              <p className="calc-real-kicker" id="inflation-adjusted-label">In today&apos;s dollars</p>
+              <p className="calc-real-amount" aria-labelledby="inflation-adjusted-label">
+                <FormattedAmount value={formatResultCurrency(r.realValue)} />
+              </p>
+              <p className="calc-hero-caption">{realValueCaption(input, r.finalBalance, r.realValue)}</p>
+            </div>
+          ) : undefined}
         />
         <KeyMetrics items={[
           { icon: <TrendingUp aria-hidden="true" />, label: 'Interest earned', value: formatResultCurrency(r.interestEarned) },
           { icon: <Wallet aria-hidden="true" />, label: input.contribution < 0 ? 'Net capital' : 'Total contributions', value: formatResultCurrency(r.totalContributions) },
         ]} />
         <Panel title="How the balance is built">
-          <MetricRow
-            label={input.contribution < 0 ? 'Net capital' : 'Total contributions'}
-            value={formatResultCurrency(r.totalContributions)}
-          />
+          <MetricRow label="Starting principal" value={formatResultCurrency(r.startingPrincipal)} />
+          {Math.abs(netDeposits) >= 0.005 && (
+            <MetricRow
+              label={netDeposits < 0 ? 'Withdrawals' : 'Deposits'}
+              value={formatResultCurrency(Math.abs(netDeposits))}
+            />
+          )}
           <MetricRow label="Interest earned" value={formatResultCurrency(r.interestEarned)} />
           {r.effectiveAnnualRate !== undefined && <MetricRow label="Effective annual rate" value={`${r.effectiveAnnualRate.toFixed(4)}%`} />}
           {r.depletionDate && <>
@@ -77,7 +106,8 @@ export default function CompoundInterestPage() {
           </>}
         </Panel>
       </div>
-    ),
+      )
+    },
   })
 
   useEffect(() => {

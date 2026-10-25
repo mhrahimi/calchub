@@ -113,6 +113,19 @@ describe('P1 growth calculator form contracts', () => {
     const record = vi.mocked(saveHistoryRecord).mock.calls.at(-1)![0]
     expect(record.inputs).toMatchObject({ contributionFrequency: 'weekly', rateConvention: 'nominal-annual' })
   })
+  it('shows the inflation-adjusted balance beside the final balance', async () => {
+    await mount(CompoundInterestPage)
+    await settle()
+    expect(container.querySelector('.calc-real-value')).toBeNull()
+    const toggle = [...container.querySelectorAll('label')].find((node) => node.textContent?.includes('Adjust for inflation'))?.querySelector('input')
+    if (!toggle) throw new Error('Inflation toggle not found')
+    await click(toggle)
+    await persist()
+    expect(container.querySelector('.calc-real-kicker')?.textContent).toBe("In today's dollars")
+    expect(container.querySelector('.calc-real-amount')?.textContent).toContain('40,712.04')
+    expect(container.textContent).toContain('Purchasing power is')
+    expect(summary()).toContain('54,713.58')
+  })
   it('shows compound duration errors and recovers without an unexplained empty result', async () => {
     await mount(CompoundInterestPage); await type('duration', '-1'); await settle()
     expect(input('duration').value).toBe('-1')

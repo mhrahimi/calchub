@@ -4,7 +4,7 @@ import type { ChartData } from '@/calculators/types'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { CurrencyDisplayContext, SnapshotFormatContext, useSnapshotCurrency } from './SnapshotFormat'
 import { snapshotText } from '@/exports/provenance'
-import { chartValue, mergeChartSeries, seriesColor } from '@/utils/chartPresentation'
+import { chartValue, mergeChartSeries, seriesColor, sliceColors } from '@/utils/chartPresentation'
 import { displayNumber } from '@/utils/numberFormat'
 
 const SM_QUERY='(min-width: 640px)'
@@ -32,12 +32,15 @@ function ChartPanelInner({data}:ChartPanelProps) {
     : data.series.flatMap(s=>s.data.map(d=>d.y))
   const hasNegative=numericValues.some(n=>n<0)
   const height=desktop?272:232
-  const pieItems=data.series[0]?.data??[]
+  const pieItems=(data.series[0]?.data??[]).filter(d=>d.y>0)
+  const pieTotal=pieItems.reduce((sum,d)=>sum+d.y,0)
+  const pieColors=sliceColors(pieItems.map(d=>String(d.x)))
+  const share=(amount:number)=>pieTotal>0?`${displayNumber(amount/pieTotal*100,locale,1)}%`:'—'
   return <figure className="min-w-0 py-5 border-b border-border/70">
     <figcaption className="flex flex-wrap justify-between gap-2 mb-3"><h3 className="font-semibold text-sm">{data.title}</h3>{data.yLabel&&<span className="text-xs text-text-secondary">{text(data.yLabel)}</span>}</figcaption>
     <div className="min-w-0 w-full" style={{height}} aria-hidden="true">
       <ResponsiveContainer width="100%" height={height}>
-        {data.type==='pie'?<PieChart><Pie data={pieItems.map(d=>({name:String(d.x),value:d.y}))} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={desktop?55:42} outerRadius={desktop?94:77} paddingAngle={1} isAnimationActive={false}>{pieItems.map(d=><Cell key={String(d.x)} fill={seriesColor(String(d.x))}/>)}</Pie><Tooltip formatter={(v:number)=>value(v)} /></PieChart>:
+        {data.type==='pie'?<PieChart>{pieItems.length===0?<text x="50%" y="50%" textAnchor="middle" fill="#5B6475" fontSize={12}>No chart data</text>:<Pie data={pieItems.map((d,i)=>({name:String(d.x),value:d.y,fill:pieColors[i]}))} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={desktop?104:84} stroke="#fff" strokeWidth={2} isAnimationActive={false} labelLine={false} label={(entry:{cx?:number;cy?:number;midAngle?:number;outerRadius?:number;percent?:number})=>(entry.percent??0)<0.08?null:<text x={(entry.cx??0)+(entry.outerRadius??0)*0.62*Math.cos(-(entry.midAngle??0)*Math.PI/180)} y={(entry.cy??0)+(entry.outerRadius??0)*0.62*Math.sin(-(entry.midAngle??0)*Math.PI/180)} textAnchor="middle" dominantBaseline="central" fill="#fff" fontSize={11} fontWeight={600}>{`${Math.round((entry.percent??0)*100)}%`}</text>} >{pieItems.map((d,i)=><Cell key={String(d.x)} fill={pieColors[i]}/>)}</Pie>}<Tooltip formatter={(v:number,name:string)=>[`${value(Number(v))} (${share(Number(v))})`,name]} /></PieChart>:
           <ComposedChart data={rows} stackOffset="sign" margin={{top:12,right:20,bottom:20,left:4}}>
             <CartesianGrid horizontal={!data.hideValueAxis} vertical={false} stroke="#E3E8F0" />
             <XAxis dataKey="x" type={numericX?'number':'category'} domain={numericX?['dataMin','dataMax']:undefined} scale={data.xType==='time'?'time':'auto'} tickFormatter={xTick} tick={{fontSize:11,fill:'#5B6475'}} tickLine={false} axisLine={false} minTickGap={30} tickCount={desktop?6:4} allowDecimals={true} />
@@ -53,10 +56,10 @@ function ChartPanelInner({data}:ChartPanelProps) {
     </div>
     {data.xLabel&&<p className="text-xs text-text-secondary text-center -mt-2 mb-3">{data.xLabel}</p>}
     <ul aria-label="Chart legend" className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-text-secondary mt-1">
-      {(data.type==='pie'?pieItems.map(d=>({name:String(d.x),color:seriesColor(String(d.x)),dashed:false})):data.series).map(s=><li key={s.name} className="flex gap-2 items-center"><span className="inline-block w-5 border-t-2" style={{borderColor:s.color??seriesColor(s.name),borderTopStyle:s.dashed?'dashed':'solid'}}/>{s.name}</li>)}
+      {(data.type==='pie'?pieItems.map((d,i)=>({name:String(d.x),color:pieColors[i],detail:`${share(d.y)} · ${value(d.y)}`,dashed:false})):data.series.map(s=>({name:s.name,color:s.color??seriesColor(s.name),detail:'',dashed:!!s.dashed}))).map(s=><li key={s.name} className="flex gap-2 items-center"><span className={data.type==='pie'?'inline-block h-2.5 w-2.5 rounded-sm':'inline-block w-5 border-t-2'} style={data.type==='pie'?{background:s.color}:{borderColor:s.color,borderTopStyle:s.dashed?'dashed':'solid'}}/>{s.name}{s.detail?` · ${s.detail}`:''}</li>)}
     </ul>
     {!!data.annotations?.length&&<ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-text-secondary" aria-label="Chart annotations">{data.annotations.map((a,index)=><li key={index}>{text(a.label)}</li>)}</ul>}
-    <details className="mt-3 text-xs"><summary className="cursor-pointer text-primary py-2">View chart data</summary><div className="overflow-auto max-h-64"><table className="w-full tabular-nums"><caption className="sr-only">{data.title}</caption><thead><tr><th className="text-left p-2">{data.xLabel??'Category'}</th>{data.series.map(s=><th key={s.name} className="text-right p-2">{s.name}{data.yLabel?` (${text(data.yLabel)})`:''}</th>)}</tr></thead><tbody>{rows.map((row,index)=><tr key={index} className="border-t border-border/60"><th scope="row" className="text-left p-2 font-normal">{xTick(row.x as string|number)}</th>{data.series.map(s=><td key={s.name} className="text-right p-2 whitespace-nowrap">{typeof row[s.name]==='number'?(data.hideValueAxis?'●':value(row[s.name] as number)):'—'}</td>)}</tr>)}</tbody></table></div></details>
+    <details className="mt-3 text-xs"><summary className="cursor-pointer text-primary py-2">View chart data</summary><div className="overflow-auto max-h-64">{data.type==='pie'?<table className="w-full tabular-nums"><caption className="sr-only">{data.title}</caption><thead><tr><th className="text-left p-2">Category</th><th className="text-right p-2">Amount</th><th className="text-right p-2">Share</th></tr></thead><tbody>{pieItems.map((d,index)=><tr key={index} className="border-t border-border/60"><th scope="row" className="text-left p-2 font-normal">{String(d.x)}</th><td className="text-right p-2 whitespace-nowrap">{value(d.y)}</td><td className="text-right p-2 whitespace-nowrap">{share(d.y)}</td></tr>)}{pieItems.length>0&&<tr className="border-t border-border/60"><th scope="row" className="text-left p-2 font-normal">Total</th><td className="text-right p-2 whitespace-nowrap">{value(pieTotal)}</td><td className="text-right p-2 whitespace-nowrap">100%</td></tr>}</tbody></table>:<table className="w-full tabular-nums"><caption className="sr-only">{data.title}</caption><thead><tr><th className="text-left p-2">{data.xLabel??'Category'}</th>{data.series.map(s=><th key={s.name} className="text-right p-2">{s.name}{data.yLabel?` (${text(data.yLabel)})`:''}</th>)}</tr></thead><tbody>{rows.map((row,index)=><tr key={index} className="border-t border-border/60"><th scope="row" className="text-left p-2 font-normal">{xTick(row.x as string|number)}</th>{data.series.map(s=><td key={s.name} className="text-right p-2 whitespace-nowrap">{typeof row[s.name]==='number'?(data.hideValueAxis?'●':value(row[s.name] as number)):'—'}</td>)}</tr>)}</tbody></table>}</div></details>
   </figure>
 }
 export function ChartPanel({data}:ChartPanelProps) {return <ErrorBoundary fallback={<p role="status" className="text-sm text-text-secondary">Chart unavailable. Use the result table below.</p>}><ChartPanelInner data={data}/></ErrorBoundary>}

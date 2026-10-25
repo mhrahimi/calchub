@@ -10,6 +10,8 @@ export interface IncomeContribution {
   employerMatch: number
   investedThisYear: number
   taxConfigVersion?: string
+  paycheckSlices: Array<{ label: string; amount: number }>
+  investmentSlices: Array<{ label: string; amount: number }>
 }
 
 const FILING_STATUSES = new Set<FilingStatus>([
@@ -114,6 +116,19 @@ export function checkIncomeContribution(input: RetirementInput): { errors: Recor
     return { errors }
   }
 
+  const paycheckSlices: Array<{ label: string; amount: number }> = []
+  if (pretaxInvestment && employee > 0.005) paycheckSlices.push({ label: 'Pre-tax investment', amount: employee })
+  if (otherPretax > 0.005) paycheckSlices.push({ label: 'Other pre-tax deductions', amount: round2(otherPretax) })
+  if ((salary.federalTax ?? 0) > 0.005) paycheckSlices.push({ label: 'Federal tax', amount: salary.federalTax ?? 0 })
+  if ((salary.regionalTax ?? 0) > 0.005) paycheckSlices.push({ label: 'State / provincial tax', amount: salary.regionalTax ?? 0 })
+  const payrollParts = (salary.payrollLabels ?? []).filter((part) => part.amount > 0.005)
+  const payrollSum = round2(payrollParts.reduce((sum, part) => sum + part.amount, 0))
+  if (payrollParts.length && Math.abs(payrollSum - (salary.payrollTotal ?? 0)) <= 0.05) paycheckSlices.push(...payrollParts.map((part) => ({ label: part.label, amount: part.amount })))
+  else if ((salary.payrollTotal ?? 0) > 0.005) paycheckSlices.push({ label: 'Payroll', amount: salary.payrollTotal ?? 0 })
+  if (!pretaxInvestment && employee > 0.005) paycheckSlices.push({ label: 'After-tax investment', amount: employee })
+  const remainingTakeHome = round2(estimatedNetAnnual - (pretaxInvestment ? 0 : employee))
+  if (remainingTakeHome > 0.005) paycheckSlices.push({ label: 'Take-home', amount: remainingTakeHome })
+
   return {
     errors,
     contribution: {
@@ -123,6 +138,11 @@ export function checkIncomeContribution(input: RetirementInput): { errors: Recor
       employerMatch,
       investedThisYear,
       taxConfigVersion: salary.taxConfigVersion,
+      paycheckSlices,
+      investmentSlices: [
+        { label: 'You invest', amount: employee },
+        { label: 'Employer match', amount: employerMatch },
+      ].filter((slice) => slice.amount > 0.005),
     },
   }
 }

@@ -60,6 +60,7 @@ export function calculateCompoundInterest(input: CompoundInterestInput): Compoun
     unmetWithdrawals: growthMoney(unmetWithdrawals),
     finalBalance,
     realValue: growthMoney(realValue),
+    startingPrincipal: growthMoney(input.principal),
     totalContributions: growthMoney(totalContributions),
     interestEarned,
     schedule,
@@ -99,6 +100,69 @@ export function explainCompoundInterest(
   }
 }
 
+function cents(value: number): number {
+  return Math.round(value * 100 + Math.sign(value) * 1e-6)
+}
+
+/** Positive slices of the final balance. Withdrawals and losses are already removed. */
+function balanceComposition(result: CompoundInterestResult): { slices: Array<{ x: string; y: number }>; note?: string } {
+  if (!Number.isFinite(result.finalBalance) || !Number.isFinite(result.totalContributions)) return { slices: [] }
+  const final = cents(result.finalBalance)
+  if (final <= 0) return { slices: [] }
+  const capital = cents(result.totalContributions)
+  const interest = final - capital
+  const principalKnown = Number.isFinite(result.startingPrincipal)
+  const asMoney = (label: string, amount: number) => ({ x: label, y: amount / 100 })
+
+  if (!principalKnown) {
+    const slices = interest >= 0
+      ? [capital > 0 ? asMoney('Contributions', capital) : undefined, interest > 0 ? asMoney('Interest', interest) : undefined]
+      : [asMoney('Contributions', final)]
+    return {
+      slices: slices.filter((slice): slice is { x: string; y: number } => slice !== undefined),
+      note: interest < 0 ? 'Interest reduced the balance. The chart shows where the remaining money came from.' : undefined,
+    }
+  }
+
+  const principal = cents(result.startingPrincipal)
+  const deposits = capital - principal
+  if (deposits >= 0 && interest >= 0) {
+    return {
+      slices: [
+        principal > 0 ? asMoney('Principal', principal) : undefined,
+        deposits > 0 ? asMoney('Deposits', deposits) : undefined,
+        interest > 0 ? asMoney('Interest', interest) : undefined,
+      ].filter((slice): slice is { x: string; y: number } => slice !== undefined),
+    }
+  }
+  if (interest >= 0) {
+    return {
+      slices: [
+        capital > 0 ? asMoney('Net capital', capital) : undefined,
+        interest > 0 ? asMoney('Interest', interest) : undefined,
+      ].filter((slice): slice is { x: string; y: number } => slice !== undefined),
+      note: 'Withdrawals are already subtracted from net capital.',
+    }
+  }
+
+  const base = principal + Math.max(deposits, 0)
+  if (deposits >= 0 && base > 0) {
+    const principalLeft = Math.min(final, Math.max(0, Math.round(final * principal / base)))
+    const depositsLeft = final - principalLeft
+    return {
+      slices: [
+        principalLeft > 0 ? asMoney('Principal', principalLeft) : undefined,
+        depositsLeft > 0 ? asMoney('Deposits', depositsLeft) : undefined,
+      ].filter((slice): slice is { x: string; y: number } => slice !== undefined),
+      note: 'Interest reduced the balance. The chart shows where the remaining money came from.',
+    }
+  }
+  return {
+    slices: [asMoney('Net capital', final)],
+    note: 'Interest reduced the balance. Withdrawals are already subtracted from net capital.',
+  }
+}
+
 export function buildCompoundInterestCharts(result: CompoundInterestResult): ChartData[] {
   const firstCapital = result.schedule[0]?.contributions
   const usedWithdrawals =
@@ -106,7 +170,18 @@ export function buildCompoundInterestCharts(result: CompoundInterestResult): Cha
     result.unmetWithdrawals > 0 ||
     result.schedule.some((s, i) => i > 0 && firstCapital !== undefined && s.contributions < firstCapital)
   const capitalLabel = usedWithdrawals ? 'Net capital' : 'Contributions'
-  return [
+  const composition = balanceComposition(result)
+  const charts: ChartData[] = []
+  if (composition.slices.length > 0) {
+    charts.push({
+      type: 'pie',
+      title: 'Where your balance comes from',
+      valueFormat: 'currency',
+      series: [{ name: 'Amount', data: composition.slices }],
+      ...(composition.note ? { annotations: [{ label: composition.note }] } : {}),
+    })
+  }
+  charts.push(
     {
       type: 'line',
       title: 'Balance growth',
@@ -123,7 +198,8 @@ export function buildCompoundInterestCharts(result: CompoundInterestResult): Cha
         { name: 'Interest', data: result.schedule.map((s) => ({ x: s.period, y: s.interest })), color: '#163B8C' },
       ],
     },
-  ]
+  )
+  return charts
 }
 
 export function buildCompoundInterestTable(result: CompoundInterestResult): TableData {

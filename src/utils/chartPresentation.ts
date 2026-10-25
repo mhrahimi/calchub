@@ -5,9 +5,12 @@ import { displayNumber } from './numberFormat'
 
 const palette = ['#163B8C','#187766','#B45E2B','#7553A6','#55738D','#9E456B','#60752D','#406E96']
 const semantic: Record<string,string> = {
-  Balance:palette[0], Principal:palette[0], Contributions:palette[0], 'Ending debt':palette[0],
+  Balance:palette[0], Principal:palette[0], Contributions:palette[0], 'Net capital':palette[0], 'Ending debt':palette[0],
   Interest:palette[1], Earnings:palette[1], 'Estimated net':palette[1], 'Purchasing power':palette[1],
-  Goal:palette[2], Estimate:palette[2], 'Future price':palette[0], Tax:palette[2],
+  Deposits:palette[2], 'Take-home':palette[1], 'Investment growth':palette[1], 'Employer match':palette[1],
+  Goal:palette[2], Estimate:palette[2], 'Future price':palette[0], Tax:palette[2], 'Federal tax':palette[2],
+  'Pre-tax investment':palette[0], 'After-tax investment':palette[0], 'You invest':palette[0], "Today's investments, grown":palette[4],
+  'State / provincial tax':palette[5], 'Other pre-tax deductions':palette[7],
   Density:'#8996A8', 'Lower tail':palette[0], 'Upper tail':palette[0], LP:palette[0], GP:palette[1],
 }
 /** A name keeps its color across chart order, pie slices, and reports. */
@@ -16,6 +19,25 @@ export function seriesColor(name: string): string {
   let hash=0
   for (const character of name) hash=(hash*31+character.charCodeAt(0))>>>0
   return palette[hash % palette.length]
+}
+
+/** Pie slices keep a named color when one exists, then take the next unused palette color. */
+export function sliceColors(names: string[]): string[] {
+  const used = new Set<string>()
+  const assigned = names.map((name) => {
+    const named = semantic[name]
+    if (named) used.add(named)
+    return named
+  })
+  let cursor = 0
+  return assigned.map((color) => {
+    if (color) return color
+    while (used.has(palette[cursor % palette.length]) && used.size < palette.length) cursor += 1
+    const chosen = palette[cursor % palette.length]
+    used.add(chosen)
+    cursor += 1
+    return chosen
+  })
 }
 export function chartValue(value:number, chart:ChartData, provenance?:CalculationProvenance):string {
   if (chart.valueFormat === 'currency') return snapshotCurrency(value,provenance)
