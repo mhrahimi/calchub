@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { calculateRetirement } from './calculate'
+import { calculateSalary } from '@/calculators/finance/salary/calculate'
+import { calculateRetirement, explainRetirement } from './calculate'
 import { validateRetirement } from './validation'
 import type { RetirementInput } from './types'
 
@@ -86,5 +87,148 @@ describe('retirement', () => {
     expect(r.accumulation.length).toBe(30)
     expect(r.drawdown.length).toBe(25)
     expect(typeof r.shortfallOrSurplus).toBe('number')
+    expect(r.contributionPath).toBe('direct')
+    expect(r.estimatedNetAnnual).toBeUndefined()
+  })
+
+  it('keeps a dollar contribution when income fields are present but unused', () => {
+    const plain = calculateRetirement(simple)
+    const decorated = calculateRetirement({
+      ...simple,
+      contributionPath: 'direct',
+      grossIncome: 250000,
+      country: 'US',
+      jurisdictionId: 'not-a-place',
+      investMode: 'percent-gross',
+      investPercent: 90,
+      employerMatchPercent: 100,
+      employerMatchCapPercent: 100,
+    })
+    expect(validateRetirement({ ...simple, contributionPath: 'direct', country: 'US', jurisdictionId: 'not-a-place' }).valid).toBe(true)
+    expect(decorated.annualSchedule).toEqual(plain.annualSchedule)
+    expect(decorated.projectedBalance).toBe(plain.projectedBalance)
+    expect(explainRetirement(simple, plain).assumptions?.join(' ')).not.toMatch(/tax brackets/)
+  })
+
+  const incomeBase: RetirementInput = {
+    currentAge: 35,
+    retirementAge: 40,
+    currentSavings: 50000,
+    annualContribution: 0,
+    contributionGrowth: 2,
+    expectedReturn: 7,
+    inflation: 2.5,
+    retirementSpending: 70000,
+    retirementDuration: 25,
+    otherRetirementIncome: 20000,
+    contributionPath: 'income',
+    grossIncome: 100000,
+    country: 'US',
+    jurisdictionId: 'texas',
+    filingStatus: 'single',
+    taxYear: 2026,
+    otherPretaxDeductions: 0,
+    investMode: 'percent-gross',
+    investPercent: 10,
+    contributionTaxTreatment: 'pretax',
+    employerMatchPercent: 50,
+    employerMatchCapPercent: 6,
+  }
+
+  it('invests a pre-tax percent of gross plus a capped employer match', () => {
+    const result = calculateRetirement(incomeBase)
+    expect(result.employeeContribution).toBe(10000)
+    expect(result.employerMatch).toBe(3000)
+    expect(result.investedThisYear).toBe(13000)
+    expect(result.estimatedNetAnnual).toBeLessThan(90000)
+    const direct = calculateRetirement({ ...incomeBase, contributionPath: 'direct', annualContribution: 13000 })
+    expect(result.projectedBalance).toBe(direct.projectedBalance)
+    expect(result.requiredBalance).toBe(direct.requiredBalance)
+    expect(result.accumulation).toEqual(direct.accumulation)
+    expect(result.projectedBalanceToday).toBe(Math.round(result.projectedBalance / Math.pow(1.025, 5) * 100) / 100)
+    expect(explainRetirement(incomeBase, result).assumptions?.join(' ')).toMatch(/do not recalculate tax brackets/)
+    expect(validateRetirement({ ...incomeBase, annualContribution: Number.POSITIVE_INFINITY }).valid).toBe(true)
+  })
+
+  it('adds other pre-tax deductions to a pre-tax investment before estimating take-home', () => {
+    const result = calculateRetirement({ ...incomeBase, otherPretaxDeductions: 5000, employerMatchPercent: 0, employerMatchCapPercent: 0 })
+    const salary = calculateSalary({
+      mode: 'take-home',
+      amount: 100000,
+      fromFrequency: 'annual',
+      toFrequency: 'annual',
+      country: 'US',
+      jurisdictionId: 'texas',
+      filingStatus: 'single',
+      pretaxDeductions: 15000,
+      taxYear: 2026,
+    })
+    expect(result.estimatedNetAnnual).toBe(salary.estimatedNetAnnual)
+    expect(result.investedThisYear).toBe(10000)
+  })
+
+  it('takes an after-tax percent of take-home without reducing the tax estimate', () => {
+    const input: RetirementInput = {
+      ...incomeBase,
+      investMode: 'percent-net',
+      investPercent: 15,
+      otherPretaxDeductions: 0,
+      employerMatchPercent: 0,
+      employerMatchCapPercent: 0,
+    }
+    const pretaxChoice = calculateRetirement({ ...input, contributionTaxTreatment: 'pretax' })
+    const afterTaxChoice = calculateRetirement({ ...input, contributionTaxTreatment: 'aftertax' })
+    const salary = calculateSalary({
+      mode: 'take-home',
+      amount: 100000,
+      fromFrequency: 'annual',
+      toFrequency: 'annual',
+      country: 'US',
+      jurisdictionId: 'texas',
+      filingStatus: 'single',
+      pretaxDeductions: 0,
+      taxYear: 2026,
+    })
+    expect(pretaxChoice.estimatedNetAnnual).toBe(salary.estimatedNetAnnual)
+    expect(pretaxChoice.estimatedNetAnnual).toBe(afterTaxChoice.estimatedNetAnnual)
+    expect(pretaxChoice.employeeContribution).toBe(Math.round((salary.estimatedNetAnnual ?? 0) * (15 / 100) * 100) / 100)
+    expect(pretaxChoice.employeeContribution).toBe(afterTaxChoice.employeeContribution)
+    expect(pretaxChoice.employerMatch).toBe(0)
+    const invested = pretaxChoice.investedThisYear ?? Number.NaN
+    expect(Number.isFinite(invested)).toBe(true)
+    const direct = calculateRetirement({ ...input, contributionPath: 'direct', annualContribution: invested })
+    expect(pretaxChoice.projectedBalance).toBe(direct.projectedBalance)
+  })
+
+  it('lowers take-home for a pre-tax investment and leaves the invested dollars unchanged', () => {
+    const shared = { ...incomeBase, employerMatchPercent: 0, employerMatchCapPercent: 0 }
+    const pretax = calculateRetirement({ ...shared, contributionTaxTreatment: 'pretax' })
+    const afterTax = calculateRetirement({ ...shared, contributionTaxTreatment: 'aftertax' })
+    expect(pretax.employeeContribution).toBe(10000)
+    expect(afterTax.employeeContribution).toBe(10000)
+    expect(pretax.estimatedNetAnnual).toBeLessThan(afterTax.estimatedNetAnnual ?? 0)
+    expect(pretax.projectedBalance).toBe(afterTax.projectedBalance)
+  })
+
+  it('adds no employer match when the cap is zero', () => {
+    const result = calculateRetirement({ ...incomeBase, employerMatchPercent: 50, employerMatchCapPercent: 0 })
+    expect(result.employerMatch).toBe(0)
+    expect(result.investedThisYear).toBe(10000)
+  })
+
+  it('rejects an income path that cannot estimate take-home or fund an after-tax investment', () => {
+    expect(validateRetirement({ ...incomeBase, jurisdictionId: '' }).valid).toBe(false)
+    expect(validateRetirement({ ...incomeBase, taxYear: 2025 }).valid).toBe(false)
+    const overInvested = validateRetirement({
+      ...incomeBase,
+      investMode: 'percent-gross',
+      investPercent: 100,
+      contributionTaxTreatment: 'aftertax',
+      employerMatchPercent: 0,
+      employerMatchCapPercent: 0,
+    })
+    expect(overInvested.valid).toBe(false)
+    if (!overInvested.valid) expect(overInvested.errors.investPercent).toMatch(/take-home/)
+    expect(validateRetirement({ ...simple, contributionPath: 'paycheck' as 'direct' }).valid).toBe(false)
   })
 })

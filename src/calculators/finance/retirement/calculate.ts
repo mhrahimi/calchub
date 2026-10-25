@@ -1,4 +1,5 @@
 import type { CalculationExplanation, ChartData, TableData } from '@/calculators/types'
+import { checkIncomeContribution } from './income'
 import type { RetirementInput, RetirementResult } from './types'
 import { validateRetirement } from './validation'
 
@@ -10,6 +11,8 @@ function round2(n: number): number {
 export function calculateRetirement(input: RetirementInput): RetirementResult {
   const validation = validateRetirement(input)
   if (!validation.valid) throw new Error(Object.values(validation.errors)[0])
+  const income = input.contributionPath === 'income' ? checkIncomeContribution(input).contribution : undefined
+  if (input.contributionPath === 'income' && !income) throw new Error('Income contribution could not be estimated')
   const yearsToRetirement = input.retirementAge - input.currentAge
   const rNom = input.expectedReturn / 100
   const inflation = input.inflation / 100
@@ -18,7 +21,7 @@ export function calculateRetirement(input: RetirementInput): RetirementResult {
   const annualSchedule: RetirementResult['annualSchedule'] = []
 
   let balance = input.currentSavings
-  let contribution = input.annualContribution
+  let contribution = income?.annualContribution ?? input.annualContribution
   let totalContributions = input.currentSavings
 
   for (let y = 0; y < yearsToRetirement; y++) {
@@ -44,6 +47,9 @@ export function calculateRetirement(input: RetirementInput): RetirementResult {
   }
 
   const projectedBalance = round2(balance)
+  const projectedBalanceToday = income
+    ? round2(projectedBalance / Math.pow(1 + inflation, yearsToRetirement))
+    : undefined
   // First withdrawal is at the end of the first retirement year, in retirement-date
   // dollars. Later withdrawals increase with inflation. Discount these same flows.
   const spendingAtRetirement = input.retirementSpending * Math.pow(1 + inflation, yearsToRetirement)
@@ -105,6 +111,7 @@ export function calculateRetirement(input: RetirementInput): RetirementResult {
   }
 
   return {
+    contributionPath: income ? 'income' : 'direct',
     yearsToRetirement,
     projectedBalance,
     requiredBalance,
@@ -114,6 +121,14 @@ export function calculateRetirement(input: RetirementInput): RetirementResult {
     totalUnmetSpending: round2(totalUnmetSpending),
     status: totalUnmetSpending >= 0.005 ? 'insufficient_funds' : 'success',
     warnings: totalUnmetSpending >= 0.005 ? ['Savings do not fund all planned retirement spending. Review the unmet spending in the schedule.'] : [],
+    ...(income ? {
+      estimatedNetAnnual: income.estimatedNetAnnual,
+      employeeContribution: income.employeeContribution,
+      employerMatch: income.employerMatch,
+      investedThisYear: income.investedThisYear,
+      projectedBalanceToday,
+      taxConfigVersion: income.taxConfigVersion,
+    } : {}),
     accumulation,
     drawdown,
     annualSchedule,
@@ -127,7 +142,7 @@ export function explainRetirement(input: RetirementInput, result: RetirementResu
     steps: [
       {
         label: 'Accumulation',
-        expression: `B_t = (B_{t-1} + contribution) × (1 + ${input.expectedReturn / 100}), from age ${input.currentAge} to ${input.retirementAge}. Contributions start at ${money(input.annualContribution)} and grow ${input.contributionGrowth}%.`,
+        expression: `B_t = (B_{t-1} + contribution) × (1 + ${input.expectedReturn / 100}), from age ${input.currentAge} to ${input.retirementAge}. Contributions start at ${money(result.investedThisYear ?? input.annualContribution)} and grow ${input.contributionGrowth}%.`,
         result: `Projected at retirement: ${money(result.projectedBalance)}`,
       },
       {
@@ -147,6 +162,11 @@ export function explainRetirement(input: RetirementInput, result: RetirementResu
       'Contributions occur at the beginning of each accumulation year. Required contribution is the first-year amount, growing at the entered contribution growth rate.',
       'The first withdrawal occurs at the end of the first retirement year, at the retirement-date spending level. Subsequent withdrawals grow with inflation.',
       'Withdrawal is the amount funded by savings. Planned withdrawal and unmet spending show any funding gap.',
+      ...(input.contributionPath === 'income' ? [
+        'From-income projections estimate the first-year investment from current gross pay, taxes, and employer match. Later years grow that dollar amount with the annual raise and do not recalculate tax brackets.',
+        'Pre-tax investments reduce taxed income. A percent of take-home is after-tax. Other after-tax investments are paid from take-home and do not reduce tax.',
+        'Employer match is added to the amount invested and is not taxed as current pay. Matching applies to employee contributions up to the cap, a percent of gross pay. A zero cap adds no match.',
+      ] : []),
     ],
   }
 }

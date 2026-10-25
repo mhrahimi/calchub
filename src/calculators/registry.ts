@@ -75,10 +75,10 @@ export const CALCULATOR_REGISTRY: CalculatorMeta[] = [
   {
     id: 'retirement',
     title: 'Retirement Calculator',
-    description: 'Project retirement savings and withdrawal needs.',
+    description: 'Project retirement savings and withdrawals from a contribution or from pay.',
     categories: ['financial'],
     categorySlug: 'financial',
-    keywords: ['retirement', '401k', 'pension', 'nest egg', 'withdrawal'],
+    keywords: ['retirement', '401k', 'pension', 'nest egg', 'withdrawal', 'paycheck', 'take-home', 'gross income'],
     icon: 'PiggyBank',
     implemented: true,
     route: '/calculators/retirement',
